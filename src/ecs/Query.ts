@@ -63,7 +63,7 @@ function hasAll(entity: Entity, components: number[]): boolean {
 export class QueryBuilder {
   private readonly _components: number[] = [];
 
-  public contains<T>(...components: Class<T>[]): QueryBuilder {
+  public contains(...components: Class<any>[]): QueryBuilder {
     for (let component of components) {
       const componentId = getComponentId(component, true)!;
       if (this._components.indexOf(componentId) === -1) {
