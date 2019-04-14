@@ -25,6 +25,19 @@
   "files": [
     "lib"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mayakwd/tick-knock.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mayakwd/tick-knock/issues"
+  },
+  "homepage": "https://github.com/mayakwd/tick-knock#readme",
+  "keywords": [
+    "ecs",
+    "entity",
+    "typescript"
+  ],
   "jest": {
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
