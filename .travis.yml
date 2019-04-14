@@ -1,0 +1,26 @@
+language: nodejs
+
+before_script:
+  - yarn setup
+  - yarn build
+
+script:
+  - yarn test
+
+after_success:
+  - yarn pack
+
+deploy:
+  - provider: releases
+    api_key: $GITHUB_TOKEN
+    file_glob: true
+    file: "tick-knock-*.tgz"
+    skip_cleanup: true
+    on:
+      tags: true
+  - provider: npm
+    skip_cleanup: true
+    email: "contact@pastila.org"
+    api_key: $NPM_TOKEN
+    on:
+      tags: true
