@@ -1,6 +1,6 @@
 {
   "name": "tick-knock",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "TypeScript Entity-Component-System library",
   "author": "Ilya Malanin",
   "license": "MIT",
