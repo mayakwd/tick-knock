@@ -1,5 +1,4 @@
-import Entity from "../../src/ecs/Entity";
-import getComponentId from "../../src/ecs/ComponentId";
+import {Entity, getComponentId} from "../../src";
 
 class Position {
   public x: number = 0;

@@ -1,6 +1,6 @@
-import getComponentId from "./ComponentId";
+import {getComponentId} from "./ComponentId";
 import {Signal} from "typed-signals";
-import Class from "../utils/Class";
+import {Class} from "../utils/Class";
 
 /**
  * Represents an entity - "faceless" object, which only have a `id`.
@@ -20,7 +20,7 @@ import Class from "../utils/Class";
  *
  * const entity = new Entity().add(new Position(10, 5));
  */
-export default class Entity {
+export class Entity {
   /**
    * Signal dispatches if new component were added to entity
    */

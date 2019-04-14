@@ -1,13 +1,13 @@
-import Entity from "./Entity";
+import {Entity} from "./Entity";
 import {Signal} from "typed-signals";
-import System from "./System";
-import Class from "../utils/Class";
-import Query from "./Query";
+import {System} from "./System";
+import {Class} from "../utils/Class";
+import {Query} from "./Query";
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
  */
-export default class Engine {
+export class Engine {
   public onEntityAdded: Signal<(entity: Entity) => void> = new Signal();
   public onEntityRemoved: Signal<(entity: Entity) => void> = new Signal();
   private _entityMap: EntityMap = Object.create(null);

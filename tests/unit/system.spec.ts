@@ -1,7 +1,4 @@
-import Entity from "../../src/ecs/Entity";
-import Engine from "../../src/ecs/Engine";
-import IterativeSystem from "../../src/ecs/IterativeSystem";
-import {QueryBuilder} from "../../src";
+import {Engine, Entity, IterativeSystem, QueryBuilder} from "../../src";
 
 class Position {
   public x: number = 0;

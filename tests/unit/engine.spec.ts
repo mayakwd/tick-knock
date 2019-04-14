@@ -1,7 +1,4 @@
-import Engine from "../../src/ecs/Engine";
-import Entity from "../../src/ecs/Entity";
-import IterativeSystem from "../../src/ecs/IterativeSystem";
-import {QueryBuilder} from "../../src";
+import {Engine, Entity, IterativeSystem, QueryBuilder} from "../../src";
 
 class Component {
 }

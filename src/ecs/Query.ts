@@ -1,9 +1,9 @@
-import getComponentId from "./ComponentId";
-import Entity from "./Entity";
+import {getComponentId} from "./ComponentId";
+import {Entity} from "./Entity";
 import {Signal} from "typed-signals";
-import Class from "../utils/Class";
+import {Class} from "../utils/Class";
 
-export default class Query {
+export class Query {
   public onEntityAdded: Signal<(entity: Entity) => void> = new Signal();
   public onEntityRemoved: Signal<(entity: Entity) => void> = new Signal();
 

@@ -1,6 +1,6 @@
-import Engine from "./Engine";
+import {Engine} from "./Engine";
 
-export default abstract class System {
+export abstract class System {
   public priority: number = 0;
 
   protected constructor() {}

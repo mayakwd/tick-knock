@@ -1,6 +1,4 @@
-import {QueryBuilder} from "../../src";
-import Entity from "../../src/ecs/Entity";
-import Engine from "../../src/ecs/Engine";
+import {Engine, Entity, QueryBuilder} from "../../src";
 
 class Position {
   public x: number = 0;

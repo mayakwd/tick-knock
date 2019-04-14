@@ -1,9 +1,9 @@
-import Query from "./Query";
-import Engine from "./Engine";
-import Entity from "./Entity";
-import System from "./System";
+import {Query} from "./Query";
+import {Engine} from "./Engine";
+import {Entity} from "./Entity";
+import {System} from "./System";
 
-export default abstract class IterativeSystem extends System {
+export abstract class IterativeSystem extends System {
   private readonly query: Query;
 
   protected constructor(query: Query) {

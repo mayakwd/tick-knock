@@ -1,11 +1,11 @@
-import Class from "../utils/Class";
+import {Class} from "../utils/Class";
 
 type ComponentId<T> = {
   new(...args: any[]): T;
   [key: string]: number;
 };
 
-export default function getComponentId<T>(
+export function getComponentId<T>(
   component: Class<T>,
   createIfNotExists: boolean = false
 ): number | undefined {
