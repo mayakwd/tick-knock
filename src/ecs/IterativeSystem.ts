@@ -5,6 +5,7 @@ import {System} from "./System";
 
 export abstract class IterativeSystem extends System {
   private readonly query: Query;
+  private _removed: boolean = false;
 
   protected constructor(query: Query) {
     super();
@@ -22,6 +23,7 @@ export abstract class IterativeSystem extends System {
   }
 
   public onRemovedFromEngine(engine: Engine) {
+    this._removed = true;
     engine.removeQuery(this.query);
 
     this.query.onEntityAdded.disconnect(this.entityAdded);
@@ -32,6 +34,7 @@ export abstract class IterativeSystem extends System {
 
   protected updateEntities(dt: number) {
     for (let entity of this.query.entities) {
+      if (this._removed) return;
       this.updateEntity(entity, dt);
     }
   }
