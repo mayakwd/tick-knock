@@ -122,6 +122,7 @@ export class Entity {
 
   /**
    * Removes component from entity.
+   * Note: {@link onComponentRemoved} will be dispatched before(!) deleting component from entity
    *
    * @param componentClass Specific component class
    * @returns Component instance or `undefined` if it doesn't exist in the entity
@@ -133,8 +134,8 @@ export class Entity {
     }
 
     const value = this._components[id];
-    delete this._components[id];
     this.dispatchComponentRemoved(value);
+    delete this._components[id];
 
     return value;
   }
