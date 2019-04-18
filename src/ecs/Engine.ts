@@ -10,11 +10,11 @@ import {Query} from "./Query";
 export class Engine {
   public onEntityAdded: Signal<(entity: Entity) => void> = new Signal();
   public onEntityRemoved: Signal<(entity: Entity) => void> = new Signal();
-  private _entityMap: EntityMap = Object.create(null);
 
-  public constructor() {}
-
+  private _entityMap: Map<number, Entity> = new Map();
   private _entities: Entity[] = [];
+  private _systems: System[] = [];
+  private _queries: Query[] = [];
 
   public get entities(): ReadonlyArray<Entity> {
     return this._entities;
@@ -35,7 +35,7 @@ export class Engine {
   public addEntity(entity: Entity) {
     if (this._entityMap[entity.id]) return;
     this._entities.push(entity);
-    this._entityMap[entity.id] = entity;
+    this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);
     entity.onComponentAdded.connect(this.entityComponentAdded);
     entity.onComponentRemoved.connect(this.entityComponentRemoved);
@@ -47,7 +47,7 @@ export class Engine {
     if (index != -1) {
       this._entities.splice(index, 1);
     }
-    this._entityMap[entity.id] = undefined;
+    this._entityMap.delete(entity.id);
     this.onEntityRemoved.emit(entity);
   }
 
@@ -120,7 +120,3 @@ export class Engine {
     this._queries.forEach(value => value.entityRemoved(entity));
   };
 }
-
-type EntityMap = {
-  [key: number]: Entity | undefined;
-};
