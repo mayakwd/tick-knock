@@ -1,10 +1,11 @@
 import {Class} from "../utils/Class";
 
-type ComponentId<T> = {
-  new(...args: any[]): T;
-  [key: string]: number;
-};
-
+/**
+ * Gets an id for a component class.
+ *
+ * @param component Component class
+ * @param createIfNotExists If defined - will create unique id for class component, if it's not defined before
+ */
 export function getComponentId<T>(
   component: Class<T>,
   createIfNotExists: boolean = false
@@ -18,3 +19,8 @@ export function getComponentId<T>(
 
 let COMPONENT_CLASS_ID = "__componentClassId__";
 let componentClassId: number = 1;
+
+type ComponentId<T> = {
+  new(...args: any[]): T;
+  [key: string]: number;
+};

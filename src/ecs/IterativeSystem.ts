@@ -3,6 +3,34 @@ import {Engine} from "./Engine";
 import {Entity} from "./Entity";
 import {System} from "./System";
 
+/**
+ * Represents system that each update iterates over entities from provided query via updateEntity method
+ * @example
+ * class ViewSystem extends IterativeSystem {
+ *   ...
+ *   constructor(container:Container) {
+ *      this.container = container;
+ *   }
+ *
+ *   // Update entity view position on screen, via position component data
+ *   updateEntity(entity:Entity) {
+ *     const view = entity.get(View);
+ *     const {x, y) = entity.get(Position);
+ *     view.x = x;
+ *     view.y = y;
+ *   }
+ *
+ *   // Add entity view from screen
+ *   entityAdded(entity:Entity) {
+ *    this.container.add(entity.get(View)!.view);
+ *   }
+ *
+ *   // Remove entity view from screen
+ *   entityRemoved(entity:Entity) {
+ *    this.container.remove(entity.get(View)!.view);
+ *   }
+ * }
+ */
 export abstract class IterativeSystem extends System {
   private readonly query: Query;
   private _removed: boolean = false;
@@ -39,9 +67,33 @@ export abstract class IterativeSystem extends System {
     }
   }
 
+  /**
+   * Update entity
+   *
+   * @param entity Entity to update
+   * @param dt Delta time in seconds
+   */
   protected abstract updateEntity(entity: Entity, dt: number): void;
 
-  protected entityAdded = (entity: Entity) => {};
+  /**
+   * Method will be called for every new entity that matches system query.
+   * You could easily override it with your own logic.
+   *
+   * Note: Method will not be called for already existing in query entities (at the adding system to engine phase),
+   * only new entities will be handled
+   *
+   * @param entity Entity that was added to engine and matched with system query
+   */
+  protected entityAdded = (entity: Entity) => {
+  };
 
-  protected entityRemoved = (entity: Entity) => {};
+  /**
+   * Method will be called for every entity matches system query, that is going to be removed from engine, or it stops
+   * matching to the query.
+   * You could easily override it with your own logic.
+   *
+   * @param entity Entity that is going to be removed from engine, or it stops matching with system query
+   */
+  protected entityRemoved = (entity: Entity) => {
+  };
 }
