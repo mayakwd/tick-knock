@@ -1,3 +1,6 @@
+# 1.0.7
+- Fixed false-positive query trigger
+
 # 1.0.6
 - Switched library target to ES5
 

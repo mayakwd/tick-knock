@@ -64,7 +64,7 @@ export class Query {
 
   protected handleRemovedEntity(entity: Entity) {
     const index = this._entities.indexOf(entity);
-    if (index === -1) return;
+    if (index === -1 || this._predicate(entity)) return;
     this._entities.splice(index, 1);
     this.onEntityRemoved.emit(entity);
   }
