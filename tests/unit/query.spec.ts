@@ -1,4 +1,4 @@
-import {Engine, Entity, QueryBuilder} from "../../src";
+import {Engine, Entity, QueryBuilder} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -10,13 +10,14 @@ class Position {
   }
 }
 
-class View {
-  constructor() {
-  }
-}
+class View {}
 
-describe("Query builder", () => {
-  it("Building query", () => {
+class Move {}
+
+class Stay {}
+
+describe('Query builder', () => {
+  it('Building query', () => {
     const query = new QueryBuilder()
       .contains(Position)
       .contains(View)
@@ -27,9 +28,11 @@ describe("Query builder", () => {
   });
 });
 
-describe("Query matching", () => {
+describe('Query matching', () => {
   const position = new Position();
   const view = new View();
+  const move = new Move();
+  const stay = new Stay();
 
   function getQuery() {
     return new QueryBuilder()
@@ -37,7 +40,7 @@ describe("Query matching", () => {
       .build();
   }
 
-  it("Query not matching entity with only position component", () => {
+  it('Query not matching entity with only position component', () => {
     const engine = new Engine();
     const entity = new Entity().add(position);
     const query = getQuery();
@@ -47,7 +50,7 @@ describe("Query matching", () => {
     expect(query.entities.length).toBe(0);
   });
 
-  it("Query not matching entity with only view component", () => {
+  it('Query not matching entity with only view component', () => {
     const engine = new Engine();
     const entity = new Entity().add(view);
     const query = getQuery();
@@ -58,7 +61,7 @@ describe("Query matching", () => {
     expect(query.entities.length).toBe(0);
   });
 
-  it("Query matching entity with view and position components", () => {
+  it('Query matching entity with view and position components', () => {
     const engine = new Engine();
     const entity = new Entity().add(position).add(view);
     const query = getQuery();
@@ -70,7 +73,7 @@ describe("Query matching", () => {
     expect(query.entities[0]).toBe(entity);
   });
 
-  it("Adding component to entity adding it to query", () => {
+  it('Adding component to entity adding it to query', () => {
     const engine = new Engine();
     const entity = new Entity().add(position);
     const query = getQuery();
@@ -85,7 +88,7 @@ describe("Query matching", () => {
     expect(query.entities.length).toBe(1);
   });
 
-  it("Removing component removes entity from query", () => {
+  it('Removing component removes entity from query', () => {
     const engine = new Engine();
     const entity = new Entity().add(position).add(view);
     const query = getQuery();
@@ -101,7 +104,37 @@ describe("Query matching", () => {
     expect(query.entities.length).toBe(0);
   });
 
-  it("Removing entity from engine removes entity from query", () => {
+  it('Removing not matching with query components not removes entity from query', () => {
+    const engine = new Engine();
+    const entity = new Entity()
+      .add(position)
+      .add(view)
+      .add(move);
+
+    const query = getQuery();
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.entities).toBeDefined();
+    expect(query.entities.length).toBe(1);
+    expect(query.entities[0]).toBe(entity);
+
+    entity.remove(Move);
+
+    expect(query.entities.length).toBe(1);
+    expect(query.entities[0]).toBe(entity);
+
+    entity.add(stay);
+
+    expect(query.entities.length).toBe(1);
+    expect(query.entities[0]).toBe(entity);
+
+    entity.remove(View);
+
+    expect(query.entities.length).toBe(0);
+  });
+
+  it('Removing entity from engine removes entity from query', () => {
     const engine = new Engine();
     const entity = new Entity().add(position).add(view);
     const query = getQuery();
@@ -117,7 +150,7 @@ describe("Query matching", () => {
     expect(query.entities.length).toBe(0);
   });
 
-  it("Removing query from engine clears query and not updating it anymore", () => {
+  it('Removing query from engine clears query and not updating it anymore', () => {
     const engine = new Engine();
     const entity = new Entity().add(position).add(view);
     const query = getQuery();
@@ -135,5 +168,5 @@ describe("Query matching", () => {
     engine.addEntity(entity);
 
     expect(query.entities.length).toBe(0);
-  })
+  });
 });
