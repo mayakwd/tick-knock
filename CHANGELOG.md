@@ -1,4 +1,4 @@
-# 1.0.4
+# 1.0.5
 - Updated documentation for every core type
 - Added guard that stops updating process for IterativeSystem, if it was removed engine
 - Fixed order of dispatching and removing of the component. Now dispatching happens before removing.
