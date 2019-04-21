@@ -1,7 +1,7 @@
-import {getComponentId} from "./ComponentId";
-import {Entity} from "./Entity";
-import {Signal} from "typed-signals";
-import {Class} from "../utils/Class";
+import {getComponentId} from './ComponentId';
+import {Entity, EntitySnapshot} from './Entity';
+import {Signal} from 'typed-signals';
+import {Class} from '../utils/Class';
 
 /**
  * Query represents list of entities that matches query request.
@@ -11,11 +11,14 @@ export class Query {
   /**
    * Signal dispatches if new matched entity were added
    */
-  public onEntityAdded: Signal<(entity: Entity) => void> = new Signal();
+  public onEntityAdded: Signal<(entity: EntitySnapshot) => void> = new Signal();
   /**
    * Signal dispatches if entity stops matching query
    */
-  public onEntityRemoved: Signal<(entity: Entity) => void> = new Signal();
+  public onEntityRemoved: Signal<(entity: EntitySnapshot) => void> = new Signal();
+
+  private readonly _helper: Entity = new Entity();
+  private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
 
   private readonly _predicate: (entity: Entity) => boolean;
   private _entities: Entity[] = [];
@@ -32,14 +35,14 @@ export class Query {
    * Entities list which matches the query
    */
   public get entities(): ReadonlyArray<Entity> {
-    return this._entities;
+    return Array.from(this._entities);
   }
 
   /**
    * Match list entities with query
    */
   public matchEntities(entities: ReadonlyArray<Entity>) {
-    entities.forEach(entity => this.entityAdded(entity));
+    entities.forEach((entity) => this.entityAdded(entity));
   }
 
   public clear(): void {
@@ -47,32 +50,59 @@ export class Query {
   }
 
   public entityAdded = (entity: Entity) => {
-    this.handleAddedEntity(entity);
-  };
-
-  public entityRemoved = (entity: Entity) => {
-    this.handleRemovedEntity(entity);
-  };
-
-  protected handleAddedEntity(entity: Entity) {
     const index = this._entities.indexOf(entity);
     if (index === -1 && this._predicate(entity)) {
       this._entities.push(entity);
-      this.onEntityAdded.emit(entity);
+      this._snapshot.takeSnapshot(entity);
+      this.onEntityAdded.emit(this._snapshot);
     }
-  }
+  };
 
-  protected handleRemovedEntity(entity: Entity) {
+  public entityRemoved = (entity: Entity) => {
     const index = this._entities.indexOf(entity);
-    if (index === -1 || this._predicate(entity)) return;
-    this._entities.splice(index, 1);
-    this.onEntityRemoved.emit(entity);
+    if (index !== -1) {
+      this._entities.splice(index, 1);
+      this._snapshot.takeSnapshot(entity);
+      this.onEntityRemoved.emit(this._snapshot);
+    }
+  };
+
+  public entityComponentAdded = (entity: Entity, component: any) => {
+    const index = this._entities.indexOf(entity);
+    if (index === -1) {
+      this.updateHelper(entity, component);
+
+      if (this._predicate(this._helper)) {
+        this._snapshot.takeSnapshot(entity, component);
+        this._entities.push(entity);
+        this.onEntityAdded.emit(this._snapshot);
+      }
+    }
+  };
+
+  public entityComponentRemoved = (entity: Entity, component: any) => {
+    const index = this._entities.indexOf(entity);
+    if (index !== -1) {
+      this.updateHelper(entity, component);
+
+      if (this._predicate(this._helper) && !this._predicate(entity)) {
+        this._snapshot.takeSnapshot(entity, component);
+        this._entities.splice(index, 1);
+        this.onEntityRemoved.emit(this._snapshot);
+      }
+    }
+  };
+
+  private updateHelper(entity: Entity, component: any) {
+    this._helper.clear();
+    this._helper.copyFrom(entity);
+    this._helper.add(component);
   }
 }
 
 function hasAll(entity: Entity, components: number[]): boolean {
   for (let componentId of components) {
-    if (entity.components[componentId] === undefined) {
+    if (entity.components.get(componentId) === undefined) {
       return false;
     }
   }

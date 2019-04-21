@@ -1,7 +1,7 @@
-import {Query} from "./Query";
-import {Engine} from "./Engine";
-import {Entity} from "./Entity";
-import {System} from "./System";
+import {Query} from './Query';
+import {Engine} from './Engine';
+import {Entity, EntitySnapshot} from './Entity';
+import {System} from './System';
 
 /**
  * Represents system that each update iterates over entities from provided query via updateEntity method
@@ -21,12 +21,12 @@ import {System} from "./System";
  *   }
  *
  *   // Add entity view from screen
- *   entityAdded(entity:Entity) {
+ *   entityAdded(entity:EntitySnapshot) {
  *    this.container.add(entity.get(View)!.view);
  *   }
  *
  *   // Remove entity view from screen
- *   entityRemoved(entity:Entity) {
+ *   entityRemoved(entity:EntitySnapshot) {
  *    this.container.remove(entity.get(View)!.view);
  *   }
  * }
@@ -86,9 +86,10 @@ export abstract class IterativeSystem extends System {
    * Note: Method will not be called for already existing in query entities (at the adding system to engine phase),
    * only new entities will be handled
    *
-   * @param entity Entity that was added to engine and matched with system query
+   * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
+   *   before adding, and component that will be added
    */
-  protected entityAdded = (entity: Entity) => {
+  protected entityAdded = (entity: EntitySnapshot) => {
   };
 
   /**
@@ -96,8 +97,9 @@ export abstract class IterativeSystem extends System {
    * matching to the query.
    * You could easily override it with your own logic.
    *
-   * @param entity Entity that is going to be removed from engine, or it stops matching with system query
+   * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
+   *   before removing
    */
-  protected entityRemoved = (entity: Entity) => {
+  protected entityRemoved = (entity: EntitySnapshot) => {
   };
 }
