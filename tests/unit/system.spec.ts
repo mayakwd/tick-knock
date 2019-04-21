@@ -1,4 +1,4 @@
-import {Engine, Entity, IterativeSystem, QueryBuilder} from "../../src";
+import {Engine, Entity, EntitySnapshot, IterativeSystem, QueryBuilder} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -23,13 +23,13 @@ class MovementSystem extends IterativeSystem {
     }
   }
 
-  protected entityAdded = (entity: Entity) => {
+  protected entityAdded = (entity: EntitySnapshot) => {
     entity.get(Position)!.x = 100;
   };
 }
 
-describe("Iterative system", () => {
-  it("Updating entities", () => {
+describe('Iterative system', () => {
+  it('Updating entities', () => {
     const engine = new Engine();
     const entity = new Entity().add(new Position());
 
@@ -41,5 +41,43 @@ describe("Iterative system", () => {
     expect(position).toBeDefined();
     expect(position!.x).toBe(110);
     expect(position!.y).toBe(10);
-  })
+  });
+
+  it('Adding and removing should properly construct EntitySnapshot ', () => {
+    let onRemoved: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
+    let onAdded: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
+
+    class MovementSystem extends IterativeSystem {
+      public constructor() {
+        super(new QueryBuilder().contains(Position).build());
+      }
+
+      protected updateEntity(entity: Entity, dt: number): void {
+      }
+
+      protected entityAdded = (proxy: EntitySnapshot) => {
+        let entity = proxy.entity;
+        onAdded = {proxy: proxy.has(Position), entity: entity.has(Position)};
+      };
+
+      protected entityRemoved = (proxy: EntitySnapshot) => {
+        let entity = proxy.entity;
+        onRemoved = {proxy: proxy.has(Position), entity: entity.has(Position)};
+      };
+    }
+
+    const engine = new Engine();
+    const entity = new Entity();
+    const system = new MovementSystem();
+
+    engine.addSystem(system);
+    engine.addEntity(entity);
+    engine.update(1);
+
+    entity.add(new Position());
+    entity.remove(Position);
+
+    expect(onAdded).toEqual({proxy: true, entity: true});
+    expect(onRemoved).toEqual({proxy: true, entity: false});
+  });
 });

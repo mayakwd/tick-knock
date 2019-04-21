@@ -1,3 +1,7 @@
+# 1.1.0
+- Fixed query onEntityAdded, onEntityRemoved handlers
+- Added entity snapshot for properly handling of the entity changes
+
 # 1.0.7
 - Fixed false-positive query trigger
 

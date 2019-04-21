@@ -1,8 +1,8 @@
-import {Entity} from "./Entity";
-import {Signal} from "typed-signals";
-import {System} from "./System";
-import {Class} from "../utils/Class";
-import {Query} from "./Query";
+import {Entity} from './Entity';
+import {Signal} from 'typed-signals';
+import {System} from './System';
+import {Class} from '../utils/Class';
+import {Query} from './Query';
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
@@ -26,7 +26,7 @@ export class Engine {
    * Gets a list of entities added to engine
    */
   public get entities(): ReadonlyArray<Entity> {
-    return this._entities;
+    return Array.from(this._entities);
   }
 
   /**
@@ -55,8 +55,8 @@ export class Engine {
     this._entities.push(entity);
     this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);
-    entity.onComponentAdded.connect(this.entityComponentAdded);
-    entity.onComponentRemoved.connect(this.entityComponentRemoved);
+    entity.onComponentAdded.connect(this.onComponentAdded);
+    entity.onComponentRemoved.connect(this.onComponentRemoved);
 
     return this;
   }
@@ -146,7 +146,9 @@ export class Engine {
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
-    this._systems.forEach(value => value.update(dt));
+    for (const system of this._systems) {
+      system.update(dt);
+    }
   }
 
   /**
@@ -180,11 +182,11 @@ export class Engine {
     return this;
   }
 
-  private entityComponentAdded = (entity: Entity, component: Class<any>) => {
-    this._queries.forEach(value => value.entityAdded(entity));
+  private onComponentAdded = (entity: Entity, component: Class<any>) => {
+    this._queries.forEach(value => value.entityComponentAdded(entity, component));
   };
 
-  private entityComponentRemoved = (entity: Entity, component: Class<any>) => {
-    this._queries.forEach(value => value.entityRemoved(entity));
+  private onComponentRemoved = (entity: Entity, component: Class<any>) => {
+    this._queries.forEach(value => value.entityComponentRemoved(entity, component));
   };
 }
