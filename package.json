@@ -10,7 +10,8 @@
     "setup": "yarn install",
     "build": "tsc",
     "build-watch": "tsc --watch",
-    "test": "jest"
+    "test": "jest",
+    "test-ci": "jest --config jest-ci.json"
   },
   "devDependencies": {
     "@types/jest": "^24.0.11",
