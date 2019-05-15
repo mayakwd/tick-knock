@@ -130,8 +130,10 @@ Query could be used via [IterativeSystem](#System) or explicitly out of systems.
 
 ```typescript
 const query = new Query((entity:Entity) => {
-  if (entity.has(Position)
+  return entity.has(Position) && entity.get(Position)!.y > 100;
 })
+
+engine.addQuery(query);
 ```
 
 
