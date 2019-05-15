@@ -1,0 +1,19 @@
+{
+  "transform": {
+    "^.+\\.tsx?$": "ts-jest"
+  },
+  "collectCoverage": true,
+  "moduleFileExtensions": [
+    "ts",
+    "js"
+  ],
+  "testMatch": [
+    "**/tests/unit/**/*.spec.(js|ts)|**/__tests__/*.(js|ts)"
+  ],
+  "transformIgnorePatterns": [
+    "/node_modules/"
+  ],
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1"
+  }
+}

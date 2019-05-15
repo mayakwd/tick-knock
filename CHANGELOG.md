@@ -1,3 +1,6 @@
+# 1.1.1
+- Added documentation
+
 # 1.1.0
 - Fixed query onEntityAdded, onEntityRemoved handlers
 - Added entity snapshot for properly handling of the entity changes

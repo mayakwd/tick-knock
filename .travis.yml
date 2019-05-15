@@ -9,13 +9,15 @@ cache:
   yarn: true
 
 before_script:
+  - yarn global add codecov
   - yarn setup
   - yarn build
 
 script:
-  - yarn test
+  - yarn test-ci
 
 after_success:
+  - codecov
   - yarn pack
 
 deploy:

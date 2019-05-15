@@ -1,6 +1,6 @@
 {
   "name": "tick-knock",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "TypeScript Entity-Component-System library",
   "author": "Ilya Malanin",
   "license": "MIT",
@@ -10,7 +10,8 @@
     "setup": "yarn install",
     "build": "tsc",
     "build-watch": "tsc --watch",
-    "test": "jest"
+    "test": "jest",
+    "test-ci": "jest --config jest-ci.json"
   },
   "devDependencies": {
     "@types/jest": "^24.0.11",
