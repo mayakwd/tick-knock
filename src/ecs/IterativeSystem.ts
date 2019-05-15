@@ -21,12 +21,12 @@ import {System} from './System';
  *   }
  *
  *   // Add entity view from screen
- *   entityAdded(entity:EntitySnapshot) {
+ *   entityAdded = (entity:EntitySnapshot) => {
  *    this.container.add(entity.get(View)!.view);
  *   }
  *
  *   // Remove entity view from screen
- *   entityRemoved(entity:EntitySnapshot) {
+ *   entityRemoved = (entity:EntitySnapshot) => {
  *    this.container.remove(entity.get(View)!.view);
  *   }
  * }
