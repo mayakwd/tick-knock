@@ -1,3 +1,6 @@
+# 1.1.2
+- Added Query#isEmpty property
+
 # 1.1.1
 - Added documentation
 
