@@ -45,6 +45,13 @@ export class Query {
     entities.forEach((entity) => this.entityAdded(entity));
   }
 
+  /**
+   * Gets a value indicating that query is empty
+   */
+  public get isEmpty():boolean {
+    return this.entities.length == 0;
+  }
+
   public clear(): void {
     this._entities = [];
   }
