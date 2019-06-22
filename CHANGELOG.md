@@ -1,3 +1,9 @@
+# 1.2.0
+- Changed logic of resolving of component identifier. Changes could affect resolving of inherited components. Now inherited components will not be resolved as its ancestors.
+- Added parameter for Entity#add "resolveClass" - which specifies how could be resolved component.
+- Updated documentation
+- Added tests for Query#isEmpty 
+
 # 1.1.2
 - Added Query#isEmpty property
 
