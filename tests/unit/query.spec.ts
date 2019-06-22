@@ -24,7 +24,7 @@ describe('Query builder', () => {
       .build();
     expect(query).toBeDefined();
     expect(query.entities).toBeDefined();
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 });
 
@@ -47,7 +47,7 @@ describe('Query matching', () => {
     engine.addQuery(query);
     engine.addEntity(entity);
     expect(query.entities).toBeDefined();
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 
   it('Query not matching entity with only view component', () => {
@@ -58,7 +58,7 @@ describe('Query matching', () => {
     engine.addEntity(entity);
 
     expect(query.entities).toBeDefined();
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 
   it('Query matching entity with view and position components', () => {
@@ -69,7 +69,7 @@ describe('Query matching', () => {
     engine.addEntity(entity);
 
     expect(query.entities).toBeDefined();
-    expect(query.entities.length).toBe(1);
+    expect(query.isEmpty).toBeFalsy();
     expect(query.entities[0]).toBe(entity);
   });
 
@@ -81,7 +81,7 @@ describe('Query matching', () => {
     engine.addEntity(entity);
 
     expect(query.entities).toBeDefined();
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
 
     entity.add(view);
 
@@ -101,7 +101,7 @@ describe('Query matching', () => {
 
     entity.remove(View);
 
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 
   it('Removing not matching with query components not removes entity from query', () => {
@@ -131,7 +131,7 @@ describe('Query matching', () => {
 
     entity.remove(View);
 
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 
   it('Removing entity from engine removes entity from query', () => {
@@ -147,7 +147,7 @@ describe('Query matching', () => {
 
     engine.removeEntity(entity);
 
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 
   it('Removing query from engine clears query and not updating it anymore', () => {
@@ -162,11 +162,11 @@ describe('Query matching', () => {
     expect(query.entities[0]).toBe(entity);
 
     engine.removeQuery(query);
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
 
     engine.removeEntity(entity);
     engine.addEntity(entity);
 
-    expect(query.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
   });
 });
