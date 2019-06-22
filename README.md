@@ -117,10 +117,6 @@ const query = new QueryBuilder()
     .contains(View)
     .build();
 
-query.onEntityAdded.connect()
-
-
-
 engine.addQuery(query);
 ```
 
@@ -180,6 +176,36 @@ class Position {
 
 const entity = new Entity().add(new Position(1,1));
 ```
+
+Under the hood all components gets a unique identifier. 
+During matching process "Queries" can't recognize inherited component and its ancestor as family.
+
+For example:
+Query below would not recognize EnemyView as View, so you won't get it in query.entities.
+
+```typescript
+class View {}
+class EnemyView extends View {}
+const query = new QueryBuilder().contains(View).build();
+
+...
+
+const entity = new Entity()
+   .add(new EnemyView);
+
+engine.add(entity);
+```
+
+For such case you can easily specify "resolve class" by yourself.  
+
+```typescript
+const entity = new Entity()
+    .add(new EnemyView(), View);
+```   
+
+In that case `EnemyView` component would be recognized as View. But you should be aware, only ancestor class could be used as "resolve class",
+otherwise you'll get an exception. 
+
 
 ## Limitations
 
