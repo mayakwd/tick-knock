@@ -54,6 +54,8 @@ export class Entity {
    *
    * @throws Throws error if component is null or undefined, or if component is not an instance of the class as well
    * @param {T} component Component instance
+   * @param {K} resolveClass Class that should be used as resolving class.
+   *  Passed class always should be an ancestor of Component's class.
    * @returns {Entity} Reference to the same entity. This helps to construct chain calls
    * @example
    * const entity = new Entity()
@@ -61,14 +63,21 @@ export class Entity {
    *  .add(new View())
    *  .add(new Velocity());
    */
-  public add<T extends any>(component: T): Entity {
-    if (!component || !component.constructor) {
+  public add<T extends K, K extends any>(component: T, resolveClass?: Class<K>): Entity {
+    let componentClass = component.constructor;
+    if (!component || !componentClass) {
       throw new Error(
         'Component instance mustn\'t be null and must be an instance of the class',
       );
     }
 
-    const componentClass = component.constructor;
+    if (resolveClass) {
+      if (!(component instanceof resolveClass && componentClass != resolveClass)) {
+        throw new Error('Resolve class should be an ancestor of component class');
+      }
+      componentClass = resolveClass;
+    }
+
     const id = getComponentId(componentClass, true)!;
 
     if (this._components.has(id)) {
