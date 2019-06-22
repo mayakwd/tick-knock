@@ -1,4 +1,4 @@
-import {Class} from "../utils/Class";
+import {Class} from '../utils/Class';
 
 /**
  * Gets an id for a component class.
@@ -8,19 +8,21 @@ import {Class} from "../utils/Class";
  */
 export function getComponentId<T>(
   component: Class<T>,
-  createIfNotExists: boolean = false
+  createIfNotExists: boolean = false,
 ): number | undefined {
   const componentClass = component as ComponentId<T>;
-  if (!componentClass[COMPONENT_CLASS_ID] && createIfNotExists) {
-    componentClass[COMPONENT_CLASS_ID] = componentClassId++;
+  let result: number | undefined = undefined;
+  if (componentClass.hasOwnProperty(COMPONENT_CLASS_ID)) {
+    result = componentClass[COMPONENT_CLASS_ID];
+  } else if (createIfNotExists) {
+    result = componentClass[COMPONENT_CLASS_ID] = componentClassId++;
   }
-  return componentClass[COMPONENT_CLASS_ID];
+  return result;
 }
 
-let COMPONENT_CLASS_ID = "__componentClassId__";
+let COMPONENT_CLASS_ID = '__componentClassId__';
 let componentClassId: number = 1;
 
-type ComponentId<T> = {
-  new(...args: any[]): T;
+type ComponentId<T> = Class<T> & {
   [key: string]: number;
-};
+} ;
