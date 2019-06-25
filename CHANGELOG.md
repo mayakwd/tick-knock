@@ -1,4 +1,4 @@
-# Feature release
+# 1.2.1
 
 - Fixed bug with disconnecting from Entity events after remove from Engine. 
 - Added utility methods for clearing `Engine`. 
