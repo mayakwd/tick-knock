@@ -55,8 +55,7 @@ export class Engine {
     this._entities.push(entity);
     this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);
-    entity.onComponentAdded.connect(this.onComponentAdded);
-    entity.onComponentRemoved.connect(this.onComponentRemoved);
+    this.connectEntity(entity);
 
     return this;
   }
@@ -76,6 +75,7 @@ export class Engine {
     }
     this._entityMap.delete(entity.id);
     this.onEntityRemoved.emit(entity);
+    this.disconnectEntity(entity);
 
     return this;
   }
@@ -135,9 +135,41 @@ export class Engine {
   public removeAllSystems(): void {
     const systems = this._systems;
     this._systems = [];
-    for (let system of systems) {
+    for (const system of systems) {
       system.onRemovedFromEngine(this);
     }
+  }
+
+  /**
+   * Remove all queries.
+   * After remove all queries will be cleared.
+   */
+  public removeAllQueries(): void {
+    const queries = this._queries;
+    this._queries = [];
+    for (const query of queries) {
+      this.disconnectQuery(query);
+      query.clear();
+    }
+  }
+
+  /**
+   * Remove all entities.
+   * onEntityRemoved will be fired for every entity.
+   */
+  public removeAllEntities(): void {
+    this.removeAllEntitiesInternal(false);
+  }
+
+  /**
+   * Removes all entities, queries and systems.
+   * All entities will be removed silently, {@link onEntityRemoved} event will not be fired.
+   * Queries will be cleared.
+   */
+  public clear(): void {
+    this.removeAllEntitiesInternal(true);
+    this.removeAllSystems();
+    this.removeAllQueries();
   }
 
   /**
@@ -160,8 +192,7 @@ export class Engine {
    * @param query Entity match query
    */
   public addQuery(query: Query): Engine {
-    this.onEntityAdded.connect(query.entityAdded);
-    this.onEntityRemoved.connect(query.entityRemoved);
+    this.connectQuery(query);
     query.matchEntities(this.entities);
     this._queries[this._queries.length] = query;
     return this;
@@ -176,10 +207,41 @@ export class Engine {
     const index = this._queries.indexOf(query);
     if (index == -1) return;
     this._queries.splice(index, 1);
-    this.onEntityAdded.disconnect(query.entityAdded);
-    this.onEntityRemoved.disconnect(query.entityRemoved);
+    this.disconnectQuery(query);
     query.clear();
     return this;
+  }
+
+  private connectEntity(entity: Entity) {
+    entity.onComponentAdded.connect(this.onComponentAdded);
+    entity.onComponentRemoved.connect(this.onComponentRemoved);
+  }
+
+  private disconnectEntity(entity: Entity) {
+    entity.onComponentAdded.connect(this.onComponentAdded);
+    entity.onComponentRemoved.connect(this.onComponentRemoved);
+  }
+
+  private connectQuery(query: Query) {
+    this.onEntityAdded.connect(query.entityAdded);
+    this.onEntityRemoved.connect(query.entityRemoved);
+  }
+
+  private disconnectQuery(query: Query) {
+    this.onEntityAdded.disconnect(query.entityAdded);
+    this.onEntityRemoved.disconnect(query.entityRemoved);
+  }
+
+  private removeAllEntitiesInternal(silently: boolean): void {
+    const entities = this._entities;
+    this._entities = [];
+    this._entityMap.clear();
+    for (const entity of entities) {
+      if (!silently) {
+        this.onEntityRemoved.emit(entity);
+      }
+      this.disconnectEntity(entity);
+    }
   }
 
   private onComponentAdded = (entity: Entity, component: Class<any>) => {

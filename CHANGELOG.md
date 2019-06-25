@@ -1,3 +1,12 @@
+# 1.2.1
+
+- Fixed bug with disconnecting from Entity events after remove from Engine. 
+- Added utility methods for clearing `Engine`. 
+  - `Engine#clear()`
+  - `Engine#removeAllSystems()`
+  - `Engine#removeAllQueries()`
+  - `Engine#removeAllEntities()`
+
 # 1.2.0
 - Changed logic of resolving of component identifier. Changes could affect resolving of inherited components. Now inherited components will not be resolved as its ancestors.
 - Added parameter for Entity#add "resolveClass" - which specifies how could be resolved component.
