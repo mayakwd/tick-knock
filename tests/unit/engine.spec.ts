@@ -1,4 +1,4 @@
-import {Engine, Entity, IterativeSystem, QueryBuilder} from "../../src";
+import {Engine, Entity, IterativeSystem, Query, QueryBuilder, System} from '../../src';
 
 class Component {
 }
@@ -124,5 +124,35 @@ describe("System manipulation", () => {
 
     engine.update(1);
     expect(arr).toEqual([1, 2, 3]);
+  });
+
+  it('Engine#clear should remove entities, systems, remove and clear queries', () => {
+    class TestSystem extends IterativeSystem {
+      public constructor() {
+        super(new Query(entity => true));
+      }
+
+      protected updateEntity(entity: Entity, dt: number): void {
+      }
+    }
+
+    const engine = new Engine();
+    const query = new Query(entity => entity.has(Component));
+    const system = new TestSystem();
+
+    engine.addQuery(query);
+    engine.addSystem(system);
+    engine.addEntity(new Entity().add(new Component()));
+
+    expect(query.isEmpty).toBeFalsy();
+
+    engine.clear();
+    expect(engine.systems.length).toBe(0);
+    expect(engine.queries.length).toBe(0);
+    expect(engine.entities.length).toBe(0);
+    expect(query.isEmpty).toBeTruthy();
+
+    engine.addEntity(new Entity().add(new Component()));
+    expect(query.isEmpty).toBeTruthy();
   });
 });
