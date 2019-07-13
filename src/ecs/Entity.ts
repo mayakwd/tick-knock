@@ -64,7 +64,7 @@ export class Entity {
    *  .add(new Velocity());
    */
   public add<T extends K, K extends any>(component: T, resolveClass?: Class<K>): Entity {
-    let componentClass = component.constructor;
+    let componentClass = component ? component.constructor : undefined;
     if (!component || !componentClass) {
       throw new Error(
         'Component instance mustn\'t be null and must be an instance of the class',
@@ -104,6 +104,34 @@ export class Entity {
     const id = getComponentId(componentClass);
     if (id === undefined) return false;
     return this._components.has(id);
+  }
+
+  /**
+   * Returns value indicating whether entity have any of specified components
+   *
+   * @param {Class<T>} componentClass
+   * @returns {boolean}
+   * @example
+   * if (!entity.hasAny(Destroy, Destroying)) {
+   *   entity.add(new Destroy());
+   * }
+   */
+  public hasAny<T>(...componentClass: Class<T>[]): boolean {
+    return componentClass.some(value => this.has(value));
+  }
+
+  /**
+   * Returns value indicating whether entity have all of specified components
+   *
+   * @param {Class<T>} componentClass
+   * @returns {boolean}
+   * @example
+   * if (entity.hasAll(Position, Acceleration)) {
+   *   entity.get(Position)!.y += entity.get(Acceleration)!.y * dt;
+   * }
+   */
+  public hasAll<T>(...componentClass: Class<T>[]): boolean {
+    return componentClass.every(value => this.has(value));
   }
 
   /**
