@@ -107,6 +107,34 @@ export class Entity {
   }
 
   /**
+   * Returns value indicating whether entity have any of specified components
+   *
+   * @param {Class<T>} componentClass
+   * @returns {boolean}
+   * @example
+   * if (!entity.hasAny(Destroy, Destroying)) {
+   *   entity.add(new Destroy());
+   * }
+   */
+  public hasAny<T>(...componentClass: Class<T>[]): boolean {
+    return componentClass.some(value => this.has(value));
+  }
+
+  /**
+   * Returns value indicating whether entity have all of specified components
+   *
+   * @param {Class<T>} componentClass
+   * @returns {boolean}
+   * @example
+   * if (entity.hasAll(Position, Acceleration)) {
+   *   entity.get(Position)!.y += entity.get(Acceleration)!.y * dt;
+   * }
+   */
+  public hasAll<T>(...componentClass: Class<T>[]): boolean {
+    return componentClass.every(value => this.has(value));
+  }
+
+  /**
    * Gets a component instance if it's exists in the entity, otherwise returns `undefined`
    *
    * @param componentClass Specific component class

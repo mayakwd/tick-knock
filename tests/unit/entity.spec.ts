@@ -153,6 +153,44 @@ describe('Adding component', () => {
     expect(entity.has(Ancestor)).toBeTruthy();
     expect(entity.get(Ancestor)).toBe(ancestor);
   });
+
+  it('Expected that hasAny returns true', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    expect(entity.hasAny(Other, Position)).toBeTruthy();
+  });
+
+  it('Expected that hasAny returns false', () => {
+    class Other {}
+
+    class A {}
+
+    class B {}
+
+    const entity = new Entity();
+    entity.add(new A());
+    entity.add(new B());
+    expect(entity.hasAny(Other, Position)).toBeFalsy();
+  });
+
+  it('Expected that hasAll returns true', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    entity.add(new Other());
+    expect(entity.hasAll(Other, Position)).toBeTruthy();
+  });
+
+  it('Expected that hasAll returns false', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    expect(entity.hasAll(Other, Position)).toBeFalsy();
+  });
 });
 
 describe('Removing component', () => {
