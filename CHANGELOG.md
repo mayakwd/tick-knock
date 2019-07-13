@@ -1,4 +1,4 @@
-# Feature release
+# 1.2.2
 
 - Added Entity#hasAny, Entity#hasAll methods
 - Fixed throwing an error with passing invalid value to param `component` of `Entity#add` method
