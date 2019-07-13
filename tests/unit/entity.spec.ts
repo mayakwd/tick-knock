@@ -1,4 +1,4 @@
-import {Entity, getComponentId} from '../../src';
+import {Entity, EntitySnapshot, getComponentId} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -71,6 +71,13 @@ describe('Adding component', () => {
     expect(addedCount).toBe(1);
     expect(removedCount).toBe(0);
   });
+
+  it('Expect an error on adding invalid component', () => {
+    const entity = new Entity();
+    // @ts-ignore
+    expect(() => entity.add()).toThrowError();
+  });
+
   it('Adding component twice, must override previous component', () => {
     const entity = new Entity();
     let addedCount = 0;
@@ -153,6 +160,44 @@ describe('Adding component', () => {
     expect(entity.has(Ancestor)).toBeTruthy();
     expect(entity.get(Ancestor)).toBe(ancestor);
   });
+
+  it('Expected that hasAny returns true', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    expect(entity.hasAny(Other, Position)).toBeTruthy();
+  });
+
+  it('Expected that hasAny returns false', () => {
+    class Other {}
+
+    class A {}
+
+    class B {}
+
+    const entity = new Entity();
+    entity.add(new A());
+    entity.add(new B());
+    expect(entity.hasAny(Other, Position)).toBeFalsy();
+  });
+
+  it('Expected that hasAll returns true', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    entity.add(new Other());
+    expect(entity.hasAll(Other, Position)).toBeTruthy();
+  });
+
+  it('Expected that hasAll returns false', () => {
+    class Other {}
+
+    const entity = new Entity();
+    entity.add(new Position());
+    expect(entity.hasAll(Other, Position)).toBeFalsy();
+  });
 });
 
 describe('Removing component', () => {
@@ -201,5 +246,29 @@ describe('Removing component', () => {
     expect(addedCount).toBe(0);
     expect(removedCount).toBe(0);
     expect(removedComponent).toBeUndefined();
+  });
+});
+
+describe('Snapshot', () => {
+  it('Expect undefined value (but not throwing an error) for getting component instance, if snapshot not initialized', () => {
+    class Component {}
+
+    const snapshot = new EntitySnapshot();
+    expect(() => snapshot.get(Component)).not.toThrowError();
+    expect(snapshot.get(Component)).toBeUndefined();
+  });
+
+  it('Expect undefined value for class that was not being initialized as component', () => {
+    class Component {}
+
+    class NotAComponent {}
+
+    const entity = new Entity();
+    entity.add(new Component());
+
+    const snapshot = new EntitySnapshot();
+    snapshot.takeSnapshot(entity, new Component());
+    expect(() => snapshot.get(NotAComponent)).not.toThrowError();
+    expect(snapshot.get(NotAComponent)).toBeUndefined();
   });
 });

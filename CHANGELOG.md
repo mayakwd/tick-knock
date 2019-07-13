@@ -1,3 +1,9 @@
+# 1.2.2
+
+- Added Entity#hasAny, Entity#hasAll methods
+- Fixed throwing an error with passing invalid value to param `component` of `Entity#add` method
+- Removed redundant `entities` getter from `IterativeSystem`
+
 # 1.2.1
 
 - Fixed bug with disconnecting from Entity events after remove from Engine. 
