@@ -64,7 +64,7 @@ export class Entity {
    *  .add(new Velocity());
    */
   public add<T extends K, K extends any>(component: T, resolveClass?: Class<K>): Entity {
-    let componentClass = component.constructor;
+    let componentClass = component ? component.constructor : undefined;
     if (!component || !componentClass) {
       throw new Error(
         'Component instance mustn\'t be null and must be an instance of the class',
