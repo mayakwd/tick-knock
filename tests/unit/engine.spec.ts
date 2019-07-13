@@ -155,4 +155,17 @@ describe("System manipulation", () => {
     engine.addEntity(new Entity().add(new Component()));
     expect(query.isEmpty).toBeTruthy();
   });
+
+  it('Expected that removing all entities will fire onEntityRemoved', () => {
+    const engine = new Engine();
+    const entitiesCount = 2;
+    let removedCount = 0;
+    for (let i = 0; i < entitiesCount; i++) {
+      engine.addEntity(new Entity());
+    }
+    engine.onEntityRemoved.connect(() => removedCount++);
+    engine.removeAllEntities();
+    expect(engine.entities.length).toBe(0);
+    expect(removedCount).toBe(entitiesCount);
+  });
 });
