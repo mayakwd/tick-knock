@@ -1,3 +1,8 @@
+# 1.2.3
+
+- Reverted `IterativeSystem#entities` remove
+- Added `IterativeSystem#prepare` protected method, which will be invoked after adding iterative system to engine
+
 # 1.2.2
 
 - Added Entity#hasAny, Entity#hasAll methods
