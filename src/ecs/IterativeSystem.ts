@@ -42,9 +42,12 @@ export abstract class IterativeSystem extends System {
 
   public onAddedToEngine(engine: Engine) {
     engine.addQuery(this.query);
+    this.prepare();
     this.query.onEntityAdded.connect(this.entityAdded);
     this.query.onEntityRemoved.connect(this.entityRemoved);
   }
+
+  protected prepare() {}
 
   public update(dt: number) {
     this.updateEntities(dt);
@@ -58,6 +61,10 @@ export abstract class IterativeSystem extends System {
     this.query.onEntityRemoved.disconnect(this.entityRemoved);
 
     this.query.clear();
+  }
+
+  protected get entities(): ReadonlyArray<Entity> {
+    return this.query.entities;
   }
 
   protected updateEntities(dt: number) {
