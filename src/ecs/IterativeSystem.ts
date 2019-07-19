@@ -60,6 +60,10 @@ export abstract class IterativeSystem extends System {
     this.query.clear();
   }
 
+  protected get entities(): ReadonlyArray<Entity> {
+    return this.query.entities;
+  }
+
   protected updateEntities(dt: number) {
     for (let entity of this.query.entities) {
       if (this._removed) return;
