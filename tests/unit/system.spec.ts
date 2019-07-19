@@ -43,6 +43,36 @@ describe('Iterative system', () => {
     expect(position!.y).toBe(10);
   });
 
+  it('Entities in prepare should be available', () => {
+    let entities: ReadonlyArray<Entity>;
+
+    class TestSystem extends IterativeSystem {
+      public constructor() {
+        super(new QueryBuilder().contains(Position).build());
+      }
+
+      protected prepare() {
+        entities = this.entities;
+      }
+
+      protected updateEntity(entity: Entity, dt: number): void {
+      }
+    }
+
+    const engine = new Engine();
+    const entitiesCount = 5;
+    for (let i = 0; i < entitiesCount; i++) {
+      engine.addEntity(new Entity().add(new Position()));
+    }
+    engine.addSystem(new TestSystem());
+
+    // @ts-ignore
+    expect(entities).toBeDefined();
+    // @ts-ignore
+    expect(entities.length).toBe(entitiesCount);
+
+  });
+
   it('Adding and removing should properly construct EntitySnapshot ', () => {
     let onRemoved: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
     let onAdded: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
