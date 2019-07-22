@@ -1,3 +1,7 @@
+# 1.2.4
+
+- Switched to commonjs modules
+
 # 1.2.3
 
 - Reverted `IterativeSystem#entities` remove
