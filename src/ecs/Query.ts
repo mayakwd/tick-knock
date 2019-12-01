@@ -52,6 +52,25 @@ export class Query {
     return this._entities.length;
   }
 
+  public countBy(predicate: (entity: Entity) => boolean): number {
+    let result = 0;
+    for (const entity of this._entities) {
+      if (predicate(entity)) result++;
+    }
+    return result;
+  }
+
+  public firstBy(predicate: (entity: Entity) => boolean): Entity | undefined {
+    for (const entity of this._entities) {
+      if (predicate(entity)) return entity;
+    }
+    return undefined;
+  }
+
+  public filter(predicate: (entity: Entity) => boolean): Entity[] {
+    return this._entities.filter(predicate);
+  }
+
   /**
    * Match list entities with query
    */
