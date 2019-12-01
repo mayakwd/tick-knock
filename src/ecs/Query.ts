@@ -48,12 +48,22 @@ export class Query {
   /**
    * Gets a value indicating that query is empty
    */
-  public get isEmpty():boolean {
+  public get isEmpty(): boolean {
     return this.entities.length == 0;
   }
 
   public clear(): void {
     this._entities = [];
+  }
+
+  public validateEntity(entity: Entity): void {
+    const index = this.entities.indexOf(entity);
+    const isMatch = this._predicate(entity);
+    if (index !== -1 && !isMatch) {
+      this.entityRemoved(entity);
+    } else if (index === -1 && isMatch) {
+      this.entityAdded(entity);
+    }
   }
 
   public entityAdded = (entity: Entity) => {
