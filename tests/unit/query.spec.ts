@@ -1,4 +1,4 @@
-import {Engine, Entity, QueryBuilder} from '../../src';
+import {Engine, Entity, Query, QueryBuilder} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -168,5 +168,35 @@ describe('Query matching', () => {
     engine.addEntity(entity);
 
     expect(query.isEmpty).toBeTruthy();
+  });
+
+  it('Entity invalidation should add entity to query with custom predicate', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position(0, 0));
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position) && entity.get(Position)!.y > 100;
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.entities.length).toBe(0);
+    entity.get(Position)!.y = 150;
+    entity.invalidate();
+    expect(query.entities.length).toBe(1);
+  });
+
+  it('Entity invalidation should add entity to query with custom predicate', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position(0, 0));
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position) && entity.get(Position)!.y === 0;
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.entities.length).toBe(1);
+    entity.get(Position)!.y = 150;
+    entity.invalidate();
+    expect(query.entities.length).toBe(0);
   });
 });
