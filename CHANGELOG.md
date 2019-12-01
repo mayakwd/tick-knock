@@ -1,3 +1,7 @@
+# 1.2.6
+
+- Added `first`, `last` and `length` getter for queries
+
 # 1.2.5
 
 - Added feature of invalidation entity and queries
