@@ -199,4 +199,20 @@ describe('Query matching', () => {
     entity.invalidate();
     expect(query.entities.length).toBe(0);
   });
+
+  it('Removing and adding components to entity should properly update custom query', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position(0, 0));
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position) && !entity.has(View);
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.length).toBe(1);
+    entity.add(new View());
+    expect(query.length).toBe(0);
+    entity.remove(View);
+    expect(query.length).toBe(1);
+  });
 });
