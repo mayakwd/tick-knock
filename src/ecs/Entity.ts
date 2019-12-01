@@ -29,6 +29,13 @@ export class Entity {
    * Signal dispatches if component were removed from entity
    */
   public readonly onComponentRemoved: Signal<ComponentUpdateHandler> = new Signal();
+  /**
+   * Signal dispatches that invalidation requested for this entity.
+   * It means that if entity attached to engine — its queries will be updated if it's necessary.
+   * Use `Entity.invalidate` method in case if queries predicates are using components properties.
+   * Components properties are not tracking by Engine itself, because it's too expensive.
+   */
+  public readonly onInvalidationRequested: Signal<(entity: Entity) => void> = new Signal();
 
   /**
    * Unique identifier
@@ -183,6 +190,15 @@ export class Entity {
 
   public copyFrom(entity: Entity) {
     this._components = new Map(entity._components);
+  }
+
+  /**
+   * Use this method to dispatch that entity component properties were changed, in case if
+   * queries predicates are depends on them.
+   * Components properties are not tracking by Engine itself, because it's too expensive.
+   */
+  public invalidate(): void {
+    this.onInvalidationRequested.emit(this);
   }
 }
 

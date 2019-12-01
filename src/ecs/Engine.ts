@@ -215,11 +215,13 @@ export class Engine {
   private connectEntity(entity: Entity) {
     entity.onComponentAdded.connect(this.onComponentAdded);
     entity.onComponentRemoved.connect(this.onComponentRemoved);
+    entity.onInvalidationRequested.connect(this.onInvalidationRequested);
   }
 
   private disconnectEntity(entity: Entity) {
-    entity.onComponentAdded.connect(this.onComponentAdded);
-    entity.onComponentRemoved.connect(this.onComponentRemoved);
+    entity.onComponentAdded.disconnect(this.onComponentAdded);
+    entity.onComponentRemoved.disconnect(this.onComponentRemoved);
+    entity.onInvalidationRequested.disconnect(this.onInvalidationRequested);
   }
 
   private connectQuery(query: Query) {
@@ -246,6 +248,10 @@ export class Engine {
 
   private onComponentAdded = (entity: Entity, component: Class<any>) => {
     this._queries.forEach(value => value.entityComponentAdded(entity, component));
+  };
+
+  private onInvalidationRequested = (entity: Entity) => {
+    this._queries.forEach(value => value.validateEntity(entity));
   };
 
   private onComponentRemoved = (entity: Entity, component: Class<any>) => {

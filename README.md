@@ -19,7 +19,7 @@ and queries, which basically are matching predicates.
 ```typescript
 const engine = new Engine();
 engine
-  .addSystem(new MovementSystem());
+  .addSystem(new MovementSystem())
   .addSystem(new ViewSystem());
 ```
 
@@ -132,6 +132,16 @@ const query = new Query((entity:Entity) => {
 engine.addQuery(query);
 ```
 
+Is such case if position were changed - you need to notify Engine about that your own,
+because Engine not tracking changes inside components. To notify engine use `entity.invalidate()` method.
+
+```typescript
+updateEntity(entity:Entity, dt:number) {
+  const position = entity.get(Position)!;
+  position.y += 100 * dt;
+  entity.invalidate();
+}
+```  
 
 ### Entity
 Entity represents small part of engine state. All entities added to engine represents 
