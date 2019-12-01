@@ -1,4 +1,4 @@
-# Unreleased
+# 1.2.5
 
 - Added feature of invalidation entity and queries
 - Fixed disconnecting of entities from engine
