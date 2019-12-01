@@ -38,6 +38,20 @@ export class Query {
     return Array.from(this._entities);
   }
 
+  public get first(): Entity | undefined {
+    if (this._entities.length === 0) return undefined;
+    return this._entities[0];
+  }
+
+  public get last(): Entity | undefined {
+    if (this._entities.length === 0) return undefined;
+    return this._entities[this._entities.length - 1];
+  }
+
+  public get length(): number {
+    return this._entities.length;
+  }
+
   /**
    * Match list entities with query
    */
