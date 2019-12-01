@@ -118,28 +118,33 @@ export class Query {
   };
 
   public entityComponentAdded = (entity: Entity, component: any) => {
-    const index = this._entities.indexOf(entity);
-    if (index === -1) {
-      this.updateHelper(entity, component);
+    this.updateHelper(entity, component);
 
-      if (this._predicate(this._helper)) {
-        this._snapshot.takeSnapshot(entity, component);
-        this._entities.push(entity);
-        this.onEntityAdded.emit(this._snapshot);
-      }
+    const index = this._entities.indexOf(entity);
+    const isMatch = this._predicate(this._helper);
+    if (index === -1 && isMatch) {
+      this._snapshot.takeSnapshot(entity, component);
+      this._entities.push(entity);
+      this.onEntityAdded.emit(this._snapshot);
+    } else if (index !== -1 && !isMatch) {
+      this._snapshot.takeSnapshot(entity, component);
+      this._entities.splice(index, 1);
+      this.onEntityRemoved.emit(this._snapshot);
     }
   };
 
   public entityComponentRemoved = (entity: Entity, component: any) => {
-    const index = this._entities.indexOf(entity);
-    if (index !== -1) {
-      this.updateHelper(entity, component);
+    this.updateHelper(entity, component);
 
-      if (this._predicate(this._helper) && !this._predicate(entity)) {
-        this._snapshot.takeSnapshot(entity, component);
-        this._entities.splice(index, 1);
-        this.onEntityRemoved.emit(this._snapshot);
-      }
+    const index = this._entities.indexOf(entity);
+    if (index !== -1 && this._predicate(this._helper) && !this._predicate(entity)) {
+      this._snapshot.takeSnapshot(entity, component);
+      this._entities.splice(index, 1);
+      this.onEntityRemoved.emit(this._snapshot);
+    } else if (index === -1 && this._predicate(entity) && !this._predicate(this._helper)) {
+      this._snapshot.takeSnapshot(entity, component);
+      this._entities.push(entity);
+      this.onEntityAdded.emit(this._snapshot);
     }
   };
 

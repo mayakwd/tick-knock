@@ -1,3 +1,7 @@
+# 1.3.0
+
+- Fixed critical issue with updating of a `Query`. Queries whose predicates were a set of conditions that went beyond the capabilities of QueryBuilder could incorrectly evaluate the presence state for Entity after removing or adding components.   
+
 # 1.2.7
 
 - Fixed wrong type inference for `Entity#hasAll` and `Entity#hasAny`
