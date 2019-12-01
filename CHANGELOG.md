@@ -1,3 +1,8 @@
+# Unreleased
+
+- Added feature of invalidation entity and queries
+- Fixed disconnecting of entities from engine
+
 # 1.2.4
 
 - Switched to commonjs modules
