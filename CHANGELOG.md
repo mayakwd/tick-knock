@@ -1,3 +1,8 @@
+# 1.2.7
+
+- Fixed wrong type inference for `Entity#hasAll` and `Entity#hasAny`
+- Added several utility methods for `Query`
+
 # 1.2.6
 
 - Added `first`, `last` and `length` getter for queries
