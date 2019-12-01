@@ -123,7 +123,7 @@ export class Entity {
    *   entity.add(new Destroy());
    * }
    */
-  public hasAny<T>(...componentClass: Class<T>[]): boolean {
+  public hasAny(...componentClass: Class<any>[]): boolean {
     return componentClass.some(value => this.has(value));
   }
 
@@ -137,7 +137,7 @@ export class Entity {
    *   entity.get(Position)!.y += entity.get(Acceleration)!.y * dt;
    * }
    */
-  public hasAll<T>(...componentClass: Class<T>[]): boolean {
+  public hasAll(...componentClass: Class<any>[]): boolean {
     return componentClass.every(value => this.has(value));
   }
 
