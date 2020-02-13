@@ -55,14 +55,6 @@ export abstract class ReactionSystem extends System {
   protected prepare() {}
 
   /**
-   * Update entity
-   *
-   * @param entity Entity to update
-   * @param dt Delta time in seconds
-   */
-  protected abstract updateEntity(entity: Entity, dt: number): void;
-
-  /**
    * Method will be called for every new entity that matches system query.
    * You could easily override it with your own logic.
    *
