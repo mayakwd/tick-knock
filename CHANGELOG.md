@@ -1,4 +1,9 @@
+# 1.4.1
+
+- Removed redundant `updateEntity` from `ReactionSystem`
+
 # 1.4.0
+
 - Added `ReactionSystem`
 - Documentation updated
 
