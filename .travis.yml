@@ -22,6 +22,7 @@ after_success:
 
 deploy:
   - provider: releases
+    edge: true
     api_key: $GITHUB_TOKEN
     file_glob: true
     file: "tick-knock-*.tgz"
@@ -29,6 +30,7 @@ deploy:
     on:
       tags: true
   - provider: npm
+    edge: true
     skip_cleanup: true
     email: "contact@pastila.org"
     api_key: $NPM_TOKEN
