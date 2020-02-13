@@ -25,8 +25,11 @@ engine
 
 ### System
 
-You could use built-in IterativeSystem to update entities that matches query, or you could
-implement your own system, by inheriting System class.
+You could use built-in systems:
+ - ReactionSystem - reacts when entities are added into or removed from provided query.
+   `entityAdded` and `entityRemoved` will be called accordingly.
+ - IterativeSystem - inherits abilities of ReactionSystem and gives an ability to update all entities that matches query during one tick
+ - Or you could implement your own system, by inheriting System class.
 
 Samples:
 
@@ -65,10 +68,11 @@ class ViewSystem extends IterativeSystem {
     
     this.container = container;
   }
-  
-  public onAddedToEngine(engine:Engine) {
-    super(engine);
-    
+
+  /**
+   * Will be executed after adding system to engine
+   */
+  protected prepare() {
     // For any matching entity that engine already contains entityAdded must be
     // called manually if needed.
     for (const entity of this.entities) {
@@ -215,7 +219,4 @@ const entity = new Entity()
 
 In that case `EnemyView` component would be recognized as View. But you should be aware, only ancestor class could be used as "resolve class",
 otherwise you'll get an exception. 
-
-
-## Limitations
 
