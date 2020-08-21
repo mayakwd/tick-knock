@@ -6,8 +6,8 @@ import {ReactionSystem} from './ReactionSystem';
 /**
  * Represents system that each update iterates over entities from provided query via updateEntity method
  * @example
+ * ```ts
  * class ViewSystem extends IterativeSystem {
- *   ...
  *   constructor(container:Container) {
  *      this.container = container;
  *   }
@@ -30,6 +30,7 @@ import {ReactionSystem} from './ReactionSystem';
  *    this.container.remove(entity.get(View)!.view);
  *   }
  * }
+ * ```
  */
 export abstract class IterativeSystem extends ReactionSystem {
   private _removed: boolean = false;

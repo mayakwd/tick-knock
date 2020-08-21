@@ -246,7 +246,7 @@ export class Engine {
     }
   }
 
-  private onComponentAdded = (entity: Entity, component: Class<any>) => {
+  private onComponentAdded = <T>(entity: Entity, component: NonNullable<T>) => {
     this._queries.forEach(value => value.entityComponentAdded(entity, component));
   };
 
@@ -254,7 +254,7 @@ export class Engine {
     this._queries.forEach(value => value.validateEntity(entity));
   };
 
-  private onComponentRemoved = (entity: Entity, component: Class<any>) => {
+  private onComponentRemoved = <T>(entity: Entity, component: NonNullable<T>) => {
     this._queries.forEach(value => value.entityComponentRemoved(entity, component));
   };
 }

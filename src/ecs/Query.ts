@@ -38,20 +38,37 @@ export class Query {
     return Array.from(this._entities);
   }
 
+  /**
+   * Returns the first entity in the query or `undefined` if query is empty.
+   * @returns {Entity | undefined}
+   */
   public get first(): Entity | undefined {
     if (this._entities.length === 0) return undefined;
     return this._entities[0];
   }
 
+  /**
+   * Returns the last entity in the query or `undefined` if query is empty.
+   * @returns {Entity | undefined}
+   */
   public get last(): Entity | undefined {
     if (this._entities.length === 0) return undefined;
     return this._entities[this._entities.length - 1];
   }
 
+  /**
+   * Returns the number of the entities in the query
+   * @returns {Entity | undefined}
+   */
   public get length(): number {
     return this._entities.length;
   }
 
+  /**
+   * Returns the number of entities that have been tested by the predicate.
+   * @param {(entity: Entity) => boolean} predicate
+   * @returns {number}
+   */
   public countBy(predicate: (entity: Entity) => boolean): number {
     let result = 0;
     for (const entity of this._entities) {
@@ -60,19 +77,31 @@ export class Query {
     return result;
   }
 
-  public firstBy(predicate: (entity: Entity) => boolean): Entity | undefined {
-    for (const entity of this._entities) {
-      if (predicate(entity)) return entity;
-    }
-    return undefined;
+  /**
+   * Returns the first entity from the query, that was accepted by predicate
+   * @param {(entity: Entity) => boolean} predicate - function that will be called for every entity in the query until
+   *  the result of the function become true.
+   * @returns {Entity | undefined}
+   */
+  public find(predicate: (entity: Entity) => boolean): Entity | undefined {
+    return this._entities.find(predicate);
   }
 
+  /**
+   * Returns new array of entities, which passed testing via predicate
+   * @param {(entity: Entity) => boolean} predicate - function that will be called for every entity in the query.
+   *  If function returns `true` - entity will stay in the array, if `false` than it will be removed.
+   * @returns {Entity[]}
+   */
   public filter(predicate: (entity: Entity) => boolean): Entity[] {
     return this._entities.filter(predicate);
   }
 
   /**
-   * Match list entities with query
+   * This method is matching passed list of entities with predicate of the query to determine
+   * if entities are the part of query or not.
+   *
+   * Entities that will pass testing will become a part of the query
    */
   public matchEntities(entities: ReadonlyArray<Entity>) {
     entities.forEach((entity) => this.entityAdded(entity));
@@ -85,10 +114,16 @@ export class Query {
     return this.entities.length == 0;
   }
 
+  /**
+   * Clears the list of entities of the query
+   */
   public clear(): void {
     this._entities = [];
   }
 
+  /**
+   * @private
+   */
   public validateEntity(entity: Entity): void {
     const index = this.entities.indexOf(entity);
     const isMatch = this._predicate(entity);
@@ -99,6 +134,9 @@ export class Query {
     }
   }
 
+  /**
+   * @private
+   */
   public entityAdded = (entity: Entity) => {
     const index = this._entities.indexOf(entity);
     if (index === -1 && this._predicate(entity)) {
@@ -108,6 +146,9 @@ export class Query {
     }
   };
 
+  /**
+   * @private
+   */
   public entityRemoved = (entity: Entity) => {
     const index = this._entities.indexOf(entity);
     if (index !== -1) {
@@ -117,7 +158,10 @@ export class Query {
     }
   };
 
-  public entityComponentAdded = (entity: Entity, component: any) => {
+  /**
+   * @private
+   */
+  public entityComponentAdded = <T>(entity: Entity, component: NonNullable<T>) => {
     this.updateHelper(entity, component);
 
     const index = this._entities.indexOf(entity);
@@ -133,7 +177,10 @@ export class Query {
     }
   };
 
-  public entityComponentRemoved = (entity: Entity, component: any) => {
+  /**
+   * @private
+   */
+  public entityComponentRemoved = <T>(entity: Entity, component: NonNullable<T>) => {
     this.updateHelper(entity, component);
 
     const index = this._entities.indexOf(entity);
@@ -148,7 +195,7 @@ export class Query {
     }
   };
 
-  private updateHelper(entity: Entity, component: any) {
+  private updateHelper<T>(entity: Entity, component: NonNullable<T>) {
     this._helper.clear();
     this._helper.copyFrom(entity);
     this._helper.add(component);
@@ -180,7 +227,7 @@ export class QueryBuilder {
    * Specifies components that must be added to entity to be matched
    * @param components List of component classes
    */
-  public contains(...components: Class<any>[]): QueryBuilder {
+  public contains<T extends unknown>(...components: Class<T>[]): QueryBuilder {
     for (let component of components) {
       const componentId = getComponentId(component, true)!;
       if (this._components.indexOf(componentId) === -1) {
