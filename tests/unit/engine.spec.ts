@@ -1,4 +1,4 @@
-import {Engine, Entity, IterativeSystem, Query, QueryBuilder, System} from '../../src';
+import {Engine, Entity, IterativeSystem, Query, QueryBuilder} from '../../src';
 
 class Component {
 }
@@ -40,8 +40,8 @@ class TestSystem3 extends TestSystem {
   }
 }
 
-describe("System manipulation", () => {
-  it("Engine system creating", () => {
+describe('System manipulation', () => {
+  it('Engine system creating', () => {
     const engine = new Engine();
     expect(engine.systems).toBeDefined();
     expect(engine.systems.length).toBe(0);
@@ -51,7 +51,7 @@ describe("System manipulation", () => {
     expect(engine.queries.length).toBe(0);
   });
 
-  it("Adding system", () => {
+  it('Adding system', () => {
     const engine = new Engine();
     const system = new TestSystem1();
 
@@ -61,7 +61,7 @@ describe("System manipulation", () => {
     expect(engine.getSystem(TestSystem1)).toBe(system);
   });
 
-  it("Adding and removing multiple system with priority", () => {
+  it('Adding and removing multiple system with priority', () => {
     const engine = new Engine();
     const system1 = new TestSystem1();
     const system2 = new TestSystem2();
@@ -82,7 +82,7 @@ describe("System manipulation", () => {
     expect(engine.systems.length).toBe(0);
   });
 
-  it("Adding multiple systems with same priority must added in same order", () => {
+  it('Adding multiple systems with same priority must added in same order', () => {
     const engine = new Engine();
     const system1 = new TestSystem1();
     const system2 = new TestSystem2();
@@ -96,7 +96,7 @@ describe("System manipulation", () => {
     expect(engine.systems).toEqual([system1, system2, system3]);
   });
 
-  it("Remove system", () => {
+  it('Remove system', () => {
     const engine = new Engine();
     const system = new TestSystem1();
 
@@ -111,7 +111,7 @@ describe("System manipulation", () => {
     expect(engine.getSystem(TestSystem1)).toBeUndefined();
   });
 
-  it("Engine updating", () => {
+  it('Engine updating', () => {
     const engine = new Engine();
     const arr: number[] = [];
     const system1 = new TestSystem1(arr);
