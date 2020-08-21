@@ -20,9 +20,13 @@
     "downlevelIteration": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "outDir": "lib"
+    "outDir": "lib",
+    "typeRoots": ["node_modules/@types"]
   },
   "include": [
     "src/**/*"
+  ],
+  "exclude": [
+    "tests/**/*"
   ]
 }
