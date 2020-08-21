@@ -49,8 +49,8 @@ describe('Components id', () => {
   });
 });
 
-describe('Adding component', () => {
-  it('Simple', () => {
+describe('Components and Tags', () => {
+  it('Adding single component, must to dispatch only onComponentAdded once', () => {
     const entity = new Entity();
     let addedCount = 0;
     let removedCount = 0;
@@ -72,11 +72,6 @@ describe('Adding component', () => {
     expect(removedCount).toBe(0);
   });
 
-  it('Expect an error on adding invalid component', () => {
-    const entity = new Entity();
-    // @ts-ignore
-    expect(() => entity.add()).toThrowError();
-  });
 
   it('Adding component twice, must override previous component', () => {
     const entity = new Entity();
@@ -98,12 +93,36 @@ describe('Adding component', () => {
     entity.onComponentRemoved.disconnect(removedCallback);
 
     expect(entity.get(Position)).toBe(position2);
-    expect(entity.getAll().length).toBe(1);
+    expect(entity.getComponents().length).toBe(1);
     expect(addedCount).toBe(2);
     expect(removedCount).toBe(1);
   });
 
-  describe('Adding component with \'resolve class\' ancestor', () => {
+  it(`Adding the same component, must not trigger onComponentAdded for the second call`, () => {
+    const entity = new Entity();
+    let addedCount = 0;
+    let removedCount = 0;
+
+    const position = new Position(0, 0);
+
+    const addedCallback = () => addedCount++;
+    const removedCallback = () => removedCount++;
+    entity.onComponentAdded.connect(addedCallback);
+    entity.onComponentRemoved.connect(removedCallback);
+
+    entity.add(position);
+    entity.add(position);
+
+    entity.onComponentAdded.disconnect(addedCallback);
+    entity.onComponentRemoved.disconnect(removedCallback);
+
+    expect(entity.get(Position)).toBe(position);
+    expect(entity.getComponents().length).toBe(1);
+    expect(addedCount).toBe(1);
+    expect(removedCount).toBe(0);
+  });
+
+  it(`Adding component with 'resolve class' ancestor`, () => {
     class Ancestor {}
 
     class Descendant extends Ancestor {}
@@ -127,7 +146,7 @@ describe('Adding component', () => {
     expect(entity.get(Descendant2)).toBeUndefined();
   });
 
-  it('Adding component with \'resolve class\' not ancestor', () => {
+  it(`Adding component with 'resolve class' not ancestor`, () => {
     class Ancestor {}
 
     class Descendant extends Ancestor {}
@@ -145,7 +164,7 @@ describe('Adding component', () => {
 
   });
 
-  it('Adding component of type Ancestor should override component with \'resolve class\' Ancestor', () => {
+  it(`Adding component of type Ancestor should override component with 'resolve class' Ancestor`, () => {
     class Ancestor {}
 
     class Descendant extends Ancestor {}
@@ -161,7 +180,7 @@ describe('Adding component', () => {
     expect(entity.get(Ancestor)).toBe(ancestor);
   });
 
-  it('Expected that hasAny returns true', () => {
+  it('Expected that hasAny returns true from component', () => {
     class Other {}
 
     const entity = new Entity();
@@ -174,21 +193,20 @@ describe('Adding component', () => {
 
     class A {}
 
-    class B {}
+    const TAG = 'tag';
 
     const entity = new Entity();
     entity.add(new A());
-    entity.add(new B());
+    entity.add(TAG);
     expect(entity.hasAny(Other, Position)).toBeFalsy();
   });
 
   it('Expected that hasAll returns true', () => {
-    class Other {}
-
     const entity = new Entity();
+    const TAG = 12345;
     entity.add(new Position());
-    entity.add(new Other());
-    expect(entity.hasAll(Other, Position)).toBeTruthy();
+    entity.add(TAG);
+    expect(entity.hasAll(TAG, Position)).toBeTruthy();
   });
 
   it('Expected that hasAll returns false', () => {
@@ -198,6 +216,51 @@ describe('Adding component', () => {
     entity.add(new Position());
     expect(entity.hasAll(Other, Position)).toBeFalsy();
   });
+
+  it(`Expected that adding a tag dispatches onComponentAdded once`, () => {
+    const TAG = 0;
+    let addedCount = 0;
+    let removedCount = 0;
+
+    const addedCallback = () => addedCount++;
+    const removedCallback = () => removedCount++;
+
+    const entity = new Entity();
+    entity.onComponentAdded.connect(addedCallback);
+    entity.onComponentRemoved.connect(removedCallback);
+    entity.add(TAG);
+
+    expect(addedCount).toBe(1);
+    expect(entity.getTags().size).toBe(1);
+    expect(removedCount).toBe(0);
+  });
+
+  it(`Expected that adding a tag twice dispatches onComponentAdded only once`, () => {
+    const TAG = 0;
+    let addedCount = 0;
+    let removedCount = 0;
+
+    const addedCallback = () => addedCount++;
+    const removedCallback = () => removedCount++;
+
+    const entity = new Entity();
+    entity.onComponentAdded.connect(addedCallback);
+    entity.onComponentRemoved.connect(removedCallback);
+    entity.add(TAG);
+    entity.add(TAG);
+
+    expect(addedCount).toBe(1);
+    expect(removedCount).toBe(0);
+  });
+
+  it(`Expected that entity has an added tag`, () => {
+    const TAG = 0;
+    const entity = new Entity();
+    entity.add(TAG);
+
+    expect(entity.has(TAG)).toBeTruthy();
+  });
+
 });
 
 describe('Removing component', () => {
@@ -219,7 +282,7 @@ describe('Removing component', () => {
     entity.onComponentAdded.disconnect(addedCallback);
     entity.onComponentRemoved.disconnect(removedCallback);
 
-    expect(entity.getAll().length).toBe(0);
+    expect(entity.getComponents().length).toBe(0);
     expect(addedCount).toBe(1);
     expect(removedCount).toBe(1);
     expect(removedComponent).toBeDefined();
@@ -242,10 +305,24 @@ describe('Removing component', () => {
     entity.onComponentAdded.disconnect(addedCallback);
     entity.onComponentRemoved.disconnect(removedCallback);
 
-    expect(entity.getAll().length).toBe(0);
+    expect(entity.getComponents().length).toBe(0);
     expect(addedCount).toBe(0);
     expect(removedCount).toBe(0);
     expect(removedComponent).toBeUndefined();
+  });
+
+  it(`Expected that entity doesn't have removed tag`, () => {
+    const TAG = 0;
+    const entity = new Entity();
+    entity.add(TAG);
+    entity.remove(TAG);
+    expect(entity.has(TAG)).toBeFalsy();
+  });
+
+  it(`Expected that removing absent tag returns undefined`, () => {
+    const TAG = 1234;
+    const entity = new Entity();
+    expect(entity.remove(TAG)).toBeUndefined();
   });
 });
 

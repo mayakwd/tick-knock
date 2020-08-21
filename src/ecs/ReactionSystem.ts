@@ -6,10 +6,13 @@ import {System} from './System';
 /**
  * Represents system that reacts when entities are added or removed into provided query.
  * `entityAdded` and `entityRemoved` will be called accordingly.
+ *
  * @example
- * class ViewSystem extends IterativeSystem {
+ * ```ts
+ * class ViewSystem extends ReactionSystem {
  *   ...
  *   constructor(container:Container) {
+ *      super(new Query((entity:Entity) => entity.has(View));
  *      this.container = container;
  *   }
  *
@@ -23,6 +26,7 @@ import {System} from './System';
  *    this.container.remove(entity.get(View)!.view);
  *   }
  * }
+ * ```
  */
 export abstract class ReactionSystem extends System {
   protected readonly query: Query;

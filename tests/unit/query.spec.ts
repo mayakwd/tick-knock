@@ -215,4 +215,123 @@ describe('Query matching', () => {
     entity.remove(View);
     expect(query.length).toBe(1);
   });
+
+  it(`countBy returns the number of elements that tested by predicate successfully`, () => {
+    const initialEntitiesAmount = 10;
+    const entitiesWithViewAmount = 4;
+
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+
+    const entities = [];
+    for (let i = 0; i < initialEntitiesAmount; i++) {
+      const entity = new Entity().add(new Position());
+      if (i < entitiesWithViewAmount) {
+        entity.add(new View());
+      }
+      entities.push(entity);
+    }
+    query.matchEntities(entities);
+    expect(query.countBy((entity: Entity) => entity.hasAll(View, Position))).toBe(entitiesWithViewAmount);
+  });
+
+  it(`countBy returns zero for empty query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.countBy((entity: Entity) => entity.hasAll(Position))).toBe(0);
+  });
+
+  it(`'first' getter returns first element from the query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [new Entity().add(new Position()), new Entity().add(new Position())];
+    const firstElement = entities[0];
+    query.matchEntities(entities);
+    expect(query.first).toBe(firstElement);
+  });
+
+  it(`'first' getter returns undefined if the query is empty`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.first).toBeUndefined();
+  });
+
+  it(`'last' getter returns last element from the query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [new Entity().add(new Position()), new Entity().add(new Position())];
+    const lastElement = entities[1];
+    query.matchEntities(entities);
+    expect(query.last).toBe(lastElement);
+  });
+
+  it(`'last' getter returns undefined if the query is empty`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.last).toBeUndefined();
+  });
+
+  it(`'find' returns first element that is accepted by predicate`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [
+      new Entity().add(new Position()),
+      new Entity().add(new Position()).add(new View()),
+      new Entity().add(new Position()).add(new View()),
+    ];
+    const targetEntity = entities[1];
+    query.matchEntities(entities);
+    expect(query.find((value) => value.has(View))).toBe(targetEntity);
+  });
+
+  it(`'find' returns undefined when no suitable elements found`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    query.matchEntities([
+      new Entity().add(new Position()),
+      new Entity().add(new Position()),
+      new Entity().add(new Position()),
+    ]);
+    expect(query.find((value) => value.has(View))).toBeUndefined();
+  });
+
+  it(`'filter' returns all suitable elements`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const TAG = 'tag';
+    const entities = [
+      new Entity().add(new Position()),
+      new Entity().add(new Position()).add(TAG),
+      new Entity().add(new Position()).add(TAG),
+    ];
+    query.matchEntities(entities);
+    const filteredItems = query.filter((value) => value.has(TAG));
+    expect(filteredItems.length).toBe(2);
+    expect(filteredItems[0]).toBe(entities[1]);
+    expect(filteredItems[1]).toBe(entities[2]);
+  });
+
+  it(`'filter' returns empty array when no suitable elements found`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const TAG = 'tag';
+    const entities = [
+      new Entity().add(TAG),
+      new Entity().add(TAG),
+      new Entity().add(TAG),
+    ];
+    query.matchEntities(entities);
+    const filteredItems = query.filter((value) => value.has(Position));
+    expect(filteredItems.length).toBe(0);
+  });
 });
