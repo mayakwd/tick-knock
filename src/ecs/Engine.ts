@@ -3,6 +3,7 @@ import {Signal} from 'typed-signals';
 import {System} from './System';
 import {Class} from '../utils/Class';
 import {Query} from './Query';
+import {Subscription} from './Subscription';
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
@@ -21,6 +22,7 @@ export class Engine {
   private _entities: Entity[] = [];
   private _systems: System[] = [];
   private _queries: Query[] = [];
+  private _subscriptions: Subscription<any>[] = [];
 
   /**
    * Gets a list of entities added to engine
@@ -44,6 +46,13 @@ export class Engine {
   }
 
   /**
+   * @internal
+   */
+  public get subscriptions(): ReadonlyArray<Subscription<any>> {
+    return this._subscriptions;
+  }
+
+  /**
    * Adds an entity to engine.
    * If entity is already added to engine - it does nothing.
    *
@@ -52,11 +61,11 @@ export class Engine {
    */
   public addEntity(entity: Entity): Engine {
     if (this._entityMap.has(entity.id)) return this;
+
     this._entities.push(entity);
     this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);
     this.connectEntity(entity);
-
     return this;
   }
 
@@ -70,36 +79,10 @@ export class Engine {
   public removeEntity(entity: Entity): Engine {
     if (!this._entityMap.has(entity.id)) return this;
     const index = this._entities.indexOf(entity);
-    if (index != -1) {
-      this._entities.splice(index, 1);
-    }
+    this._entities.splice(index, 1);
     this._entityMap.delete(entity.id);
     this.onEntityRemoved.emit(entity);
     this.disconnectEntity(entity);
-
-    return this;
-  }
-
-  /**
-   * Adds a system to engine, and set it's priority inside of engine update loop.
-   *
-   * @param system System to add to the engine
-   * @param priority Value indicating the priority of updating system in update loop. Lower priority
-   *  means sooner update.
-   */
-  public addSystem(system: System, priority: number = 0): Engine {
-    system.priority = priority;
-    if (this._systems.length === 0) {
-      this._systems[0] = system;
-    } else {
-      const index = this._systems.findIndex(value => value.priority > priority);
-      if (index === -1) {
-        this._systems[this._systems.length] = system;
-      } else {
-        this._systems.splice(index, 0, system);
-      }
-    }
-    system.onAddedToEngine(this);
 
     return this;
   }
@@ -199,17 +182,108 @@ export class Engine {
   }
 
   /**
+   * Adds a system to engine, and set it's priority inside of engine update loop.
+   *
+   * @param system System to add to the engine
+   * @param priority Value indicating the priority of updating system in update loop. Lower priority
+   *  means sooner update.
+   */
+  public addSystem(system: System, priority: number = 0): Engine {
+    system.setPriority(priority);
+    if (this._systems.length === 0) {
+      this._systems[0] = system;
+    } else {
+      const index = this._systems.findIndex(value => value.priority > priority);
+      if (index === -1) {
+        this._systems[this._systems.length] = system;
+      } else {
+        this._systems.splice(index, 0, system);
+      }
+    }
+    system.setEngine(this);
+    system.onAddedToEngine(this);
+
+    return this;
+  }
+
+  /**
    * Removes a query and clear it.
    *
    * @param query Entity match query
    */
   public removeQuery(query: Query) {
     const index = this._queries.indexOf(query);
-    if (index == -1) return;
+    if (index == -1) return undefined;
     this._queries.splice(index, 1);
     this.disconnectQuery(query);
     query.clear();
     return this;
+  }
+
+  /**
+   * Subscribe to any message of the {@link messageType}.
+   * Those messages can be dispatched from any system attached to the engine
+   *
+   * @param {Class<T>} messageType - Message type
+   * @param {(value: T) => void} handler - Handler for the message
+   */
+  public subscribe<T>(messageType: Class<T>, handler: (value: T) => void): void {
+    this.addSubscription(messageType, handler);
+  }
+
+  /**
+   * Unsubscribe from messages of specific type
+   *
+   * @param {Class<T>} messageType - Message type
+   * @param {(value: T) => void} handler - Specific handler that must be unsubscribed, if not defined then all handlers
+   *  related to this message type will be unsubscribed.
+   */
+  public unsubscribe<T>(messageType: Class<T>, handler?: (value: T) => void): void {
+    this.removeSubscription(messageType, handler);
+  }
+
+  /**
+   * Unsubscribe from all type of messages
+   */
+  public unsubscribeAll(): void {
+    this._subscriptions.length = 0;
+  }
+
+  /**
+   * @internal
+   */
+  public addSubscription<T>(messageType: Class<T>, handler: (value: T) => void): Subscription<T> {
+    for (const subscription of this._subscriptions) {
+      if (subscription.equals(messageType, handler)) return subscription;
+    }
+    const subscription = new Subscription<T>(messageType, handler);
+    this._subscriptions.push(subscription);
+    return subscription;
+  }
+
+  /**
+   * @internal
+   */
+  public removeSubscription<T>(messageType: Class<T>, handler: ((value: T) => void) | undefined): void {
+    let i = this._subscriptions.length;
+    while (--i >= 0) {
+      const subscription = this._subscriptions[i];
+      if (subscription.equals(messageType, handler)) {
+        this._subscriptions.splice(i, 1);
+        if (handler !== undefined) return;
+      }
+    }
+  }
+
+  /**
+   * @internal
+   */
+  public dispatch<T>(message: T) {
+    for (const subscription of this._subscriptions) {
+      if (message instanceof subscription.messageType) {
+        subscription.handler(message);
+      }
+    }
   }
 
   private connectEntity(entity: Entity) {

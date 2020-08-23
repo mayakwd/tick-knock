@@ -122,20 +122,20 @@ export class Query {
   }
 
   /**
-   * @private
+   * @internal
    */
   public validateEntity(entity: Entity): void {
     const index = this.entities.indexOf(entity);
     const isMatch = this._predicate(entity);
     if (index !== -1 && !isMatch) {
       this.entityRemoved(entity);
-    } else if (index === -1 && isMatch) {
+    } else {
       this.entityAdded(entity);
     }
   }
 
   /**
-   * @private
+   * @internal
    */
   public entityAdded = (entity: Entity) => {
     const index = this._entities.indexOf(entity);
@@ -147,7 +147,7 @@ export class Query {
   };
 
   /**
-   * @private
+   * @internal
    */
   public entityRemoved = (entity: Entity) => {
     const index = this._entities.indexOf(entity);
@@ -159,7 +159,7 @@ export class Query {
   };
 
   /**
-   * @private
+   * @internal
    */
   public entityComponentAdded = <T>(entity: Entity, component: NonNullable<T>) => {
     this.updateHelper(entity, component);
@@ -178,7 +178,7 @@ export class Query {
   };
 
   /**
-   * @private
+   * @internal
    */
   public entityComponentRemoved = <T>(entity: Entity, component: NonNullable<T>) => {
     this.updateHelper(entity, component);
@@ -242,5 +242,12 @@ export class QueryBuilder {
    */
   public build(): Query {
     return new Query((entity: Entity) => hasAll(entity, this._components));
+  }
+
+  /**
+   * @internal
+   */
+  public getComponents(): ReadonlyArray<number> {
+    return this._components;
   }
 }

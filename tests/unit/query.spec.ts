@@ -26,6 +26,27 @@ describe('Query builder', () => {
     expect(query.entities).toBeDefined();
     expect(query.isEmpty).toBeTruthy();
   });
+
+  it('Expected that built query matches defined pattern', () => {
+    const query = new QueryBuilder()
+      .contains(Position)
+      .contains(View)
+      .build();
+    const entities = [
+      new Entity().add(new Position()).add(new View()),
+      new Entity().add(new Position()).add(new View()),
+    ];
+    query.matchEntities(entities);
+    expect(query.length).toBe(2);
+  });
+
+  it(`Expected that adding the same component to the builder twice will use only it only once for construction of predicate `, () => {
+    const builder = new QueryBuilder()
+      .contains(Position)
+      .contains(Position)
+      .contains(View);
+    expect(builder.getComponents().length).toBe(2);
+  });
 });
 
 describe('Query matching', () => {
@@ -185,7 +206,7 @@ describe('Query matching', () => {
     expect(query.entities.length).toBe(1);
   });
 
-  it('Entity invalidation should add entity to query with custom predicate', () => {
+  it('Entity invalidation should remove entity from query with custom predicate', () => {
     const engine = new Engine();
     const entity = new Entity().add(new Position(0, 0));
     const query = new Query((entity: Entity) => {
@@ -198,6 +219,21 @@ describe('Query matching', () => {
     entity.get(Position)!.y = 150;
     entity.invalidate();
     expect(query.entities.length).toBe(0);
+  });
+
+  it('Entity invalidation should add entity to query with custom predicate', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position(0, 150));
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position) && entity.get(Position)!.y === 0;
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.entities.length).toBe(0);
+    entity.get(Position)!.y = 0;
+    entity.invalidate();
+    expect(query.entities.length).toBe(1);
   });
 
   it('Removing and adding components to entity should properly update custom query', () => {
@@ -213,6 +249,22 @@ describe('Query matching', () => {
     entity.add(new View());
     expect(query.length).toBe(0);
     entity.remove(View);
+    expect(query.length).toBe(1);
+  });
+
+  it('Adding and removing entity that not related to query, must not affect it', () => {
+    const engine = new Engine();
+    const entity1 = new Entity().add(new Position(0, 0));
+    const entity2 = new Entity();
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity1);
+    expect(query.length).toBe(1);
+    engine.addEntity(entity2);
+    expect(query.length).toBe(1);
+    engine.removeEntity(entity2);
     expect(query.length).toBe(1);
   });
 

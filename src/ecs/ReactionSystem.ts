@@ -4,26 +4,26 @@ import {Entity, EntitySnapshot} from './Entity';
 import {System} from './System';
 
 /**
- * Represents system that reacts when entities are added or removed into provided query.
+ * Represents a system that reacts when entities are added to or removed from its query.
  * `entityAdded` and `entityRemoved` will be called accordingly.
  *
  * @example
  * ```ts
  * class ViewSystem extends ReactionSystem {
- *   ...
- *   constructor(container:Container) {
+ *   constructor(
+ *      private readonly container:Container
+ *   ) {
  *      super(new Query((entity:Entity) => entity.has(View));
- *      this.container = container;
  *   }
  *
- *   // Add entity view from screen
- *   entityAdded = (entity:EntitySnapshot) => {
+ *   // Add entity view to the screen
+ *   entityAdded = ({entity}:EntitySnapshot) => {
  *    this.container.add(entity.get(View)!.view);
  *   }
  *
  *   // Remove entity view from screen
- *   entityRemoved = (entity:EntitySnapshot) => {
- *    this.container.remove(entity.get(View)!.view);
+ *   entityRemoved = (snapshot:EntitySnapshot) => {
+ *    this.container.remove(snapshot.get(View)!.view);
  *   }
  * }
  * ```
