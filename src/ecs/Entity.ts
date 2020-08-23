@@ -69,6 +69,14 @@ export class Entity {
   }
 
   /**
+   * Returns set of tags applied to the entity
+   * @see getComponentId
+   */
+  public get tags(): ReadonlySet<Tag> {
+    return this._tags;
+  }
+
+  /**
    * Adds a component or tag to the entity.
    * It's a unified shorthand for {@link addComponent} and {@link addTag}.
    *
@@ -280,7 +288,7 @@ export class Entity {
   }
 
   /**
-   * Gets all entity components
+   * Returns an array of entity components
    *
    * @returns {unknown[]}
    */
@@ -289,11 +297,10 @@ export class Entity {
   }
 
   /**
-   * Gets all tags
-   * @returns {Set<Tag>}
+   * Returns an array of tags applied to the entity
    */
-  public getTags(): Set<Tag> {
-    return new Set<Tag>(this._tags);
+  public getTags(): Tag[] {
+    return Array.from(this._tags);
   }
 
   /**
