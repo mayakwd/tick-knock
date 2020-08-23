@@ -14,7 +14,6 @@ import {System} from './System';
  *      private readonly container:Container
  *   ) {
  *      super(new Query((entity:Entity) => entity.has(View));
- *      this.container = container;
  *   }
  *
  *   // Add entity view to the screen
