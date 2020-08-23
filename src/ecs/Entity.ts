@@ -62,7 +62,7 @@ export class Entity {
 
   /**
    * Returns components map, where key is component identifier, and value is a component itself
-   * @see getComponentId
+   * @see {@link getComponentId}, {@link Entity.getComponents}
    */
   public get components(): Readonly<Map<number, unknown>> {
     return this._components;
@@ -363,40 +363,86 @@ export class Entity {
 }
 
 /**
- * Represents entity snapshot, used to detect changes of the entity
+ * EntitySnapshot is a content container that displays the difference between the current state of Entity and its
+ * previous state. The {@link EntitySnapshot.entity} property always reflects the current state, but
+ * {@link EntitySnapshot.get} and {@link EntitySnapshot.has} methods are display the previous state.
+ * So you can understand which components have been added and which have been removed.
+ *
+ * <p>It is important to note that changes in the data of the same entity components will not be reflected in the
+ * snapshot, even if a manual invalidation of the entity has been triggered.</p>
  */
 export class EntitySnapshot {
   private _entity?: Entity;
   private _components?: Map<number, unknown>;
+  private _tags?: Set<Tag>;
 
+  /**
+   * Gets an instance of the actual entity
+   * @returns {Entity}
+   */
   public get entity(): Entity {
     return this._entity!;
   }
 
-  public takeSnapshot(entity: Entity, ...components: unknown[]) {
+  /**
+   * Takes a snapshot that reflects the difference between current state and updated components or tags.
+   *
+   * @param {Entity} entity - Entity instance that must be taken as a snapshot source
+   * @param updatedComponentsOrTags - Set of components that was in the previous state of entity
+   */
+  public takeSnapshot(entity: Entity, ...updatedComponentsOrTags: unknown[]) {
     this._entity = entity;
     this._components = new Map<number, unknown>(entity.components.entries());
-    for (const component of components) {
-      const constructor = Object.getPrototypeOf(component).constructor;
-      const componentId = getComponentId(constructor, true)!;
-      this._components.set(componentId, component);
+    this._tags = new Set<Tag>(entity.tags);
+    for (const componentOrTag of updatedComponentsOrTags) {
+      if (isTag(componentOrTag)) {
+        if (entity.has(componentOrTag)) {
+          this._tags.delete(componentOrTag);
+        } else {
+          this._tags.add(componentOrTag);
+        }
+      } else {
+        const componentClass = Object.getPrototypeOf(componentOrTag).constructor;
+        const componentId = getComponentId(componentClass, true)!;
+        if (entity.has(componentClass)) {
+          this._components.delete(componentId);
+        } else {
+          this._components.set(componentId, componentOrTag);
+        }
+      }
     }
   }
 
-  public get<T>(componentClass: Class<T>): T | undefined {
+  /**
+   * Gets a component from previous state of the entity
+   *
+   * @param {Class<T>} component
+   * @returns {T | undefined}
+   */
+  public get<T>(component: Class<T>): T | undefined {
     if (!this._components) {
       return undefined;
     }
 
-    const id = getComponentId(componentClass);
+    const id = getComponentId(component);
     if (id === undefined) {
       return undefined;
     }
     return this._components.get(id) as T;
   }
 
-  public has<T>(componentClass: Class<T>): boolean {
-    const componentId = getComponentId(componentClass);
+  /**
+   * Check that component or tag exists in the previous state of the entity.
+   *
+   * @param {Class<T> | Tag} componentClassOrTag
+   * @returns {boolean}
+   */
+  public has<T>(componentClassOrTag: Class<T> | Tag): boolean {
+    if (isTag(componentClassOrTag)) {
+      return this._tags?.has(componentClassOrTag) === true;
+    }
+
+    const componentId = getComponentId(componentClassOrTag);
     return componentId !== undefined
       && this._components !== undefined
       && this._components.has(componentId);
