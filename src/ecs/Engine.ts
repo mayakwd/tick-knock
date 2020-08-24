@@ -99,7 +99,7 @@ export class Engine {
     if (index === -1) return this;
     this._systems.splice(index, 1);
     system.onRemovedFromEngine(this);
-
+    system.setEngine(undefined);
     return this;
   }
 
