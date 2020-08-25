@@ -45,7 +45,27 @@ describe('Query builder', () => {
       .contains(Position)
       .contains(Position)
       .contains(View);
-    expect(builder.getComponents().length).toBe(2);
+    expect(builder.getComponents().size).toBe(2);
+  });
+
+  it(`Expected that adding the same tag to the builder twice will use only it only once for construction of predicate `, () => {
+    const TAG = 1;
+    const builder = new QueryBuilder()
+      .contains(TAG)
+      .contains(TAG);
+    expect(builder.getTags().size).toBe(1);
+  });
+
+  it(`Expected that query build with QueryBuilder matches entities with provided conditions`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(Position, TAG).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(1);
   });
 });
 
