@@ -397,9 +397,9 @@ engine.addSystem(heroes);
 engine.addSystem(enemies)
 ```
 
-Now you can use these Queries on any other system:
+Now you can use these Queries in any other system.
 
-Example:
+**Example:**
 ```typescript
 import {heroes, enemies} from 'shared-systems';
 
