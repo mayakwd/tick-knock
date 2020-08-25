@@ -8,6 +8,8 @@
 - [Installing]
 - [How it works?]
 - [Inside the Tick-Knock]
+  - [Engine]
+    - [Subscription]
   - [Component]
   - [Tag]
   - [Entity]
@@ -19,6 +21,7 @@
       - [ReactionSystem]
       - [IterativeSystem]
   - [Snapshot]
+  - [Engine]
 - [Restrictions]
   - [Shared and Local Queries]
   - [Queries with complex logic and Entity invalidation]
@@ -34,6 +37,68 @@ Main approach was re-imagined towards to make it lightweight, easy-to-use, and l
 
 # Inside the Tick-Knock
 In this part you will learn all basics of Tick-Knock step by step.
+
+## Engine
+
+Engine is a "world" where entities, systems and queries are and interact with each other.
+
+Since the Engine is the initial entry point for development with Tick-Knock, it is from this point that the creation of your world starts.
+Usually, the Engine exists in just one instance, and it does nothing but orchestrate everything that is added to it.
+
+To begin with, you can add the most usual "inhabitants" to it.
+```typescript
+const engine = new Engine();
+const entity = new Entity()
+  .add(new Hero())
+  .add(new health(10))
+engine.addEntity(entity);
+```
+
+Or you can take it out of it:
+```typescript
+engine.removeEntity(entity);
+```
+
+The second main "inhabitant" is System. It is responsible for processing Entities and their components. We will learn about them in details later.
+```typescript
+engine.addSystem(new ViewSystem(), 1);
+engine.addSystem(new PhysicsSystem(), 2);
+```
+
+As you may have noticed, we pass two parameters, the first of which is system instance and the second is update priority. The higher the priority number is, the later the system will be processed.
+
+The third type of resident is Query, which is responsible for mapping entities within the Engine and returns a list of already filtered and ready-to-use entities.
+
+```typescript
+const heroesQuery = new Query((entity) => entity.has(Hero));
+engine.addQuery(heroesQuery);
+````
+
+The main task of the engine is to start the world update process and to report on the ongoing changes to Queries.  
+These changes can be: additions to and removal of entities from the Engine, and changes in the components of specific Entities.
+
+To perform the update step, we must call the `update` method and pass as a parameter the time elapsed since the previous update.  
+Every time we start an update, the systems take turns, in order of priority, executing their own update methods.
+
+```typescript
+// Half a second has passed from the previous step.
+engine.update(0.5); 
+```
+
+### Subscription
+
+An additional - one of responsibilities of the Engine - transferring the messages from systems to the user.
+This can be very useful when, for example, you want to report that the round in your game is over.
+
+```typescript
+engine.subscribe(GameOver, (message: GameOver) => {
+  if (game.win) { 
+    this.showWinMessage(); 
+  } else { 
+    this.showLoseMessage();
+  }
+});
+```
 
 ## Component
 It is data object, its purpose - to represent single aspect of your entity. For example: position, velocity, acceleration.
@@ -97,7 +162,7 @@ System always has following functionality:
 - Priority, which can be set before adding system to the engine.
 - Reference to the `engine`, that will give you an access to the engine itself and its entities. But be aware - you can't access an engine if system is not connected to it, otherwise you'll get an error.
 - Methods `onAddedToEngine` and `onRemovedFromEngine`, which will be called in the cases that described by their naming.
-- With the method `dispatch` you can easily send a message outside of the system. It will be delivered through engine [subscription](#messaging) pipe. There is a same restrictions as for the engine. If system is not attached to the engine then attempt to send a message will throw an error.
+- With the method `dispatch` you can easily send a message outside of the system. It will be delivered through engine [Subscription](#subscription) pipe. There is a same restrictions as for the engine. If system is not attached to the engine then attempt to send a message will throw an error.
 - And the last but not least - the heart of your system - method `update`. It will be called every time, when `Engine.update` is being invoked. Update method - the right place to put your logic.
 
 **Example:**
@@ -451,6 +516,10 @@ But in order to fix this, you can use an entity method called `invalidate`, it w
 [Installing]: #installing
 [How it works?]: #how-it-works
 [Inside the Tick-Knock]: #inside-the-tick-knock
+[Subscription]: #subscription
+[Engine]: #engine
+
+
 
 
 
