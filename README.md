@@ -505,7 +505,7 @@ But in order to fix this, you can use an entity method called `invalidate`, it w
 This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
 
 # Donation
-It's free and open source, but you can donate if you pleased:
+It's free and open source, but you can donate if you pleased:  
 [![Donate](https://img.shields.io/badge/Donate-Yandex.Money-yellowgreen)](https://money.yandex.ru/to/41001136426726)
 > Paypal left Russia 😔
 
