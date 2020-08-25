@@ -1,4 +1,4 @@
-import {Engine, Entity, IterativeSystem, Query, QueryBuilder} from '../../src';
+import {Engine, Entity, IterativeSystem, Query, QueryBuilder, QueryPredicate} from '../../src';
 import {ReactionSystem} from '../../src/ecs/ReactionSystem';
 
 class Component {}
@@ -10,16 +10,17 @@ const handler2 = (message: Message) => {};
 const handler3 = (message: Message) => {};
 
 abstract class TestSystem extends IterativeSystem {
-  private readonly arr?: number[];
-
-  protected constructor(arr?: number[]) {
-    super(new QueryBuilder().contains(Component).build());
+  protected constructor(
+    query: Query | QueryBuilder | QueryPredicate,
+    private readonly arr?: number[],
+  ) {
+    super(query);
     this.arr = arr;
   }
 
   public update(dt: number) {
     super.update(dt);
-    if (this.arr) {
+    if (this.arr !== undefined) {
       this.arr.push(this.priority);
     }
   }
@@ -30,19 +31,19 @@ abstract class TestSystem extends IterativeSystem {
 
 class TestSystem1 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super(new Query((entity: Entity) => entity.has(Component)), arr);
   }
 }
 
 class TestSystem2 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super((entity: Entity) => entity.has(Component), arr);
   }
 }
 
 class TestSystem3 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super(new QueryBuilder().contains(Component), arr);
   }
 }
 
@@ -230,7 +231,7 @@ describe('System manipulation', () => {
       private dispatched: boolean = false;
 
       public constructor() {
-        super(new Query((entity: Entity) => entity.has(HERO)));
+        super((entity: Entity) => entity.has(HERO));
       }
 
       public update(dt: number) {
