@@ -420,7 +420,7 @@ class DamageSystem extends IterativeSystem {
 There are limitations for Query that do not allow you to automatically track changes made inside components.
 
 Suppose that you want Query to track entities with an X position of 10.
-``typescript
+```typescript
 const query = new Query((entity) => entity.has(Position) && entity.get(Position).x === 10);
 ```
 
