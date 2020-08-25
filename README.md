@@ -122,7 +122,11 @@ Also can be called as a "label", it's a simplistic way that could help you not t
 For instance you want to mark your entity as Dead, there are two ways:
 
 - To create a component class: `class Dead {}`
-- Or to create a tag - that can be represented as a`string` or `number`, for example: `const DEAD = 1` or `const DEAD = 'dead';`
+- Or to create a tag - that can be represented as a `string` or `number`, for example:
+  ```typescript
+  const ALIVE = 1;
+  const DEAD = 'dead';
+  ```
 
 Using tags is much easier and consumes less memory if you do not have additional data in the component.
 
