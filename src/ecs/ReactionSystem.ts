@@ -1,35 +1,45 @@
-import {Query} from './Query';
+import {isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryPredicate} from './Query';
 import {Engine} from './Engine';
 import {Entity, EntitySnapshot} from './Entity';
 import {System} from './System';
 
 /**
- * Represents system that reacts when entities are added or removed into provided query.
+ * Represents a system that reacts when entities are added to or removed from its query.
  * `entityAdded` and `entityRemoved` will be called accordingly.
+ *
  * @example
- * class ViewSystem extends IterativeSystem {
- *   ...
- *   constructor(container:Container) {
- *      this.container = container;
+ * ```ts
+ * class ViewSystem extends ReactionSystem {
+ *   constructor(
+ *      private readonly container:Container
+ *   ) {
+ *      super(new Query((entity:Entity) => entity.has(View));
  *   }
  *
- *   // Add entity view from screen
- *   entityAdded = (entity:EntitySnapshot) => {
+ *   // Add entity view to the screen
+ *   entityAdded = ({entity}:EntitySnapshot) => {
  *    this.container.add(entity.get(View)!.view);
  *   }
  *
  *   // Remove entity view from screen
- *   entityRemoved = (entity:EntitySnapshot) => {
- *    this.container.remove(entity.get(View)!.view);
+ *   entityRemoved = (snapshot:EntitySnapshot) => {
+ *    this.container.remove(snapshot.get(View)!.view);
  *   }
  * }
+ * ```
  */
 export abstract class ReactionSystem extends System {
   protected readonly query: Query;
 
-  protected constructor(query: Query) {
+  protected constructor(query: Query | QueryBuilder | QueryPredicate) {
     super();
-    this.query = query;
+    if (isQueryBuilder(query)) {
+      this.query = query.build();
+    } else if (isQueryPredicate(query)) {
+      this.query = new Query(query);
+    } else {
+      this.query = query;
+    }
   }
 
   protected get entities(): ReadonlyArray<Entity> {
@@ -48,7 +58,6 @@ export abstract class ReactionSystem extends System {
 
     this.query.onEntityAdded.disconnect(this.entityAdded);
     this.query.onEntityRemoved.disconnect(this.entityRemoved);
-
     this.query.clear();
   }
 

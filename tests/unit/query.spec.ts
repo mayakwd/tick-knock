@@ -26,6 +26,71 @@ describe('Query builder', () => {
     expect(query.entities).toBeDefined();
     expect(query.isEmpty).toBeTruthy();
   });
+
+  it('Expected that built query matches defined pattern', () => {
+    const query = new QueryBuilder()
+      .contains(Position)
+      .contains(View)
+      .build();
+    const entities = [
+      new Entity().add(new Position()).add(new View()),
+      new Entity().add(new Position()).add(new View()),
+    ];
+    query.matchEntities(entities);
+    expect(query.length).toBe(2);
+  });
+
+  it(`Expected that adding the same component to the builder twice will use only it only once for construction of predicate `, () => {
+    const builder = new QueryBuilder()
+      .contains(Position)
+      .contains(Position)
+      .contains(View);
+    expect(builder.getComponents().size).toBe(2);
+  });
+
+  it(`Expected that adding the same tag to the builder twice will use only it only once for construction of predicate `, () => {
+    const TAG = 1;
+    const builder = new QueryBuilder()
+      .contains(TAG)
+      .contains(TAG);
+    expect(builder.getTags().size).toBe(1);
+  });
+
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(Position, TAG).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(1);
+  });
+
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions (no components)`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(TAG).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(2);
+  });
+
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions (no tags)`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(Position).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(2);
+  });
 });
 
 describe('Query matching', () => {
@@ -71,6 +136,18 @@ describe('Query matching', () => {
     expect(query.entities).toBeDefined();
     expect(query.isEmpty).toBeFalsy();
     expect(query.entities[0]).toBe(entity);
+  });
+
+  it(`Expected that 'has' returns true for entity that is in the query`, () => {
+    const targetEntity = new Entity().add(view);
+    const entities = [
+      new Entity().add(position),
+      targetEntity,
+      new Entity().add(view).add(position),
+    ];
+    const query = new Query((entity) => entity.has(View));
+    query.matchEntities(entities);
+    expect(query.has(targetEntity)).toBeTruthy();
   });
 
   it('Adding component to entity adding it to query', () => {
@@ -185,7 +262,7 @@ describe('Query matching', () => {
     expect(query.entities.length).toBe(1);
   });
 
-  it('Entity invalidation should add entity to query with custom predicate', () => {
+  it('Entity invalidation should remove entity from query with custom predicate', () => {
     const engine = new Engine();
     const entity = new Entity().add(new Position(0, 0));
     const query = new Query((entity: Entity) => {
@@ -198,6 +275,21 @@ describe('Query matching', () => {
     entity.get(Position)!.y = 150;
     entity.invalidate();
     expect(query.entities.length).toBe(0);
+  });
+
+  it('Entity invalidation should add entity to query with custom predicate', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position(0, 150));
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position) && entity.get(Position)!.y === 0;
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    expect(query.entities.length).toBe(0);
+    entity.get(Position)!.y = 0;
+    entity.invalidate();
+    expect(query.entities.length).toBe(1);
   });
 
   it('Removing and adding components to entity should properly update custom query', () => {
@@ -214,5 +306,140 @@ describe('Query matching', () => {
     expect(query.length).toBe(0);
     entity.remove(View);
     expect(query.length).toBe(1);
+  });
+
+  it('Adding and removing entity that not related to query, must not affect it', () => {
+    const engine = new Engine();
+    const entity1 = new Entity().add(new Position(0, 0));
+    const entity2 = new Entity();
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    engine.addQuery(query);
+    engine.addEntity(entity1);
+    expect(query.length).toBe(1);
+    engine.addEntity(entity2);
+    expect(query.length).toBe(1);
+    engine.removeEntity(entity2);
+    expect(query.length).toBe(1);
+  });
+
+  it(`countBy returns the number of elements that tested by predicate successfully`, () => {
+    const initialEntitiesAmount = 10;
+    const entitiesWithViewAmount = 4;
+
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+
+    const entities = [];
+    for (let i = 0; i < initialEntitiesAmount; i++) {
+      const entity = new Entity().add(new Position());
+      if (i < entitiesWithViewAmount) {
+        entity.add(new View());
+      }
+      entities.push(entity);
+    }
+    query.matchEntities(entities);
+    expect(query.countBy((entity: Entity) => entity.hasAll(View, Position))).toBe(entitiesWithViewAmount);
+  });
+
+  it(`countBy returns zero for empty query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.countBy((entity: Entity) => entity.hasAll(Position))).toBe(0);
+  });
+
+  it(`'first' getter returns first element from the query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [new Entity().add(new Position()), new Entity().add(new Position())];
+    const firstElement = entities[0];
+    query.matchEntities(entities);
+    expect(query.first).toBe(firstElement);
+  });
+
+  it(`'first' getter returns undefined if the query is empty`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.first).toBeUndefined();
+  });
+
+  it(`'last' getter returns last element from the query`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [new Entity().add(new Position()), new Entity().add(new Position())];
+    const lastElement = entities[1];
+    query.matchEntities(entities);
+    expect(query.last).toBe(lastElement);
+  });
+
+  it(`'last' getter returns undefined if the query is empty`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    expect(query.last).toBeUndefined();
+  });
+
+  it(`'find' returns first element that is accepted by predicate`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const entities = [
+      new Entity().add(new Position()),
+      new Entity().add(new Position()).add(new View()),
+      new Entity().add(new Position()).add(new View()),
+    ];
+    const targetEntity = entities[1];
+    query.matchEntities(entities);
+    expect(query.find((value) => value.has(View))).toBe(targetEntity);
+  });
+
+  it(`'find' returns undefined when no suitable elements found`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    query.matchEntities([
+      new Entity().add(new Position()),
+      new Entity().add(new Position()),
+      new Entity().add(new Position()),
+    ]);
+    expect(query.find((value) => value.has(View))).toBeUndefined();
+  });
+
+  it(`'filter' returns all suitable elements`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const TAG = 'tag';
+    const entities = [
+      new Entity().add(new Position()),
+      new Entity().add(new Position()).add(TAG),
+      new Entity().add(new Position()).add(TAG),
+    ];
+    query.matchEntities(entities);
+    const filteredItems = query.filter((value) => value.has(TAG));
+    expect(filteredItems.length).toBe(2);
+    expect(filteredItems[0]).toBe(entities[1]);
+    expect(filteredItems[1]).toBe(entities[2]);
+  });
+
+  it(`'filter' returns empty array when no suitable elements found`, () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Position);
+    });
+    const TAG = 'tag';
+    const entities = [
+      new Entity().add(TAG),
+      new Entity().add(TAG),
+      new Entity().add(TAG),
+    ];
+    query.matchEntities(entities);
+    const filteredItems = query.filter((value) => value.has(Position));
+    expect(filteredItems.length).toBe(0);
   });
 });

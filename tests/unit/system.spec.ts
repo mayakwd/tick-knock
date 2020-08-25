@@ -1,4 +1,4 @@
-import {Engine, Entity, EntitySnapshot, IterativeSystem, QueryBuilder} from '../../src';
+import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, System} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -44,7 +44,7 @@ describe('Iterative system', () => {
   });
 
   it('Entities in prepare should be available', () => {
-    let entities: ReadonlyArray<Entity>;
+    let entities!: ReadonlyArray<Entity>;
 
     class TestSystem extends IterativeSystem {
       public constructor() {
@@ -66,16 +66,14 @@ describe('Iterative system', () => {
     }
     engine.addSystem(new TestSystem());
 
-    // @ts-ignore
     expect(entities).toBeDefined();
-    // @ts-ignore
     expect(entities.length).toBe(entitiesCount);
 
   });
 
   it('Adding and removing should properly construct EntitySnapshot ', () => {
-    let onRemoved: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
-    let onAdded: { proxy?: boolean, entity?: boolean } = {proxy: undefined, entity: undefined};
+    let onRemoved: { snapshot?: boolean, entity?: boolean } = {snapshot: undefined, entity: undefined};
+    let onAdded: { snapshot?: boolean, entity?: boolean } = {snapshot: undefined, entity: undefined};
 
     class MovementSystem extends IterativeSystem {
       public constructor() {
@@ -87,12 +85,12 @@ describe('Iterative system', () => {
 
       protected entityAdded = (proxy: EntitySnapshot) => {
         let entity = proxy.entity;
-        onAdded = {proxy: proxy.has(Position), entity: entity.has(Position)};
+        onAdded = {snapshot: proxy.has(Position), entity: entity.has(Position)};
       };
 
-      protected entityRemoved = (proxy: EntitySnapshot) => {
-        let entity = proxy.entity;
-        onRemoved = {proxy: proxy.has(Position), entity: entity.has(Position)};
+      protected entityRemoved = (snapshot: EntitySnapshot) => {
+        let entity = snapshot.entity;
+        onRemoved = {snapshot: snapshot.has(Position), entity: entity.has(Position)};
       };
     }
 
@@ -107,7 +105,63 @@ describe('Iterative system', () => {
     entity.add(new Position());
     entity.remove(Position);
 
-    expect(onAdded).toEqual({proxy: true, entity: true});
-    expect(onRemoved).toEqual({proxy: true, entity: false});
+    expect(onAdded).toEqual({snapshot: false, entity: true});
+    expect(onRemoved).toEqual({snapshot: true, entity: false});
   });
 });
+
+describe('Failure on accessing engine if not attached to it', () => {
+  it(`Expected that engine can't be accessed if system is not attached to it`, () => {
+    class Message {}
+
+    class TestSystem extends System {
+      public update(dt: number) {
+        this.engine.addEntity(new Entity());
+      }
+    }
+
+    const system = new TestSystem();
+    expect(() => system.update(0)).toThrowError();
+  });
+
+  it(`Expected that message can't be sent if system is not attached to the engine`, () => {
+    class Message {}
+
+    class TestSystem extends System {
+      public update(dt: number) {
+        this.dispatch(new Message());
+      }
+    }
+
+    const system = new TestSystem();
+    expect(() => system.update(0)).toThrowError();
+  });
+
+  it(`Expected that removing system from engine breaking the iteration`, () => {
+    class Component {}
+
+    let amountOfIterations = 0;
+
+    class TestSystem extends IterativeSystem {
+      public constructor() {
+        super(new Query(entity => entity.has(Component)));
+      }
+
+      protected updateEntity(entity: Entity, dt: number) {
+        // In case if iteration continues - after removing system from engine
+        // then the line below should throw an exception
+        this.engine.clear();
+        amountOfIterations++;
+      }
+    }
+
+    const engine = new Engine();
+    engine.addSystem(new TestSystem());
+    engine.addEntity(new Entity().add(new Component()));
+    engine.addEntity(new Entity().add(new Component()));
+    engine.addEntity(new Entity().add(new Component()));
+    expect(() => {engine.update(0);}).not.toThrowError();
+    expect(amountOfIterations).toBe(1);
+  });
+});
+

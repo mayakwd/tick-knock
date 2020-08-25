@@ -1,19 +1,26 @@
-import {Engine, Entity, IterativeSystem, Query, QueryBuilder, System} from '../../src';
+import {Engine, Entity, IterativeSystem, Query, QueryBuilder, QueryPredicate} from '../../src';
+import {ReactionSystem} from '../../src/ecs/ReactionSystem';
 
-class Component {
-}
+class Component {}
+
+class Message {}
+
+const handler1 = (message: Message) => {};
+const handler2 = (message: Message) => {};
+const handler3 = (message: Message) => {};
 
 abstract class TestSystem extends IterativeSystem {
-  private readonly arr?: number[];
-
-  protected constructor(arr?: number[]) {
-    super(new QueryBuilder().contains(Component).build());
+  protected constructor(
+    query: Query | QueryBuilder | QueryPredicate,
+    private readonly arr?: number[],
+  ) {
+    super(query);
     this.arr = arr;
   }
 
   public update(dt: number) {
     super.update(dt);
-    if (this.arr) {
+    if (this.arr !== undefined) {
       this.arr.push(this.priority);
     }
   }
@@ -24,24 +31,24 @@ abstract class TestSystem extends IterativeSystem {
 
 class TestSystem1 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super(new Query((entity: Entity) => entity.has(Component)), arr);
   }
 }
 
 class TestSystem2 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super((entity: Entity) => entity.has(Component), arr);
   }
 }
 
 class TestSystem3 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(arr);
+    super(new QueryBuilder().contains(Component), arr);
   }
 }
 
-describe("System manipulation", () => {
-  it("Engine system creating", () => {
+describe('System manipulation', () => {
+  it('Engine system creating', () => {
     const engine = new Engine();
     expect(engine.systems).toBeDefined();
     expect(engine.systems.length).toBe(0);
@@ -51,7 +58,7 @@ describe("System manipulation", () => {
     expect(engine.queries.length).toBe(0);
   });
 
-  it("Adding system", () => {
+  it('Adding system', () => {
     const engine = new Engine();
     const system = new TestSystem1();
 
@@ -61,7 +68,7 @@ describe("System manipulation", () => {
     expect(engine.getSystem(TestSystem1)).toBe(system);
   });
 
-  it("Adding and removing multiple system with priority", () => {
+  it('Adding and removing multiple system with priority', () => {
     const engine = new Engine();
     const system1 = new TestSystem1();
     const system2 = new TestSystem2();
@@ -82,7 +89,7 @@ describe("System manipulation", () => {
     expect(engine.systems.length).toBe(0);
   });
 
-  it("Adding multiple systems with same priority must added in same order", () => {
+  it('Adding multiple systems with same priority must added in same order', () => {
     const engine = new Engine();
     const system1 = new TestSystem1();
     const system2 = new TestSystem2();
@@ -96,7 +103,7 @@ describe("System manipulation", () => {
     expect(engine.systems).toEqual([system1, system2, system3]);
   });
 
-  it("Remove system", () => {
+  it('Remove system', () => {
     const engine = new Engine();
     const system = new TestSystem1();
 
@@ -111,7 +118,13 @@ describe("System manipulation", () => {
     expect(engine.getSystem(TestSystem1)).toBeUndefined();
   });
 
-  it("Engine updating", () => {
+  it(`Expected that removing not attached system will not throw an error`, () => {
+    const engine = new Engine();
+    const system = new TestSystem1();
+    expect(() => { engine.removeSystem(system);}).not.toThrowError();
+  });
+
+  it('Engine updating', () => {
     const engine = new Engine();
     const arr: number[] = [];
     const system1 = new TestSystem1(arr);
@@ -167,5 +180,117 @@ describe("System manipulation", () => {
     engine.removeAllEntities();
     expect(engine.entities.length).toBe(0);
     expect(removedCount).toBe(entitiesCount);
+  });
+
+  it(`Expected that engine will not add same handler twice for the same message`, () => {
+    const engine = new Engine();
+    const handler = (message: Message) => {};
+    const subscription1 = engine.subscribe(Message, handler);
+    const subscription2 = engine.subscribe(Message, handler);
+    expect(subscription1).toBe(subscription2);
+  });
+
+  it(`Expected that unsubscribe removes specific subscription`, () => {
+    const engine = new Engine();
+    engine.subscribe(Message, handler1);
+    engine.subscribe(Message, handler2);
+    engine.subscribe(Message, handler3);
+    expect(engine.subscriptions.length).toBe(3);
+    engine.unsubscribe(Message, handler1);
+    expect(engine.subscriptions.length).toBe(2);
+  });
+
+  it(`Expected that unsubscribe removes all relevant subscriptions`, () => {
+    const engine = new Engine();
+    engine.subscribe(Message, handler1);
+    engine.subscribe(Message, handler2);
+    engine.subscribe(Message, handler3);
+    expect(engine.subscriptions.length).toBe(3);
+    engine.unsubscribe(Message);
+    expect(engine.subscriptions.length).toBe(0);
+  });
+
+  it(`Expected that unsubscribeAll removes all subscriptions`, () => {
+    const engine = new Engine();
+    engine.subscribe(Message, handler1);
+    engine.subscribe(Message, handler2);
+    engine.subscribe(Message, handler3);
+    expect(engine.subscriptions.length).toBe(3);
+    engine.unsubscribeAll();
+    expect(engine.subscriptions.length).toBe(0);
+  });
+
+  it(`Expected that system\`s message will be delivered through the engine to the handler`, () => {
+    const HERO = 'hero';
+
+    class GameOver {}
+
+    class OtherMessage {}
+
+    class GameOverSystem extends ReactionSystem {
+      private dispatched: boolean = false;
+
+      public constructor() {
+        super((entity: Entity) => entity.has(HERO));
+      }
+
+      public update(dt: number) {
+        if (this.dispatched) return;
+
+        if (!this.query.isEmpty && !this.dispatched) {
+          this.dispatch(new GameOver());
+          this.dispatched = true;
+        }
+      }
+
+      protected prepare() {
+        this.dispatched = false;
+      }
+    }
+
+    let gameOverReceived = false;
+    let otherMessageReceived = false;
+    const engine = new Engine();
+    const system = new GameOverSystem();
+    engine.subscribe(GameOver, () => { gameOverReceived = true; });
+    engine.subscribe(OtherMessage, () => { otherMessageReceived = true; });
+    engine.addSystem(system);
+    engine.addEntity(new Entity().add(HERO));
+    engine.addEntity(new Entity().add(HERO));
+    engine.update(1);
+    engine.removeAllEntities();
+    engine.update(1);
+    expect(gameOverReceived).toBeTruthy();
+    expect(otherMessageReceived).toBeFalsy();
+  });
+
+  it(`Expected that removing of not attached query will not throw an error`, () => {
+    const TAG = 1;
+    const query = new Query((entity: Entity) => entity.has(TAG));
+    const engine = new Engine();
+    expect(() => {engine.removeQuery(query);}).not.toThrowError();
+  });
+
+  it(`Expected that adding the same entity twice will add it only once`, () => {
+    const entity = new Entity();
+    const engine = new Engine();
+    engine.addEntity(entity);
+    engine.addEntity(entity);
+    expect(engine.entities.length).toBe(1);
+  });
+
+  it(`Expected that removing an entity that wasn't added to engine will do nothing`, () => {
+    const entity1 = new Entity();
+    const entity2 = new Entity();
+    const engine = new Engine();
+    engine.addEntity(entity1);
+    engine.removeEntity(entity2);
+    let entityRemovedCount = 0;
+    engine.onEntityRemoved.connect((entity) => {
+      entityRemovedCount++;
+    });
+    expect(engine.entities.length).toBe(1);
+    expect(engine.entities[0]).toBe(entity1);
+    expect(entityRemovedCount).toBe(0);
   });
 });
