@@ -106,8 +106,7 @@ It is data object, its purpose - to represent single aspect of your entity. For 
 - ❕ Any class could be considered as the component, there is no restrictions.
 - ❗ But for proper understanding, it is need to be noticed, that component should be a data class, without any logic, otherwise you'll lose benefits of ECS pattern.
 
-**Example:**
-Let's write your first component:
+**Let's write your first component:**
 ```typescript
 class Position {
   public constructor(
