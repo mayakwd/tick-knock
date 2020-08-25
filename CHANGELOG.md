@@ -1,3 +1,6 @@
+# 2.0.2
+- Fixed broken Class API
+- 
 # 2.0.1
 - Fixed broken API for QueryBuilder and Entity.remove
 
