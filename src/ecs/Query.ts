@@ -210,10 +210,19 @@ export class Query {
   }
 }
 
-function hasAll(entity: Entity, components: number[]): boolean {
-  for (let componentId of components) {
-    if (entity.components.get(componentId) === undefined) {
-      return false;
+function hasAll(entity: Entity, components: Set<number>, tags: Set<Tag>): boolean {
+  if (components.size > 0) {
+    for (const componentId of components) {
+      if (entity.components.get(componentId) === undefined) {
+        return false;
+      }
+    }
+  }
+  if (tags.size > 0) {
+    for (const tag of tags) {
+      if (!entity.tags.has(tag)) {
+        return false;
+      }
     }
   }
   return true;
@@ -229,17 +238,24 @@ function hasAll(entity: Entity, components: number[]): boolean {
  *  .build();
  */
 export class QueryBuilder {
-  private readonly _components: number[] = [];
+  private readonly _components: Set<number> = new Set();
+  private readonly _tags: Set<Tag> = new Set();
 
   /**
    * Specifies components that must be added to entity to be matched
-   * @param components List of component classes
+   * @param componentsOrTags
    */
-  public contains<T extends unknown>(...components: Class<T>[]): QueryBuilder {
-    for (let component of components) {
-      const componentId = getComponentId(component, true)!;
-      if (this._components.indexOf(componentId) === -1) {
-        this._components[this._components.length] = componentId;
+  public contains<T extends unknown>(...componentsOrTags: Array<Class<T> | Tag>): QueryBuilder {
+    for (const componentOrTag of componentsOrTags) {
+      if (isTag(componentOrTag)) {
+        if (!this._tags.has(componentOrTag)) {
+          this._tags.add(componentOrTag);
+        }
+      } else {
+        const componentId = getComponentId(componentOrTag, true)!;
+        if (!this._components.has(componentId)) {
+          this._components.add(componentId);
+        }
       }
     }
     return this;
@@ -249,14 +265,21 @@ export class QueryBuilder {
    * Build query
    */
   public build(): Query {
-    return new Query((entity: Entity) => hasAll(entity, this._components));
+    return new Query((entity: Entity) => hasAll(entity, this._components, this._tags));
   }
 
   /**
    * @internal
    */
-  public getComponents(): ReadonlyArray<number> {
+  public getComponents(): ReadonlySet<number> {
     return this._components;
+  }
+
+  /**
+   * @internal
+   */
+  public getTags(): ReadonlySet<Tag> {
+    return this._tags;
   }
 }
 
