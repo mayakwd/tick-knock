@@ -1,3 +1,12 @@
+# 2.0.0
+- Added tags support
+- Added messaging channel for system->engine->user
+- Fixed EntitySnapshot behvaior
+- Added `engine` getter in the System
+- Added support of initialization ReactionSystem and IterativeSystem with QueryPredicate and QueryBuilder
+- Query got possibility to check whether entity is in it, via `has` method
+- Documentation completely rewritten
+
 # 1.4.1
 
 - Removed redundant `updateEntity` from `ReactionSystem`
