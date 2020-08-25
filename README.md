@@ -25,6 +25,9 @@
 - [Restrictions]
   - [Shared and Local Queries]
   - [Queries with complex logic and Entity invalidation]
+- [License]
+- [Donation]
+
 # Installing
 
 - Yarn: `yarn add tick-knock`
@@ -498,6 +501,14 @@ But in order to fix this, you can use an entity method called `invalidate`, it w
 
 ❗ Try not to use this approach too often, it may affect the performance of your application.
 
+# License
+This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
+
+# Donation
+It's free and open source, but you can donate if you pleased:
+[![Donate](https://img.shields.io/badge/Donate-Yandex.Money-yellowgreen)](https://money.yandex.ru/to/41001136426726)
+> Paypal left Russia 😔
+
 [Restrictions]: #restrictions
 [Shared and Local Queries]: #shared-and-local-queries
 [Queries with complex logic and Entity invalidation]: #queries-with-complex-logic-and-entity-invalidation
@@ -517,22 +528,5 @@ But in order to fix this, you can use an entity method called `invalidate`, it w
 [Inside the Tick-Knock]: #inside-the-tick-knock
 [Subscription]: #subscription
 [Engine]: #engine
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[License]: #license
+[Donation]: #donation
