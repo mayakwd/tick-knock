@@ -2,7 +2,7 @@ import {Engine} from './Engine';
 
 /**
  * Systems are logic bricks in your application.
- * If you want ot manipulate entities and their components - it is the right place to that.
+ * If you want to manipulate entities and their components - it is the right place for that.
  */
 export abstract class System {
   private _priority: number = 0;

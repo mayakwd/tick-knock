@@ -1,4 +1,4 @@
-import {Query} from './Query';
+import {isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryPredicate} from './Query';
 import {Engine} from './Engine';
 import {Entity, EntitySnapshot} from './Entity';
 import {System} from './System';
@@ -31,9 +31,15 @@ import {System} from './System';
 export abstract class ReactionSystem extends System {
   protected readonly query: Query;
 
-  protected constructor(query: Query) {
+  protected constructor(query: Query | QueryBuilder | QueryPredicate) {
     super();
-    this.query = query;
+    if (isQueryBuilder(query)) {
+      this.query = query.build();
+    } else if (isQueryPredicate(query)) {
+      this.query = new Query(query);
+    } else {
+      this.query = query;
+    }
   }
 
   protected get entities(): ReadonlyArray<Entity> {
@@ -52,7 +58,6 @@ export abstract class ReactionSystem extends System {
 
     this.query.onEntityAdded.disconnect(this.entityAdded);
     this.query.onEntityRemoved.disconnect(this.entityRemoved);
-
     this.query.clear();
   }
 

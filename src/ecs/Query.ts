@@ -2,6 +2,14 @@ import {getComponentId} from './ComponentId';
 import {Entity, EntitySnapshot} from './Entity';
 import {Signal} from 'typed-signals';
 import {Class} from '../utils/Class';
+import {isTag, Tag} from './Tag';
+
+/**
+ * Query Predicate is the type that describes a function that compares Entities with the conditions it sets.
+ * In other words, it's a function that determines whether Entities meets the right conditions to get into a
+ * given Query or not.
+ */
+export type QueryPredicate = (entity: Entity) => boolean;
 
 /**
  * Query represents list of entities that matches query request.
@@ -20,14 +28,14 @@ export class Query {
   private readonly _helper: Entity = new Entity();
   private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
 
-  private readonly _predicate: (entity: Entity) => boolean;
+  private readonly _predicate: QueryPredicate;
   private _entities: Entity[] = [];
 
   /**
    * Initializes Query instance
    * @param predicate Matching predicate
    */
-  public constructor(predicate: (entity: Entity) => boolean) {
+  public constructor(predicate: QueryPredicate) {
     this._predicate = predicate;
   }
 
@@ -69,7 +77,7 @@ export class Query {
    * @param {(entity: Entity) => boolean} predicate
    * @returns {number}
    */
-  public countBy(predicate: (entity: Entity) => boolean): number {
+  public countBy(predicate: QueryPredicate): number {
     let result = 0;
     for (const entity of this._entities) {
       if (predicate(entity)) result++;
@@ -83,7 +91,7 @@ export class Query {
    *  the result of the function become true.
    * @returns {Entity | undefined}
    */
-  public find(predicate: (entity: Entity) => boolean): Entity | undefined {
+  public find(predicate: QueryPredicate): Entity | undefined {
     return this._entities.find(predicate);
   }
 
@@ -93,7 +101,7 @@ export class Query {
    *  If function returns `true` - entity will stay in the array, if `false` than it will be removed.
    * @returns {Entity[]}
    */
-  public filter(predicate: (entity: Entity) => boolean): Entity[] {
+  public filter(predicate: QueryPredicate): Entity[] {
     return this._entities.filter(predicate);
   }
 
@@ -250,4 +258,18 @@ export class QueryBuilder {
   public getComponents(): ReadonlyArray<number> {
     return this._components;
   }
+}
+
+/**
+ * @internal
+ */
+export function isQueryPredicate(item: unknown): item is QueryPredicate {
+  return typeof item === 'function';
+}
+
+/**
+ * @internal
+ */
+export function isQueryBuilder(item: unknown): item is QueryBuilder {
+  return item instanceof QueryBuilder;
 }

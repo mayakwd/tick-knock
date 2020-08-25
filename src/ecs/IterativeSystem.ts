@@ -1,4 +1,4 @@
-import {Query} from './Query';
+import {Query, QueryBuilder, QueryPredicate} from './Query';
 import {Engine} from './Engine';
 import {Entity} from './Entity';
 import {ReactionSystem} from './ReactionSystem';
@@ -40,7 +40,7 @@ import {ReactionSystem} from './ReactionSystem';
 export abstract class IterativeSystem extends ReactionSystem {
   private _removed: boolean = false;
 
-  protected constructor(query: Query) {
+  protected constructor(query: Query | QueryBuilder | QueryPredicate) {
     super(query);
   }
 
