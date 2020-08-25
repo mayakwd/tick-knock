@@ -1,7 +1,10 @@
+# 2.0.1
+- Fixed broken API for QueryBuilder and Entity.remove
+
 # 2.0.0
 - Added tags support
 - Added messaging channel for system->engine->user
-- Fixed EntitySnapshot behvaior
+- Fixed EntitySnapshot behavior
 - Added `engine` getter in the System
 - Added support of initialization ReactionSystem and IterativeSystem with QueryPredicate and QueryBuilder
 - Query got possibility to check whether entity is in it, via `has` method
