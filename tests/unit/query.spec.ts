@@ -56,7 +56,7 @@ describe('Query builder', () => {
     expect(builder.getTags().size).toBe(1);
   });
 
-  it(`Expected that query build with QueryBuilder matches entities with provided conditions`, () => {
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions`, () => {
     const TAG = 1;
     const query = new QueryBuilder().contains(Position, TAG).build();
     query.matchEntities([
@@ -66,6 +66,30 @@ describe('Query builder', () => {
       new Entity().add(TAG),
     ]);
     expect(query.length).toBe(1);
+  });
+
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions (no components)`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(TAG).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(2);
+  });
+
+  it(`Expected that query built with QueryBuilder matches entities with provided conditions (no tags)`, () => {
+    const TAG = 1;
+    const query = new QueryBuilder().contains(Position).build();
+    query.matchEntities([
+      new Entity().add(new Position()).add(TAG),
+      new Entity(),
+      new Entity().add(new Position()),
+      new Entity().add(TAG),
+    ]);
+    expect(query.length).toBe(2);
   });
 });
 
@@ -112,6 +136,18 @@ describe('Query matching', () => {
     expect(query.entities).toBeDefined();
     expect(query.isEmpty).toBeFalsy();
     expect(query.entities[0]).toBe(entity);
+  });
+
+  it(`Expected that 'has' returns true for entity that is in the query`, () => {
+    const targetEntity = new Entity().add(view);
+    const entities = [
+      new Entity().add(position),
+      targetEntity,
+      new Entity().add(view).add(position),
+    ];
+    const query = new Query((entity) => entity.has(View));
+    query.matchEntities(entities);
+    expect(query.has(targetEntity)).toBeTruthy();
   });
 
   it('Adding component to entity adding it to query', () => {

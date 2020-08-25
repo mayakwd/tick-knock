@@ -106,6 +106,15 @@ export class Query {
   }
 
   /**
+   * Returns a value that indicates whether the entity is in the Query.
+   * @param {Entity} entity
+   * @returns {boolean}
+   */
+  public has(entity: Entity): boolean {
+    return this._entities.indexOf(entity) !== -1;
+  }
+
+  /**
    * This method is matching passed list of entities with predicate of the query to determine
    * if entities are the part of query or not.
    *
