@@ -309,11 +309,12 @@ export class Entity {
    *  dispatched after removing it from the entity
    *
    * @param componentClassOrTag Specific component class or tag
-   * @returns Tag, component instance or `undefined` if it doesn't exists in the entity
+   * @returns Component instance or `undefined` if it doesn't exists in the entity, or tag was removed
    */
-  public remove<T>(componentClassOrTag: Class<T> | Tag): T | Tag | undefined {
+  public remove<T>(componentClassOrTag: Class<T> | Tag): T | undefined {
     if (isTag(componentClassOrTag)) {
-      return this.removeTag(componentClassOrTag);
+      this.removeTag(componentClassOrTag);
+      return undefined;
     }
     return this.removeComponent(componentClassOrTag);
   }
@@ -331,13 +332,11 @@ export class Entity {
     return value as T;
   }
 
-  public removeTag(componentClassOrTag: Tag): Tag | undefined {
+  public removeTag(componentClassOrTag: Tag): void {
     if (this._tags.has(componentClassOrTag)) {
       this._tags.delete(componentClassOrTag);
       this.onComponentRemoved.emit(this, componentClassOrTag);
-      return componentClassOrTag;
     }
-    return undefined;
   }
 
   /**

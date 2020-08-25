@@ -254,7 +254,7 @@ export class QueryBuilder {
    * Specifies components that must be added to entity to be matched
    * @param componentsOrTags
    */
-  public contains<T extends unknown>(...componentsOrTags: Array<Class<T> | Tag>): QueryBuilder {
+  public contains(...componentsOrTags: Array<any>): QueryBuilder {
     for (const componentOrTag of componentsOrTags) {
       if (isTag(componentOrTag)) {
         if (!this._tags.has(componentOrTag)) {
