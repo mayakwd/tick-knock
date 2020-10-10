@@ -1,6 +1,6 @@
 {
   "name": "tick-knock",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "TypeScript Entity-Component-System library",
   "author": "Ilya Malanin",
   "license": "MIT",
@@ -37,7 +37,10 @@
   "keywords": [
     "ecs",
     "entity",
-    "typescript"
+    "typescript",
+    "entity-component-system",
+    "gamedev",
+    "game"
   ],
   "jest": {
     "transform": {
