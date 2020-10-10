@@ -222,6 +222,44 @@ describe('System manipulation', () => {
 
   it(`Expected that system\`s message will be delivered through the engine to the handler`, () => {
     const HERO = 'hero';
+    const GAME_OVER = 'gameOver';
+
+    class GameOverSystem extends ReactionSystem {
+      private dispatched: boolean = false;
+
+      public constructor() {
+        super((entity: Entity) => entity.has(HERO));
+      }
+
+      public update(dt: number) {
+        if (this.dispatched) return;
+
+        if (!this.query.isEmpty && !this.dispatched) {
+          this.dispatch(GAME_OVER);
+          this.dispatched = true;
+        }
+      }
+
+      protected prepare() {
+        this.dispatched = false;
+      }
+    }
+
+    let gameOverReceived = false;
+    const engine = new Engine();
+    const system = new GameOverSystem();
+    engine.subscribe(GAME_OVER, () => { gameOverReceived = true; });
+    engine.addSystem(system);
+    engine.addEntity(new Entity().add(HERO));
+    engine.addEntity(new Entity().add(HERO));
+    engine.update(1);
+    engine.removeAllEntities();
+    engine.update(1);
+    expect(gameOverReceived).toBeTruthy();
+  });
+
+  it(`Expected that system\`s message will be delivered through the engine to the handler`, () => {
+    const HERO = 'hero';
 
     class GameOver {}
 
