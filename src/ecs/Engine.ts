@@ -224,10 +224,10 @@ export class Engine {
    * Subscribe to any message of the {@link messageType}.
    * Those messages can be dispatched from any system attached to the engine
    *
-   * @param {Class<T>} messageType - Message type
+   * @param {Class<T> | T} messageType - Message type (can be class or any instance, for example string or number)
    * @param {(value: T) => void} handler - Handler for the message
    */
-  public subscribe<T>(messageType: Class<T>, handler: (value: T) => void): void {
+  public subscribe<T>(messageType: Class<T> | T, handler: (value: T) => void): void {
     this.addSubscription(messageType, handler);
   }
 
@@ -238,7 +238,7 @@ export class Engine {
    * @param {(value: T) => void} handler - Specific handler that must be unsubscribed, if not defined then all handlers
    *  related to this message type will be unsubscribed.
    */
-  public unsubscribe<T>(messageType: Class<T>, handler?: (value: T) => void): void {
+  public unsubscribe<T>(messageType: Class<T> | T, handler?: (value: T) => void): void {
     this.removeSubscription(messageType, handler);
   }
 
@@ -252,7 +252,7 @@ export class Engine {
   /**
    * @internal
    */
-  public addSubscription<T>(messageType: Class<T>, handler: (value: T) => void): Subscription<T> {
+  public addSubscription<T>(messageType: Class<T> | T, handler: (value: T) => void): Subscription<T> {
     for (const subscription of this._subscriptions) {
       if (subscription.equals(messageType, handler)) return subscription;
     }
@@ -264,7 +264,7 @@ export class Engine {
   /**
    * @internal
    */
-  public removeSubscription<T>(messageType: Class<T>, handler: ((value: T) => void) | undefined): void {
+  public removeSubscription<T>(messageType: Class<T> | T, handler: ((value: T) => void) | undefined): void {
     let i = this._subscriptions.length;
     while (--i >= 0) {
       const subscription = this._subscriptions[i];
@@ -280,7 +280,7 @@ export class Engine {
    */
   public dispatch<T>(message: T) {
     for (const subscription of this._subscriptions) {
-      if (message instanceof subscription.messageType) {
+      if ((typeof subscription.messageType === 'function' && message instanceof subscription.messageType) || message === subscription.messageType) {
         subscription.handler(message);
       }
     }
