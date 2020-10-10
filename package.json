@@ -37,7 +37,10 @@
   "keywords": [
     "ecs",
     "entity",
-    "typescript"
+    "typescript",
+    "entity-component-system",
+    "gamedev",
+    "game"
   ],
   "jest": {
     "transform": {
