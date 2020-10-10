@@ -103,7 +103,23 @@ engine.subscribe(GameOver, (message: GameOver) => {
 });
 ```
 
+You can use not only class type as argument, but any type value. For example it could be string, or number.
+
+```typescript
+const GAME_OVER = 'gameOver';
+engine.subscribe(GAME_OVER, () => {
+    this.showGameOver();
+});
+```
+
+> **Details of implementation**
+>
+> When the `dispatch` method is called in the system, then to get the right listeners, the compliance of the `messageType` for each subscription will be checked. 
+> - If `typeof subscription.messageType` is a `'function'`, then the matching will be performed using `instanceOf`. 
+> - Otherwise, the matching will be done through strict equality `message === subscription.messageType`.
+
 ## Component
+
 It is data object, its purpose - to represent single aspect of your entity. For example: position, velocity, acceleration.
 
 - ❕ Any class could be considered as the component, there is no restrictions.
