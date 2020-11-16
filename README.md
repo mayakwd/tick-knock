@@ -465,26 +465,26 @@ const enemies = new Query(entity => entity.has(Enemy));
 
 And you will want to use them in different systems. But the systems use local Queries. This means that after excluding a system from Engine, the Query that was in it will no longer be updated.
 
-To prevent this from happening, you need to use the shared systems approach. To do this, you only need to add the system manually after initializing the Engine.
+To prevent this from happening, you need to use the shared queries approach. To do this, you only need to add the query manually after initializing the Engine.
 
-> shared-systems.ts
+> shared-queries.ts
 ```typescript
 export const heroes = new Query(entity => entity.has(Hero));
 export const enemies = new Query(entity => entity.has(Enemy));
 ```
 
 ```typescript
-import {heroes, enemies} from 'shared-systems';
+import {heroes, enemies} from 'shared-queries';
 // ...
-engine.addSystem(heroes);
-engine.addSystem(enemies)
+engine.addQuery(heroes);
+engine.addQuery(enemies)
 ```
 
 Now you can use these Queries in any other system.
 
 **Example:**
 ```typescript
-import {heroes, enemies} from 'shared-systems';
+import {heroes, enemies} from 'shared-queries';
 
 class DamageSystem extends IterativeSystem {
   // ...
