@@ -26,12 +26,12 @@ deploy:
     api_key: $GITHUB_TOKEN
     file_glob: true
     file: "tick-knock-*.tgz"
-    skip_cleanup: true
+    cleanup: false
     on:
       tags: true
   - provider: npm
     edge: true
-    skip_cleanup: true
+    cleanup: false
     email: "contact@pastila.org"
     api_key: $NPM_TOKEN
     on:
