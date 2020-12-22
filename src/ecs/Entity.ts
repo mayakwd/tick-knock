@@ -2,6 +2,7 @@ import {getComponentId} from './ComponentId';
 import {Signal} from 'typed-signals';
 import {Class} from '../utils/Class';
 import {isTag, Tag} from './Tag';
+import {ILinkedComponent} from './LinkedComponent';
 
 /**
  * Entity is a general purpose object, which can be marked with tags and can contain different components.
@@ -117,6 +118,42 @@ export class Entity {
   }
 
   /**
+   * Appends a linked component to the entity.
+   *
+   * - If linked component is not exists, then it will be added via `addComponent` method and {@link onComponentAdded}
+   * will be triggered.
+   * - If component already exists in the entity, then passed one will be appended to the tail. {@link
+    * onComponentAdded} wont be triggered.
+   *
+   * It's a shorthand to {@link appendComponent}
+   *
+   * @throws Throws error if component is null or undefined, or if component is not an instance of the class as well
+   * @param {T | Tag} component ILinkedComponent instance
+   * @param {K} resolveClass Class that should be used as resolving class.
+   *  Passed class always should be an ancestor of Component's class.
+   *  It has sense only if component instance is passed, but not the Tag.
+   * @returns {Entity} Reference to the entity itself. It helps to build chain of calls.
+   * @see {@link addComponent}
+   * @see {@link appendComponent}
+   * @example
+   * ```ts
+   * const damage = new Damage();
+   * const entity = new Entity()
+   *  .append(new Damage())
+   *  .append(new Damage())
+   *
+   *  const damage = entity.get(Damage);
+   *  while (damage !== undefined) {
+   *    print(damage.value);
+   *    damage = damage.next;
+   *  }
+   * ```
+   */
+  public append<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
+    return this.appendComponent(component, resolveClass);
+  }
+
+  /**
    * Adds a component to the entity.
    *
    * - If a component of the same type already exists in entity, it will be replaced by the passed one (only if
@@ -158,6 +195,59 @@ export class Entity {
     }
     this._components.set(id, component);
     this.onComponentAdded.emit(this, component);
+  }
+
+  /**
+   * Appends a linked component to the entity.
+   *
+   * - If linked component is not exists, then it will be added via `addComponent` method and {@link onComponentAdded}
+   * will be triggered.
+   * - If component already exists in the entity, then passed one will be appended to the tail. {@link
+    * onComponentAdded} wont be triggered.
+   *
+   * @throws Throws error if component is null or undefined, or if component is not an instance of the class as well
+   * @param {T | Tag} component ILinkedComponent instance
+   * @param {K} resolveClass Class that should be used as resolving class.
+   *  Passed class always should be an ancestor of Component's class.
+   *  It has sense only if component instance is passed, but not the Tag.
+   * @returns {Entity} Reference to the entity itself. It helps to build chain of calls.
+   * @see {@link append}
+   * @see {@link addComponent}
+   * @example
+   * ```ts
+   * const damage = new Damage();
+   * const entity = new Entity()
+   *  .append(new Damage())
+   *  .append(new Damage())
+   *
+   *  const damage = entity.get(Damage);
+   *  while (damage !== undefined) {
+   *    print(damage.value);
+   *    damage = damage.next;
+   *  }
+   * ```
+   */
+  public appendComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
+    let componentClass = Object.getPrototypeOf(component).constructor as Class<T>;
+    if (resolveClass) {
+      if (!(component instanceof resolveClass && componentClass != resolveClass)) {
+        throw new Error('Resolve class should be an ancestor of component class');
+      }
+      componentClass = resolveClass as Class<T>;
+    }
+    if (this.hasComponent(componentClass)) {
+      let existingComponent: ILinkedComponent = this.get(componentClass)!;
+      while (existingComponent !== component && existingComponent.next !== undefined) {
+        existingComponent = existingComponent.next;
+      }
+      if (existingComponent === component) {
+        throw new Error('Component is already appended, appending it once again will break linked items order');
+      }
+      existingComponent.next = component;
+    } else {
+      this.addComponent(component, resolveClass);
+    }
+    return this;
   }
 
   /**
