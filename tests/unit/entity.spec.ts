@@ -1,4 +1,4 @@
-import {Entity, EntitySnapshot, getComponentId} from '../../src';
+import {Entity, EntitySnapshot, getComponentId, LinkedComponent} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -7,6 +7,26 @@ class Position {
   constructor(x: number = 0, y: number = 0) {
     this.x = x;
     this.y = y;
+  }
+}
+
+class Damage extends LinkedComponent {
+  public constructor(
+    public value: number,
+  ) {
+    super();
+  }
+}
+
+class AnotherDamage extends LinkedComponent {
+  public constructor() {
+    super();
+  }
+}
+
+class DamageChild extends Damage {
+  public constructor() {
+    super(1);
   }
 }
 
@@ -260,6 +280,63 @@ describe('Components and Tags', () => {
     entity.add(TAG);
 
     expect(entity.has(TAG)).toBeTruthy();
+  });
+
+  it(`Expected that appending the same linked component twice will throw an error`, () => {
+    const entity = new Entity();
+    const damage = new Damage(10);
+    expect(() => {
+      entity.append(damage);
+      entity.append(damage);
+    }).toThrowError();
+  });
+
+  it(`Expected that specifying not ancestor as a resolve class for appended component throws an error`, () => {
+    const entity = new Entity();
+    expect(() => {
+      entity.append(new Damage(10), AnotherDamage);
+    }).toThrow();
+    expect(() => {
+      entity.append(new Damage(10), DamageChild);
+    }).toThrow();
+  });
+
+  it(`Expected that specifying resolve class for appended component gives right resolving`, () => {
+    const entity = new Entity();
+    const secondChild = new DamageChild();
+    const firstChild = new DamageChild();
+    entity.append(firstChild, Damage);
+    entity.append(secondChild, Damage);
+    expect(entity.get(Damage)).toEqual(firstChild);
+  });
+
+  it(`Expected that appending the same linked component twice with gaps will throw an error`, () => {
+    const entity = new Entity();
+    const damage = new Damage(10);
+    expect(() => {
+      entity.append(damage);
+      for (let i = 0; i < 5; i++) {
+        entity.append(new Damage(i));
+      }
+      entity.append(damage);
+    }).toThrowError();
+  });
+
+  it(`Expected that appending the two different instances of linked component will not throw an error`, () => {
+    const entity = new Entity();
+    expect(() => {
+      entity.append(new Damage(10));
+      entity.append(new Damage(10));
+    }).not.toThrowError();
+  });
+
+  it(`Expected that appending the two different instances of linked component will trigger onComponentAdded only once`, () => {
+    const entity = new Entity();
+    let addedAmount = 0;
+    entity.onComponentAdded.connect(() => { addedAmount++; });
+    entity.append(new Damage(10));
+    entity.append(new Damage(10));
+    expect(addedAmount).toBe(1);
   });
 
 });
