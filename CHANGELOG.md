@@ -1,11 +1,22 @@
-# 2.1.0
+# 2.2.0
+
 Features:
+
+- Add linked components Fixed:
+- Documentation readability
+
+# 2.1.0
+
+Features:
+
 - Add possibility to set any type as the message type for subscription
 
 # 2.0.2
+
 - Fixed broken Class API
 
 # 2.0.1
+
 - Fixed broken API for QueryBuilder and Entity.remove
 
 # 2.0.0
