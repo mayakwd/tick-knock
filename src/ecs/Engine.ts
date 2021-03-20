@@ -46,6 +46,14 @@ export class Engine {
   }
 
   /**
+   * @param id The id of the entity to retrieve
+   * @returns The entity matching the requested id
+   */
+  public getEntity(id: number): Entity | undefined {
+    return this._entityMap.get(id);
+  }
+
+  /**
    * @internal
    */
   public get subscriptions(): ReadonlyArray<Subscription<any>> {
