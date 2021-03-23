@@ -1,3 +1,30 @@
+# 3.0.0
+
+Features:
+
+- Added shared config entity, that is accessible across all systems added to `Engine`
+- Added possibility to retrieve `Entity` from `Engine` by id
+
+Breaking changes:
+
+- Parameter `engine` was removed from `onAddedToEngine` and `onRemovedFromEngine` methods in the systems.
+  Use `this.engine` instead.
+- `EntitySnapshot` was reimplemented. It has distinguished fields `EntitySnapshot.current and `EntitySnapshot.previous`,
+  which reflects current and previous Entity states accordingly.
+- `Entity.components` now represented as a `Record` instead of the `Map`
+
+Improvements:
+
+- Typed-signals was replaced with the built-in light-weight implementation.
+- `EntitySnapshot` won't be created if there are no change listeners.
+
+Fixes:
+
+- `Entity.copyFrom` now copies tags.
+- `EntitySnapshot` now works properly with the tags. Previously, the difference between the previous state and the
+  current state did not show changes in the tags.
+- `EntitySnapshot` now works properly with the resolveClass.
+
 # 2.2.0
 
 Features:
