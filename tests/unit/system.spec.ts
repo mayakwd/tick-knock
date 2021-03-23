@@ -23,8 +23,8 @@ class MovementSystem extends IterativeSystem {
     }
   }
 
-  protected entityAdded = (entity: EntitySnapshot) => {
-    entity.get(Position)!.x = 100;
+  protected entityAdded = ({current}: EntitySnapshot) => {
+    current.get(Position)!.x = 100;
   };
 }
 
@@ -83,14 +83,12 @@ describe('Iterative system', () => {
       protected updateEntity(entity: Entity, dt: number): void {
       }
 
-      protected entityAdded = (proxy: EntitySnapshot) => {
-        let entity = proxy.entity;
-        onAdded = {snapshot: proxy.has(Position), entity: entity.has(Position)};
+      protected entityAdded = ({current, previous}: EntitySnapshot) => {
+        onAdded = {snapshot: previous.has(Position), entity: current.has(Position)};
       };
 
-      protected entityRemoved = (snapshot: EntitySnapshot) => {
-        let entity = snapshot.entity;
-        onRemoved = {snapshot: snapshot.has(Position), entity: entity.has(Position)};
+      protected entityRemoved = ({current, previous}: EntitySnapshot) => {
+        onRemoved = {snapshot: previous.has(Position), entity: current.has(Position)};
       };
     }
 

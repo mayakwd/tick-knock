@@ -1,4 +1,5 @@
 import {Engine} from './Engine';
+import {Entity} from './Entity';
 
 /**
  * Systems are logic bricks in your application.
@@ -19,6 +20,15 @@ export abstract class System {
   }
 
   /**
+   * Gets an {@link Entity} instance that is shared across all systems and can be used as a config.
+   * @return {Entity}
+   */
+  protected get sharedConfig(): Entity {
+    if (this._engine === undefined) throw new Error(`Property "sharedConfig" can't be accessed when system is not added to the engine`);
+    return this._engine.sharedConfig;
+  }
+
+  /**
    * Gets a priority of the system
    */
   public get priority(): number {
@@ -33,17 +43,13 @@ export abstract class System {
 
   /**
    * This method will be called after the system will be added to the Engine.
-   * @param engine - {@link Engine} instance
-   * In the version 3.0.0 `engine` parameter will be removed, use `this.engine` instead
    */
-  public onAddedToEngine(engine: Engine) {}
+  public onAddedToEngine() {}
 
   /**
    * Callback that will be invoked after removing system from engine
-   * @param engine - Engine instance
-   * In the version 3.0.0 `engine` parameter will be removed, use `this.engine` instead
    */
-  public onRemovedFromEngine(engine: Engine) {}
+  public onRemovedFromEngine() {}
 
   /**
    * Dispatches a message, that can be caught via {@link Engine#subscribe}.

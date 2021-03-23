@@ -1,8 +1,118 @@
 import {getComponentId} from './ComponentId';
-import {Signal} from 'typed-signals';
 import {Class} from '../utils/Class';
+import {Signal} from '../utils/Signal';
 import {isTag, Tag} from './Tag';
 import {ILinkedComponent} from './LinkedComponent';
+
+/**
+ * Entity readonly interface
+ */
+export interface ReadonlyEntity {
+  /**
+   * Returns components map, where key is component identifier, and value is a component itself
+   * @see {@link getComponentId}, {@link Entity.getComponents}
+   */
+  readonly components: Readonly<Record<number, unknown>>;
+  /**
+   * Returns set of tags applied to the entity
+   * @see getComponentId
+   */
+  readonly tags: ReadonlySet<Tag>;
+
+  /**
+   * Returns value indicating whether entity has a specific component or tag
+   *
+   * @param componentClassOrTag
+   * @example
+   * ```ts
+   * const BERSERK = 10091;
+   * if (!entity.has(Immobile) || entity.has(BERSERK)) {
+   *   const position = entity.get(Position)!;
+   *   position.x += 1;
+   * }
+   * ```
+   */
+  has<T>(componentClassOrTag: Class<T> | Tag): boolean;
+
+  /**
+   * Returns value indicating whether entity has a specific component
+   *
+   * @param component
+   * @example
+   * ```
+   * if (!entity.hasComponent(Immobile)) {
+   *   const position = entity.get(Position)!;
+   *   position.x += 1;
+   * }
+   * ```
+   */
+  hasComponent<T>(component: Class<T>): boolean;
+
+  /**
+   * Returns value indicating whether entity has a specific tag
+   *
+   * @param tag
+   * @example
+   * ```ts
+   * const BERSERK = "berserk";
+   * let damage = initialDamage;
+   * if (entity.hasTag(BERSERK)) {
+   *   damage *= 1.2;
+   * }
+   * ```
+   */
+  hasTag(tag: Tag): boolean;
+
+  /**
+   * Returns value indicating whether entity have any of specified components/tags
+   *
+   * @param {Class<unknown> | Tag} componentClassOrTag
+   * @returns {boolean}
+   * @example
+   * ```ts
+   * const IMMORTAL = "immortal";
+   * if (!entity.hasAny(Destroy, Destroying, IMMORTAL)) {
+   *   entity.add(new Destroy());
+   * }
+   * ```
+   */
+  hasAny(...componentClassOrTag: Array<Class<unknown> | Tag>): boolean;
+
+  /**
+   * Returns value indicating whether entity have all of specified components/tags
+   *
+   * @param {Class<unknown> | Tag} componentClassOrTag
+   * @returns {boolean}
+   * @example
+   * ```ts
+   * const I_LOVE_GRAVITY = "no-i-don't";
+   * if (entity.hasAll(Position, Acceleration, I_LOVE_GRAVITY)) {
+   *   entity.get(Position)!.y += entity.get(Acceleration)!.y * dt;
+   * }
+   * ```
+   */
+  hasAll(...componentClassOrTag: Array<Class<unknown> | Tag>): boolean
+
+  /**
+   * Returns an array of entity components
+   *
+   * @returns {unknown[]}
+   */
+  getComponents(): unknown[];
+
+  /**
+   * Returns an array of tags applied to the entity
+   */
+  getTags(): Tag[];
+
+  /**
+   * Gets a component instance if it's exists in the entity, otherwise returns `undefined`
+   * - If you want to check presence of the tag then use {@link has} instead.
+   *
+   * @param componentClass Specific component class
+   */
+  get<T>(componentClass: Class<T>): T | undefined;
+}
 
 /**
  * Entity is a general purpose object, which can be marked with tags and can contain different components.
@@ -32,7 +142,7 @@ import {ILinkedComponent} from './LinkedComponent';
  *  .add(new Position(10, 5));
  * ```
  */
-export class Entity {
+export class Entity implements ReadonlyEntity {
   /**
    * The signal dispatches if new component or tag was added to the entity
    */
@@ -58,14 +168,14 @@ export class Entity {
    */
   public readonly id = entityId++;
 
-  private _components: Map<number, unknown> = new Map();
+  private _components: Record<number, unknown> = {};
   private _tags: Set<Tag> = new Set();
 
   /**
    * Returns components map, where key is component identifier, and value is a component itself
    * @see {@link getComponentId}, {@link Entity.getComponents}
    */
-  public get components(): Readonly<Map<number, unknown>> {
+  public get components(): Readonly<Record<number, unknown>> {
     return this._components;
   }
 
@@ -187,14 +297,16 @@ export class Entity {
     }
 
     const id = getComponentId(componentClass, true)!;
-    if (this._components.has(id)) {
-      if (component === this._components.get(id)) {
+    if (this._components[id] !== undefined) {
+      if (component === this._components[id]) {
         return;
       }
       this.remove(componentClass);
     }
-    this._components.set(id, component);
-    this.onComponentAdded.emit(this, component);
+    this._components[id] = component;
+    if (this.onComponentAdded.hasHandlers) {
+      this.onComponentAdded.emit(this, component);
+    }
   }
 
   /**
@@ -272,7 +384,9 @@ export class Entity {
   public addTag(tag: Tag): void {
     if (!this._tags.has(tag)) {
       this._tags.add(tag);
-      this.onComponentAdded.emit(this, tag);
+      if (this.onComponentAdded.hasHandlers) {
+        this.onComponentAdded.emit(this, tag);
+      }
     }
   }
 
@@ -311,7 +425,7 @@ export class Entity {
   public hasComponent<T>(component: Class<T>): boolean {
     const id = getComponentId(component);
     if (id === undefined) return false;
-    return this._components.has(id);
+    return this._components[id] !== undefined;
   }
 
   /**
@@ -374,7 +488,7 @@ export class Entity {
   public get<T>(componentClass: Class<T>): T | undefined {
     const id = getComponentId(componentClass);
     if (id === undefined) return undefined;
-    return this._components.get(id) as T;
+    return this._components[id] as T;
   }
 
   /**
@@ -383,7 +497,7 @@ export class Entity {
    * @returns {unknown[]}
    */
   public getComponents(): unknown[] {
-    return Array.from(this._components.values());
+    return Array.from(Object.values(this._components));
   }
 
   /**
@@ -411,13 +525,15 @@ export class Entity {
 
   public removeComponent<T>(componentClassOrTag: Class<T>): T | undefined {
     const id = getComponentId(componentClassOrTag);
-    if (id === undefined || !this._components.has(id)) {
+    if (id === undefined || this._components[id] === undefined) {
       return undefined;
     }
 
-    const value = this._components.get(id);
-    this._components.delete(id);
-    this.onComponentRemoved.emit(this, value);
+    const value = this._components[id];
+    delete this._components[id];
+    if (this.onComponentRemoved.hasHandlers) {
+      this.onComponentRemoved.emit(this, value);
+    }
 
     return value as T;
   }
@@ -425,7 +541,9 @@ export class Entity {
   public removeTag(componentClassOrTag: Tag): void {
     if (this._tags.has(componentClassOrTag)) {
       this._tags.delete(componentClassOrTag);
-      this.onComponentRemoved.emit(this, componentClassOrTag);
+      if (this.onComponentRemoved.hasHandlers) {
+        this.onComponentRemoved.emit(this, componentClassOrTag);
+      }
     }
   }
 
@@ -433,12 +551,49 @@ export class Entity {
    * Removes all components and tags from entity
    */
   public clear(): void {
-    this._components.clear();
+    this._components = {};
     this._tags.clear();
   }
 
-  public copyFrom(entity: Entity) {
-    this._components = new Map(entity._components);
+  public copyFrom(entity: Entity): this {
+    this._components = Object.assign({}, entity._components);
+    this._tags = new Set(entity._tags);
+    return this;
+  }
+
+  /**
+   * @internal
+   * @param {EntitySnapshot} result
+   * @param {T} changedComponentOrTag
+   * @param {Class<T>} resolveClass
+   */
+  public takeSnapshot<T>(result: EntitySnapshot, changedComponentOrTag?: T, resolveClass?: Class<T>): void {
+    result.current = this;
+
+    const previousState = result.previous as Entity;
+    previousState.copyFrom(this);
+
+    if (changedComponentOrTag === undefined) {
+      return;
+    }
+
+    if (isTag(changedComponentOrTag)) {
+      const previousTags = previousState._tags;
+      if (this.has(changedComponentOrTag)) {
+        previousTags.delete(changedComponentOrTag);
+      } else {
+        previousTags.add(changedComponentOrTag);
+      }
+    } else {
+      const componentClass = resolveClass ?? Object.getPrototypeOf(changedComponentOrTag).constructor;
+      const componentId = getComponentId(componentClass!, true)!;
+      const previousComponents = previousState._components;
+      if (this.has(componentClass)) {
+        delete previousComponents[componentId];
+      } else {
+        previousComponents[componentId] = changedComponentOrTag;
+      }
+    }
   }
 
   /**
@@ -453,88 +608,35 @@ export class Entity {
 
 /**
  * EntitySnapshot is a content container that displays the difference between the current state of Entity and its
- * previous state. The {@link EntitySnapshot.entity} property always reflects the current state, but
- * {@link EntitySnapshot.get} and {@link EntitySnapshot.has} methods are display the previous state.
- * So you can understand which components have been added and which have been removed.
+ * previous state.
+ *
+ * The {@link EntitySnapshot.current} property always reflects the current state, and {@link EntitySnapshot.previous} -
+ * previous one. So you can understand which components have been added and which have been removed.
  *
  * <p>It is important to note that changes in the data of the same entity components will not be reflected in the
  * snapshot, even if a manual invalidation of the entity has been triggered.</p>
  */
 export class EntitySnapshot {
-  private _entity?: Entity;
-  private _components?: Map<number, unknown>;
-  private _tags?: Set<Tag>;
+  private _current?: ReadonlyEntity;
+  private _previous: ReadonlyEntity = new Entity();
 
   /**
    * Gets an instance of the actual entity
    * @returns {Entity}
    */
-  public get entity(): Entity {
-    return this._entity!;
+  public get current(): ReadonlyEntity {
+    return this._current!;
   }
 
   /**
-   * Takes a snapshot that reflects the difference between current state and updated components or tags.
-   *
-   * @param {Entity} entity - Entity instance that must be taken as a snapshot source
-   * @param updatedComponentsOrTags - Set of components that was in the previous state of entity
+   * @internal
    */
-  public takeSnapshot(entity: Entity, ...updatedComponentsOrTags: unknown[]) {
-    this._entity = entity;
-    this._components = new Map<number, unknown>(entity.components.entries());
-    this._tags = new Set<Tag>(entity.tags);
-    for (const componentOrTag of updatedComponentsOrTags) {
-      if (isTag(componentOrTag)) {
-        if (entity.has(componentOrTag)) {
-          this._tags.delete(componentOrTag);
-        } else {
-          this._tags.add(componentOrTag);
-        }
-      } else {
-        const componentClass = Object.getPrototypeOf(componentOrTag).constructor;
-        const componentId = getComponentId(componentClass, true)!;
-        if (entity.has(componentClass)) {
-          this._components.delete(componentId);
-        } else {
-          this._components.set(componentId, componentOrTag);
-        }
-      }
-    }
+  public set current(value: ReadonlyEntity) {
+    this._current = value;
   }
 
-  /**
-   * Gets a component from previous state of the entity
-   *
-   * @param {Class<T>} component
-   * @returns {T | undefined}
-   */
-  public get<T>(component: Class<T>): T | undefined {
-    if (!this._components) {
-      return undefined;
-    }
-
-    const id = getComponentId(component);
-    if (id === undefined) {
-      return undefined;
-    }
-    return this._components.get(id) as T;
-  }
-
-  /**
-   * Check that component or tag exists in the previous state of the entity.
-   *
-   * @param {Class<T> | Tag} componentClassOrTag
-   * @returns {boolean}
-   */
-  public has<T>(componentClassOrTag: Class<T> | Tag): boolean {
-    if (isTag(componentClassOrTag)) {
-      return this._tags?.has(componentClassOrTag) === true;
-    }
-
-    const componentId = getComponentId(componentClassOrTag);
-    return componentId !== undefined
-      && this._components !== undefined
-      && this._components.has(componentId);
+  public get previous(): ReadonlyEntity {
+    return this._previous;
   }
 }
 
@@ -543,7 +645,7 @@ export class EntitySnapshot {
  * @see {@link Entity.onComponentAdded}
  * @see {@link Entity.onComponentRemoved}
  */
-export type ComponentUpdateHandler = (entity: Entity, componentOrTag: unknown) => void;
+export type ComponentUpdateHandler = (entity: Entity, componentOrTag: unknown, componentClass?: Class<unknown>) => void;
 
 /**
  * Entity ids enumerator

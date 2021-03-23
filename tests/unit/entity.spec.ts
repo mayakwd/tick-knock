@@ -408,15 +408,15 @@ describe('Snapshot', () => {
   it(`Expected that checking tag in the blank snapshot gives false`, () => {
     const TAG = 1;
     const snapshot = new EntitySnapshot();
-    expect(snapshot.has(TAG)).toBeFalsy();
+    expect(snapshot.previous.has(TAG)).toBeFalsy();
   });
 
   it('Expect undefined value (but not throwing an error) for getting component instance, if snapshot not initialized', () => {
     class Component {}
 
     const snapshot = new EntitySnapshot();
-    expect(() => snapshot.get(Component)).not.toThrowError();
-    expect(snapshot.get(Component)).toBeUndefined();
+    expect(() => snapshot.previous.get(Component)).not.toThrowError();
+    expect(snapshot.previous.get(Component)).toBeUndefined();
   });
 
   it('Expect undefined value for class that was not being initialized as component', () => {
@@ -428,9 +428,9 @@ describe('Snapshot', () => {
     entity.add(new Component());
 
     const snapshot = new EntitySnapshot();
-    snapshot.takeSnapshot(entity, new Component());
-    expect(() => snapshot.get(NotAComponent)).not.toThrowError();
-    expect(snapshot.get(NotAComponent)).toBeUndefined();
+    entity.takeSnapshot(snapshot, new Component());
+    expect(() => snapshot.previous.get(NotAComponent)).not.toThrowError();
+    expect(snapshot.previous.get(NotAComponent)).toBeUndefined();
   });
 
   it(`Expected that added component appears in current state, but not in the previous`, () => {
@@ -443,20 +443,20 @@ describe('Snapshot', () => {
     const snapshot = new EntitySnapshot();
     const entity = new Entity().add(new ComponentA());
     entity.onComponentAdded.connect((entity, componentOrTag) => {
-      snapshot.takeSnapshot(entity, componentOrTag);
+      entity.takeSnapshot(snapshot, componentOrTag);
     });
 
     {
       entity.add(new ComponentB());
-      expect(entity.has(ComponentB)).toBeTruthy();
-      expect(entity.get(ComponentB)).toBeDefined();
-      expect(snapshot.has(ComponentB)).toBeFalsy();
-      expect(snapshot.get(ComponentB)).toBeUndefined();
+      expect(snapshot.current.has(ComponentB)).toBeTruthy();
+      expect(snapshot.current.get(ComponentB)).toBeDefined();
+      expect(snapshot.previous.has(ComponentB)).toBeFalsy();
+      expect(snapshot.previous.get(ComponentB)).toBeUndefined();
     }
     {
       entity.add(TAG_C);
-      expect(entity.has(TAG_C)).toBeTruthy();
-      expect(snapshot.has(TAG_C)).toBeFalsy();
+      expect(snapshot.current.has(TAG_C)).toBeTruthy();
+      expect(snapshot.previous.has(TAG_C)).toBeFalsy();
     }
   });
 
@@ -468,20 +468,22 @@ describe('Snapshot', () => {
     const snapshot = new EntitySnapshot();
     const entity = new Entity().add(new ComponentA()).add(TAG_C);
     entity.onComponentRemoved.connect((entity, componentOrTag) => {
-      snapshot.takeSnapshot(entity, componentOrTag);
+      entity.takeSnapshot(snapshot, componentOrTag);
     });
 
     {
       entity.remove(ComponentA);
-      expect(entity.has(ComponentA)).toBeFalsy();
-      expect(entity.get(ComponentA)).toBeUndefined();
-      expect(snapshot.has(ComponentA)).toBeTruthy();
-      expect(snapshot.get(ComponentA)).toBeDefined();
+      const current = snapshot.current;
+      const previous = snapshot.previous;
+      expect(current.has(ComponentA)).toBeFalsy();
+      expect(current.get(ComponentA)).toBeUndefined();
+      expect(previous.has(ComponentA)).toBeTruthy();
+      expect(previous.get(ComponentA)).toBeDefined();
     }
     {
       entity.remove(TAG_C);
-      expect(entity.has(TAG_C)).toBeFalsy();
-      expect(snapshot.has(TAG_C)).toBeTruthy();
+      expect(snapshot.current.has(TAG_C)).toBeFalsy();
+      expect(snapshot.previous.has(TAG_C)).toBeTruthy();
     }
   });
 });

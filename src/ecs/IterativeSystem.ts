@@ -1,5 +1,4 @@
 import {Query, QueryBuilder, QueryPredicate} from './Query';
-import {Engine} from './Engine';
 import {Entity} from './Entity';
 import {ReactionSystem} from './ReactionSystem';
 
@@ -48,9 +47,9 @@ export abstract class IterativeSystem extends ReactionSystem {
     this.updateEntities(dt);
   }
 
-  public onRemovedFromEngine(engine: Engine) {
+  public onRemovedFromEngine() {
     this._removed = true;
-    super.onRemovedFromEngine(engine);
+    super.onRemovedFromEngine();
   }
 
   protected updateEntities(dt: number) {

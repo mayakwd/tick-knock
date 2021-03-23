@@ -1,4 +1,4 @@
-import {Engine, Entity, Query, QueryBuilder} from '../../src';
+import {Engine, Entity, LinkedComponent, Query, QueryBuilder} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -441,5 +441,120 @@ describe('Query matching', () => {
     query.matchEntities(entities);
     const filteredItems = query.filter((value) => value.has(Position));
     expect(filteredItems.length).toBe(0);
+  });
+
+  it(`appending LinkedComponent affects query`, () => {
+    class LogComponent extends LinkedComponent {
+      public constructor(public readonly log: string) {
+        super();
+      }
+    }
+
+    const query = new Query((entity: Entity) => {
+      return entity.has(LogComponent);
+    });
+    const entity = new Entity()
+      .append(new LogComponent('test'));
+
+    query.matchEntities([entity]);
+    expect(query.length).toBe(1);
+  });
+});
+
+describe('Query signals', () => {
+  it('Query`s onEntityAdded must be invoked when entity is added to query', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.hasAll(View, Position);
+    });
+
+    let currentState = undefined;
+    let previousState = undefined;
+
+    query.onEntityAdded.connect(snapshot => {
+      currentState = snapshot.current.hasAll(View, Position);
+      previousState = snapshot.previous.has(View) && !snapshot.previous.has(Position);
+    });
+
+    const entity = new Entity()
+      .add(new View());
+
+    query.matchEntities([entity]);
+    entity.add(new Position());
+    query.entityComponentAdded(entity, entity.get(Position)!, Position);
+
+    expect(currentState).toBeTruthy();
+    expect(previousState).toBeTruthy();
+  });
+
+  it('Query`s onEntityRemoved must be invoked when entity is removed from query', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.hasAll(View, Position);
+    });
+
+    let currentState = undefined;
+    let previousState = undefined;
+
+    query.onEntityRemoved.connect(snapshot => {
+      currentState = snapshot.current.has(View) && !snapshot.current.has(Position);
+      previousState = snapshot.previous.hasAll(View, Position);
+    });
+
+    const entity = new Entity()
+      .add(new View())
+      .add(new Position());
+
+    query.matchEntities([entity]);
+    query.entityComponentRemoved(entity, entity.remove(Position)!, Position);
+
+    expect(currentState).toBeTruthy();
+    expect(previousState).toBeTruthy();
+  });
+
+  it('Query`s onEntityAdded must be invoked when specific component is removed from entity', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(View) && !entity.has(Position);
+    });
+
+    let currentState = undefined;
+    let previousState = undefined;
+
+    query.onEntityAdded.connect(snapshot => {
+      currentState = snapshot.current.has(View) && !snapshot.current.has(Position);
+      previousState = snapshot.previous.hasAll(View, Position);
+    });
+
+    const entity = new Entity()
+      .add(new View())
+      .add(new Position());
+
+    query.matchEntities([entity]);
+    query.entityComponentRemoved(entity, entity.remove(Position)!, Position);
+
+    expect(currentState).toBeTruthy();
+    expect(previousState).toBeTruthy();
+  });
+
+  it('Query`s onEntityRemoved must be invoked when specific component is added to entity', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(View) && !entity.has(Position);
+    });
+
+    let currentState = undefined;
+    let previousState = undefined;
+
+    query.onEntityRemoved.connect(snapshot => {
+      currentState = snapshot.current.hasAll(View, Position);
+      previousState = snapshot.previous.has(View) && !snapshot.previous.has(Position);
+    });
+
+    const entity = new Entity()
+      .add(new View());
+
+    query.matchEntities([entity]);
+    entity.add(new Position());
+    query.entityComponentAdded(entity, entity.get(Position)!, Position);
+
+    expect(currentState).toBeTruthy();
+    expect(previousState).toBeTruthy();
   });
 });

@@ -46,16 +46,15 @@ export abstract class ReactionSystem extends System {
     return this.query.entities;
   }
 
-  public onAddedToEngine(engine: Engine) {
-    engine.addQuery(this.query);
+  public onAddedToEngine() {
+    this.engine.addQuery(this.query);
     this.prepare();
     this.query.onEntityAdded.connect(this.entityAdded);
     this.query.onEntityRemoved.connect(this.entityRemoved);
   }
 
-  public onRemovedFromEngine(engine: Engine) {
-    engine.removeQuery(this.query);
-
+  public onRemovedFromEngine() {
+    this.engine.removeQuery(this.query);
     this.query.onEntityAdded.disconnect(this.entityAdded);
     this.query.onEntityRemoved.disconnect(this.entityRemoved);
     this.query.clear();
