@@ -1,3 +1,10 @@
+# 3.0.1
+
+Fixes:
+
+- `EntitySnapshot.current` now is writable.
+- Added inline documentation to `EntitySnapshot.previous`.
+
 # 3.0.0
 
 Features:
@@ -7,8 +14,7 @@ Features:
 
 Breaking changes:
 
-- Parameter `engine` was removed from `onAddedToEngine` and `onRemovedFromEngine` methods in the systems.
-  Use `this.engine` instead.
+- Parameter `engine` was removed from `onAddedToEngine` and `onRemovedFromEngine` methods in the systems. Use `this.engine` instead.
 - `EntitySnapshot` was reimplemented. It has distinguished fields `EntitySnapshot.current and `EntitySnapshot.previous`,
   which reflects current and previous Entity states accordingly.
 - `Entity.components` now represented as a `Record` instead of the `Map`
