@@ -1,4 +1,4 @@
-import {Engine, Entity, IterativeSystem, Query, QueryBuilder, QueryPredicate} from '../../src';
+import {Engine, Entity, IterativeSystem, LinkedComponent, Query, QueryBuilder, QueryPredicate, System} from '../../src';
 import {ReactionSystem} from '../../src/ecs/ReactionSystem';
 
 class Component {}
@@ -330,5 +330,22 @@ describe('System manipulation', () => {
     expect(engine.entities.length).toBe(1);
     expect(engine.entities[0]).toBe(entity1);
     expect(entityRemovedCount).toBe(0);
+  });
+
+  it('Getting entity by id from engine should success if entity is in the engine', () => {
+    const engine = new Engine();
+    const entity = new Entity();
+    const id = entity.id;
+    engine.addEntity(entity);
+    expect(engine.getEntityById(id)).toBe(entity);
+  });
+
+  it('Getting entity by id from engine should fail if entity is not in the engine', () => {
+    const engine = new Engine();
+    const entity = new Entity();
+    const id = entity.id;
+    engine.addEntity(entity);
+    engine.removeEntity(entity);
+    expect(engine.getEntityById(id)).toBeUndefined();
   });
 });

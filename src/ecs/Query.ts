@@ -1,8 +1,8 @@
 import {getComponentId} from './ComponentId';
 import {Entity, EntitySnapshot} from './Entity';
-import {Signal} from 'typed-signals';
-import {Class} from '../utils/Class';
 import {isTag, Tag} from './Tag';
+import {Signal} from '../utils/Signal';
+import {Class} from '../utils/Class';
 
 /**
  * Query Predicate is the type that describes a function that compares Entities with the conditions it sets.
@@ -19,11 +19,11 @@ export class Query {
   /**
    * Signal dispatches if new matched entity were added
    */
-  public onEntityAdded: Signal<(entity: EntitySnapshot) => void> = new Signal();
+  public onEntityAdded: Signal<(snapshot: EntitySnapshot) => void> = new Signal();
   /**
    * Signal dispatches if entity stops matching query
    */
-  public onEntityRemoved: Signal<(entity: EntitySnapshot) => void> = new Signal();
+  public onEntityRemoved: Signal<(snapshot: EntitySnapshot) => void> = new Signal();
 
   private readonly _helper: Entity = new Entity();
   private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
@@ -43,7 +43,7 @@ export class Query {
    * Entities list which matches the query
    */
   public get entities(): ReadonlyArray<Entity> {
-    return Array.from(this._entities);
+    return this._entities;
   }
 
   /**
@@ -158,8 +158,10 @@ export class Query {
     const index = this._entities.indexOf(entity);
     if (index === -1 && this._predicate(entity)) {
       this._entities.push(entity);
-      this._snapshot.takeSnapshot(entity);
-      this.onEntityAdded.emit(this._snapshot);
+      if (this.onEntityAdded.hasHandlers) {
+        entity.takeSnapshot(this._snapshot);
+        this.onEntityAdded.emit(this._snapshot);
+      }
     }
   };
 
@@ -170,45 +172,61 @@ export class Query {
     const index = this._entities.indexOf(entity);
     if (index !== -1) {
       this._entities.splice(index, 1);
-      this._snapshot.takeSnapshot(entity);
-      this.onEntityRemoved.emit(this._snapshot);
+      if (this.onEntityRemoved.hasHandlers) {
+        entity.takeSnapshot(this._snapshot);
+        this.onEntityRemoved.emit(this._snapshot);
+      }
     }
   };
 
   /**
    * @internal
    */
-  public entityComponentAdded = <T>(entity: Entity, component: NonNullable<T>) => {
-    this.updateHelper(entity, component);
+  public entityComponentAdded = <T>(entity: Entity, componentOrTag: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
+    const hasAddedHandlers = this.onEntityAdded.hasHandlers;
+    const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
+
+    this.updateHelper(entity, componentOrTag);
 
     const index = this._entities.indexOf(entity);
     const isMatch = this._predicate(this._helper);
     if (index === -1 && isMatch) {
-      this._snapshot.takeSnapshot(entity, component);
       this._entities.push(entity);
-      this.onEntityAdded.emit(this._snapshot);
+      if (hasAddedHandlers) {
+        entity.takeSnapshot(this._snapshot, componentOrTag, componentClass);
+        this.onEntityAdded.emit(this._snapshot);
+      }
     } else if (index !== -1 && !isMatch) {
-      this._snapshot.takeSnapshot(entity, component);
       this._entities.splice(index, 1);
-      this.onEntityRemoved.emit(this._snapshot);
+      if (hasRemovedHandlers) {
+        entity.takeSnapshot(this._snapshot, componentOrTag, componentClass);
+        this.onEntityRemoved.emit(this._snapshot);
+      }
     }
   };
 
   /**
    * @internal
    */
-  public entityComponentRemoved = <T>(entity: Entity, component: NonNullable<T>) => {
+  public entityComponentRemoved = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
+    const hasAddedHandlers = this.onEntityAdded.hasHandlers;
+    const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
+
     this.updateHelper(entity, component);
 
     const index = this._entities.indexOf(entity);
     if (index !== -1 && this._predicate(this._helper) && !this._predicate(entity)) {
-      this._snapshot.takeSnapshot(entity, component);
       this._entities.splice(index, 1);
-      this.onEntityRemoved.emit(this._snapshot);
+      if (hasRemovedHandlers) {
+        entity.takeSnapshot(this._snapshot, component, componentClass);
+        this.onEntityRemoved.emit(this._snapshot);
+      }
     } else if (index === -1 && this._predicate(entity) && !this._predicate(this._helper)) {
-      this._snapshot.takeSnapshot(entity, component);
       this._entities.push(entity);
-      this.onEntityAdded.emit(this._snapshot);
+      if (hasAddedHandlers) {
+        entity.takeSnapshot(this._snapshot, component, componentClass);
+        this.onEntityAdded.emit(this._snapshot);
+      }
     }
   };
 
@@ -222,7 +240,7 @@ export class Query {
 function hasAll(entity: Entity, components: Set<number>, tags: Set<Tag>): boolean {
   if (components.size > 0) {
     for (const componentId of components) {
-      if (entity.components.get(componentId) === undefined) {
+      if (entity.components[componentId] === undefined) {
         return false;
       }
     }

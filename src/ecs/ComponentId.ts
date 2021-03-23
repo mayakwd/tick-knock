@@ -11,14 +11,12 @@ export function getComponentId<T>(
   component: Class<T>,
   createIfNotExists: boolean = false,
 ): number | undefined {
-  const componentClass = component as ComponentId<T>;
-  let result: number | undefined = undefined;
-  if (componentClass.hasOwnProperty(COMPONENT_CLASS_ID)) {
-    result = componentClass[COMPONENT_CLASS_ID];
+  if (component.hasOwnProperty(COMPONENT_CLASS_ID)) {
+    return (component as ComponentId<T>)[COMPONENT_CLASS_ID];
   } else if (createIfNotExists) {
-    result = componentClass[COMPONENT_CLASS_ID] = componentClassId++;
+    return (component as ComponentId<T>)[COMPONENT_CLASS_ID] = componentClassId++;
   }
-  return result;
+  return undefined;
 }
 
 let COMPONENT_CLASS_ID = '__componentClassId__';
@@ -26,4 +24,4 @@ let componentClassId: number = 1;
 
 type ComponentId<T> = Class<T> & {
   [key: string]: number;
-} ;
+};

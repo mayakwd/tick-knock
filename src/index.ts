@@ -1,3 +1,5 @@
+export * from './utils/Class';
+export * from './utils/Signal';
 export * from './ecs/ComponentId';
 export * from './ecs/Tag';
 export * from './ecs/LinkedComponent';

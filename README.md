@@ -23,7 +23,7 @@
             - [ReactionSystem]
             - [IterativeSystem]
     - [Snapshot]
-    - [Engine]
+    - [Shared Config]
 - [Restrictions]
     - [Shared and Local Queries]
     - [Queries with complex logic and Entity invalidation]
@@ -313,10 +313,12 @@ Adding this Query to the Engine will always contain an up-to-date list of entiti
 Besides, you can always find out when a new entity has appeared in the Query, or an old entity has left it.
 
 ```typescript
-displayListQuery.onEntityAdded = (snapshot: EntitySnapshot) => {
+displayListQuery.onEntityAdded = ({current}: EntitySnapshot) => {
   console.log("We've got a rookie here!");
+  container.addChild(current.get(View)!.view);
 }
-displayListQuery.onEntityRemoved = (snapshot: EntitySnapshot) => {
+displayListQuery.onEntityRemoved = ({previous}: EntitySnapshot) => {
+  container.removeChild(previous.get(View)!.view);
   console.log("Good bye, friend!");
 }
 ```
@@ -529,20 +531,56 @@ class ViewSystem extends IterativeSystem {
     // When entity added to the Query that means that it has `View` 
     // component - one hundred percent! So we just need its current 
     // state. 
-    const currentState = snapshot.entity;
-    this.container.addChild(currentState.get(View)!.view);
+    const {current} = snapshot;
+    this.container.addChild(current.get(View)!.view);
     this.updatePosition(entity);
   };
 
-  protected entityRemoved = (snapshot: EntitySnapshot) => {
+  protected entityRemoved = ({previous}: EntitySnapshot) => {
     // But when entity removed - we can't be sure that current state 
     // of the entity has `View` component. So we need to get it from
-    // the previous state. Previous state had it one hundred percent.
-    this.container.removeChild(snapshot.get(View)!.view);
+    // the previous state. Previous state has it one hundred percent.
+    this.container.removeChild(previous.get(View)!.view);
   };
   // ...
 }
 ```
+
+## Shared Config
+
+In real life, there is often a need to have a single Entity that acts as a configuration for the whole world.
+
+For example, you have a set of complex systems that involve both game logic and visualization, and animations. But for
+functional test purposes - you don't care about the visuals and animations. You face the situation of passing a specific
+flag in each system during initialization, which will be responsible for disabling animation and visualization.
+
+Now imagine that you have several configuration parameters, and each of them you need to pass to all systems of your
+world.
+
+To simplify handling such situations - you can use `Engine.sharedConfig`. Shared Config is an `Entity` available in all
+systems after adding them to `Engine`.
+
+**Example:**
+
+```typescript
+const NO_VISUALS = 'no-visuals';
+
+class ViewSystem extends IterativeSystem {
+  protected updateEntity(entity: Entity): void {
+    if (this.sharedConfig.has(NO_VISUALS)) {
+      return;
+    }
+
+    // Otherwise - update visuals
+  }
+}
+
+const engine = new Engine();
+engine.sharedConfig.add(NO_VISUALS);
+engine.addSystem(new ViewSystem());
+```
+
+> ☝ Shared Config is the single instance connected to `Engine` since its initialization and can't be removed from it. It affects queries like any regular `Entity`.
 
 # Restrictions
 
@@ -631,14 +669,25 @@ It's free and open source, but you can donate if you pleased:
 > Paypal left Russia 😔
 
 [Restrictions]: #restrictions
+
+[Shared Config]: #shared-config
+
 [Shared and Local Queries]: #shared-and-local-queries
+
 [Queries with complex logic and Entity invalidation]: #queries-with-complex-logic-and-entity-invalidation
+
 [Snapshot]: #snapshot
+
 [IterativeSystem]: #iterativesystem
+
 [ReactionSystem]: #reactionsystem
+
 [Built-in query-based systems]: #built-in-query-based-systems
+
 [Queries and Systems]: #queries-and-systems
+
 [QueryBuilder]: #querybuilder
+
 [Query]: #query
 [System]: #system
 [Entity]: #entity

@@ -1,9 +1,9 @@
 import {Entity} from './Entity';
-import {Signal} from 'typed-signals';
 import {System} from './System';
 import {Class} from '../utils/Class';
 import {Query} from './Query';
 import {Subscription} from './Subscription';
+import {Signal} from '../utils/Signal';
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
@@ -23,6 +23,7 @@ export class Engine {
   private _systems: System[] = [];
   private _queries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
+  private _sharedConfig: Entity = new Entity();
 
   /**
    * Gets a list of entities added to engine
@@ -45,11 +46,24 @@ export class Engine {
     return this._queries;
   }
 
+  public constructor() {
+    this.connectEntity(this._sharedConfig);
+  }
+
   /**
    * @internal
    */
   public get subscriptions(): ReadonlyArray<Subscription<any>> {
     return this._subscriptions;
+  }
+
+  /**
+   * Gets a shared config entity, that's accessible from every system added to engine
+   *
+   * @return {Entity}
+   */
+  public get sharedConfig(): Entity {
+    return this._sharedConfig;
   }
 
   /**
@@ -98,9 +112,19 @@ export class Engine {
     const index = this._systems.indexOf(system);
     if (index === -1) return this;
     this._systems.splice(index, 1);
-    system.onRemovedFromEngine(this);
+    system.onRemovedFromEngine();
     system.setEngine(undefined);
     return this;
+  }
+
+  /**
+   * Gets an entity by its id
+   *
+   * @param {number} id Entity identifier
+   * @return {Entity | undefined} corresponding entity or undefined if it's not found.
+   */
+  public getEntityById(id: number): Entity | undefined {
+    return this._entityMap.get(id);
   }
 
   /**
@@ -119,7 +143,7 @@ export class Engine {
     const systems = this._systems;
     this._systems = [];
     for (const system of systems) {
-      system.onRemovedFromEngine(this);
+      system.onRemovedFromEngine();
     }
   }
 
@@ -201,7 +225,7 @@ export class Engine {
       }
     }
     system.setEngine(this);
-    system.onAddedToEngine(this);
+    system.onAddedToEngine();
 
     return this;
   }
@@ -320,15 +344,15 @@ export class Engine {
     }
   }
 
-  private onComponentAdded = <T>(entity: Entity, component: NonNullable<T>) => {
-    this._queries.forEach(value => value.entityComponentAdded(entity, component));
+  private onComponentAdded = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
+    this._queries.forEach(value => value.entityComponentAdded(entity, component, componentClass));
   };
 
   private onInvalidationRequested = (entity: Entity) => {
     this._queries.forEach(value => value.validateEntity(entity));
   };
 
-  private onComponentRemoved = <T>(entity: Entity, component: NonNullable<T>) => {
-    this._queries.forEach(value => value.entityComponentRemoved(entity, component));
+  private onComponentRemoved = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
+    this._queries.forEach(value => value.entityComponentRemoved(entity, component, componentClass));
   };
 }
