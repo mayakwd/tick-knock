@@ -635,6 +635,9 @@ export class EntitySnapshot {
     this._current = value;
   }
 
+  /**
+   * Gets an instance of the previous state of entity
+   */
   public get previous(): ReadonlyEntity {
     return this._previous;
   }
