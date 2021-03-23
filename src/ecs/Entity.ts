@@ -617,21 +617,21 @@ export class Entity implements ReadonlyEntity {
  * snapshot, even if a manual invalidation of the entity has been triggered.</p>
  */
 export class EntitySnapshot {
-  private _current?: ReadonlyEntity;
+  private _current?: Entity;
   private _previous: ReadonlyEntity = new Entity();
 
   /**
    * Gets an instance of the actual entity
    * @returns {Entity}
    */
-  public get current(): ReadonlyEntity {
+  public get current(): Entity {
     return this._current!;
   }
 
   /**
    * @internal
    */
-  public set current(value: ReadonlyEntity) {
+  public set current(value: Entity) {
     this._current = value;
   }
 
