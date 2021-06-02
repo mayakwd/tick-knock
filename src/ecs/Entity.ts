@@ -568,10 +568,11 @@ export class Entity implements ReadonlyEntity {
    * @param {Class<T>} resolveClass
    */
   public takeSnapshot<T>(result: EntitySnapshot, changedComponentOrTag?: T, resolveClass?: Class<T>): void {
-    result.current = this;
-
     const previousState = result.previous as Entity;
-    previousState.copyFrom(this);
+    if (result.current !== this) {
+      result.current = this;
+      previousState.copyFrom(this);
+    }
 
     if (changedComponentOrTag === undefined) {
       return;
