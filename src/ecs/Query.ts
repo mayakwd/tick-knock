@@ -1,8 +1,9 @@
-import {getComponentId} from './ComponentId';
+import {getComponentClass, getComponentId} from './ComponentId';
 import {Entity, EntitySnapshot} from './Entity';
 import {isTag, Tag} from './Tag';
 import {Signal} from '../utils/Signal';
 import {Class} from '../utils/Class';
+import {isLinkedComponent} from './LinkedComponent';
 
 /**
  * Query Predicate is the type that describes a function that compares Entities with the conditions it sets.
@@ -186,7 +187,7 @@ export class Query {
     const hasAddedHandlers = this.onEntityAdded.hasHandlers;
     const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
 
-    this.updateHelper(entity, componentOrTag);
+    this.updateHelper(entity, componentOrTag, componentClass);
 
     const index = this._entities.indexOf(entity);
     const isMatch = this._predicate(this._helper);
@@ -212,7 +213,7 @@ export class Query {
     const hasAddedHandlers = this.onEntityAdded.hasHandlers;
     const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
 
-    this.updateHelper(entity, component);
+    this.updateHelper(entity, component, componentClass);
 
     const index = this._entities.indexOf(entity);
     if (index !== -1 && this._predicate(this._helper) && !this._predicate(entity)) {
@@ -230,10 +231,14 @@ export class Query {
     }
   };
 
-  private updateHelper<T>(entity: Entity, component: NonNullable<T>) {
+  private updateHelper<T>(entity: Entity, component: NonNullable<T>, resolveClass?: Class<NonNullable<T>>) {
     this._helper.clear();
     this._helper.copyFrom(entity);
-    this._helper.add(component);
+    if (!isLinkedComponent(component)) {
+      this._helper.add(component);
+    } else if (!this._helper.has(getComponentClass(component!, resolveClass))) {
+      this._helper.append(component);
+    }
   }
 }
 

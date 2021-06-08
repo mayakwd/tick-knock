@@ -16,6 +16,8 @@ class Move {}
 
 class Stay {}
 
+class Damage extends LinkedComponent {}
+
 describe('Query builder', () => {
   it('Building query', () => {
     const query = new QueryBuilder()
@@ -556,5 +558,95 @@ describe('Query signals', () => {
 
     expect(currentState).toBeTruthy();
     expect(previousState).toBeTruthy();
+  });
+
+  it('Query onEntityAdded mustn\'t be triggered more than once if several linked components added to the entity', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Damage);
+    });
+
+    let addedNumber = 0;
+    query.onEntityAdded.connect(snapshot => {
+      addedNumber++;
+    });
+
+    const entity = new Entity()
+      .append(new Damage());
+
+    query.matchEntities([entity]);
+    for (let i = 0; i < 3; i++) {
+      const damage = new Damage();
+      entity.append(damage);
+      query.entityComponentAdded(entity, damage, Damage);
+    }
+
+    expect(addedNumber).toBe(1);
+  });
+
+  it('Query onEntityRemoved must be triggered only when last linked component withdrawn', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Damage);
+    });
+
+    let removedNumber = 0;
+    query.onEntityRemoved.connect(snapshot => {
+      removedNumber++;
+    });
+
+    const entity = new Entity()
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage());
+
+    query.matchEntities([entity]);
+    while (entity.has(Damage)) {
+      const damage = entity.withdraw(Damage)!;
+      query.entityComponentRemoved(entity, damage, Damage);
+    }
+
+    expect(removedNumber).toBe(1);
+  });
+
+  it(`Query.entityComponentAdded will be call after all other connected handlers`, () => {
+    const engine = new Engine();
+    const query = new Query((entity) => entity.has(View));
+    const entity = new Entity();
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    let callIndex = 0;
+    let queryCallIndex;
+    entity.onComponentAdded.connect(() => {
+      callIndex++;
+    });
+    query.onEntityAdded.connect(() => {
+      queryCallIndex = callIndex++;
+    });
+    entity.add(new View());
+    expect(queryCallIndex).toBe(1);
+  });
+
+  it(`Query.entityComponentRemoved must be called only when all linked components are removed and after all other handlers`, () => {
+    const engine = new Engine();
+    const query = new Query((entity) => entity.has(Damage));
+    const entity = new Entity();
+    engine.addQuery(query);
+    engine.addEntity(entity);
+    entity
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage());
+    let callIndex = 0;
+    let queryCallIndex;
+    entity.onComponentRemoved.connect(() => {
+      callIndex++;
+    }, 1000);
+    query.onEntityRemoved.connect(() => {
+      queryCallIndex = callIndex++;
+    });
+    entity.remove(Damage);
+    expect(queryCallIndex).toBe(5);
   });
 });

@@ -19,9 +19,24 @@ export function getComponentId<T>(
   return undefined;
 }
 
+/**
+ * @internal
+ */
+export function getComponentClass<T extends K, K>(component: NonNullable<T>, resolveClass?: Class<K>) {
+  let componentClass = Object.getPrototypeOf(component).constructor as Class<T>;
+  if (resolveClass) {
+    if (!(component instanceof resolveClass || componentClass === resolveClass)) {
+      throw new Error('Resolve class should be an ancestor of component class');
+    }
+    componentClass = resolveClass as Class<T>;
+  }
+  return componentClass;
+}
+
 let COMPONENT_CLASS_ID = '__componentClassId__';
 let componentClassId: number = 1;
 
 type ComponentId<T> = Class<T> & {
   [key: string]: number;
 };
+
