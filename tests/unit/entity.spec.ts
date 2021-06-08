@@ -336,9 +336,131 @@ describe('Components and Tags', () => {
     entity.onComponentAdded.connect(() => { addedAmount++; });
     entity.append(new Damage(10));
     entity.append(new Damage(10));
-    expect(addedAmount).toBe(1);
+    expect(addedAmount).toBe(2);
   });
 
+  it(`Removing linked component with "remove" removes whole linked list`, () => {
+    const entity = new Entity();
+    entity.append(new Damage(10));
+    entity.append(new Damage(10));
+    entity.remove(Damage);
+
+    expect(entity.get(Damage)).toBeUndefined();
+  });
+
+  it(`Removing linked component with "pick" removes only first component`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2);
+    entity.append(damage1);
+    entity.append(damage2);
+    entity.pick(damage1);
+    expect(entity.get(Damage)).toBe(damage2);
+  });
+
+  it(`Withdrawing all components clears linked list associated to component class`, () => {
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(new Damage(2))
+      .append(new Damage(3));
+
+    while (entity.has(Damage)) {
+      entity.withdraw(Damage);
+    }
+
+    expect(entity.has(Damage)).toBeFalsy();
+    expect(entity.getLinkedComponentList(Damage, false)).toBeUndefined();
+  });
+
+  it(`"withdraw" returns undefined if there is no linked components appended`, () => {
+    const entity = new Entity()
+      .add(new Position())
+      .append(new Damage(1))
+      .append(new Damage(2));
+
+    while (entity.has(Damage)) {
+      entity.withdraw(Damage);
+    }
+
+    expect(entity.withdraw(Damage)).toBeUndefined();
+  });
+
+  it('"contains" returns the same instance if it exists in the linked components appended to the Entity', () => {
+    const damage = new Damage(1);
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(damage)
+      .append(new Damage(2));
+
+    expect(entity.contains(damage)).toBeTruthy();
+  });
+
+  it('"contains" returns undefined linked component is not appended to the Entity', () => {
+    const damage = new Damage(1);
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(new Damage(2));
+
+    expect(entity.contains(damage)).toBeFalsy();
+  });
+
+  it('"contains" returns undefined for linked component registered under another resolveClass', () => {
+    const damage = new DamageChild();
+    const entity = new Entity()
+      .append(damage, Damage);
+
+    expect(entity.contains(damage, DamageChild)).toBeFalsy();
+  });
+
+  it('"contains" works for regular components', () => {
+    const position = new Position(1, 1);
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(new Damage(2))
+      .add(position);
+    expect(entity.contains(position)).toBeTruthy();
+  });
+
+  it(`Linked components must be cleared after remove`, () => {
+    const entity = new Entity();
+    entity.append(new Damage(1));
+    entity.append(new Damage(2));
+    entity.remove(Damage);
+    entity.append(new Damage(3));
+    expect(entity.lengthOf(Damage)).toBe(1);
+  });
+
+  it(`Find component returns linked component instance accepted by predicate`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2);
+    entity
+      .append(damage1)
+      .append(damage2);
+    expect(entity.find(Damage, (it) => it.value === 2)).toBe(damage2);
+  });
+
+  it(`Find component returns regular component instance accepted by predicate`, () => {
+    const entity = new Entity();
+    entity.append(new Damage(1))
+          .add(new Position(100, 100));
+    expect(entity.find(Position, (it) => it.x === 100 && it.y === 100)).toBe(entity.get(Position));
+  });
+
+  it('Entity.linkedComponents returns all linked components instances for specific component class', () => {
+    const entity = new Entity();
+    entity
+      .append(new Damage(1))
+      .append(new Damage(2))
+      .append(new Damage(3));
+    let amount = 0;
+    for (const damage of entity.getAll(Damage)) {
+      if (damage.value === amount + 1) {
+        amount++;
+      }
+    }
+    expect(amount).toBe(3);
+  });
 });
 
 describe('Removing component', () => {
@@ -401,6 +523,26 @@ describe('Removing component', () => {
     const TAG = 1234;
     const entity = new Entity();
     expect(entity.remove(TAG)).toBeUndefined();
+  });
+
+  it(`"withdraw" can remove regular component as well`, () => {
+    const entity = new Entity();
+    const position = new Position(1, 1);
+    const result = entity
+      .add(position)
+      .withdraw(Position);
+    expect(result).toBe(position);
+    expect(entity.has(Position)).toBeFalsy();
+  });
+
+  it(`"pick" can remove regular component as well`, () => {
+    const entity = new Entity();
+    const position = new Position(1, 1);
+    const result = entity
+      .add(position)
+      .pick(position);
+    expect(result).toBe(position);
+    expect(entity.has(Position)).toBeFalsy();
   });
 });
 
@@ -485,5 +627,29 @@ describe('Snapshot', () => {
       expect(snapshot.current.has(TAG_C)).toBeFalsy();
       expect(snapshot.previous.has(TAG_C)).toBeTruthy();
     }
+  });
+
+  it('Adding linked component must replace all existing linked component instances', () => {
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(new Damage(2))
+      .append(new Damage(3));
+
+    entity.add(new Damage(100));
+    expect(entity.lengthOf(Damage)).toBe(1);
+  });
+
+  it('Replacing linked component with "add" must trigger onComponentRemoved for every appended linked component', () => {
+    const entity = new Entity()
+      .append(new Damage(1))
+      .append(new Damage(2))
+      .append(new Damage(3));
+
+    let removedNumber = 0;
+    entity.onComponentRemoved.connect(() => {
+      removedNumber++;
+    });
+    entity.add(new Damage(100));
+    expect(removedNumber).toBe(3);
   });
 });

@@ -2,7 +2,7 @@
  * Lightweight implementation of Signal
  */
 export class Signal<Handler extends (...args: any[]) => any> {
-  private readonly handlers: Handler[] = [];
+  private readonly handlers: SignalHandler<Handler>[] = [];
 
   /**
    * Gets a value that indicates whether signal has handlers
@@ -23,11 +23,21 @@ export class Signal<Handler extends (...args: any[]) => any> {
   /**
    * Connects signal handler, that will be invoked on signal emit.
    * @param {Handler} handler
+   * @param priority Handler invocation priority (handler with higher priority will be called later than with lower one)
    */
-  public connect(handler: Handler): void {
-    const index = this.handlers.indexOf(handler);
-    if (index < 0) {
-      this.handlers.push(handler);
+  public connect(handler: Handler, priority: number = 0): void {
+    const existingHandler = this.handlers.find((it) => it.equals(handler));
+    let needResort: boolean;
+    if (existingHandler !== undefined) {
+      needResort = existingHandler.priority !== priority;
+      existingHandler.priority = priority;
+    } else {
+      const lastHandler = this.handlers[this.handlers.length - 1];
+      this.handlers.push(new SignalHandler(handler, priority));
+      needResort = (lastHandler !== undefined && lastHandler.priority > priority);
+    }
+    if (needResort) {
+      this.handlers.sort((a, b) => a.priority - b.priority);
     }
   }
 
@@ -36,9 +46,9 @@ export class Signal<Handler extends (...args: any[]) => any> {
    * @param {Handler} handler
    */
   public disconnect(handler: Handler): void {
-    const index = this.handlers.indexOf(handler);
-    if (index >= 0) {
-      this.handlers.splice(index, 1);
+    const existingHandlerIndex = this.handlers.findIndex((it) => it.equals(handler));
+    if (existingHandlerIndex >= 0) {
+      this.handlers.splice(existingHandlerIndex, 1);
     }
   }
 
@@ -56,7 +66,19 @@ export class Signal<Handler extends (...args: any[]) => any> {
    */
   public emit(...args: Parameters<Handler>): void {
     for (const handler of this.handlers) {
-      handler(...args);
+      handler.handle(...args);
     }
+  }
+}
+
+class SignalHandler<Handler extends (...args: any[]) => any> {
+  public constructor(public readonly handler: Handler, public priority: number) {}
+
+  public equals(handler: Handler): boolean {
+    return this.handler === handler;
+  }
+
+  public handle(...args: any[]) {
+    this.handler(...args);
   }
 }

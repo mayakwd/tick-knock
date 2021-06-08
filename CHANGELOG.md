@@ -1,3 +1,23 @@
+# 4.0.0
+
+Features:
+
+- Added a new convenient API for working with linked components:
+  - Method `withdraw` removes the first LinkedComponent component of the provided type or existing standard component
+  - Method `pick` removes provided LinkedComponent component instance or existing standard component
+  - Method `iterate` iterates over instances of LinkedComponent and performs the `action` over each. Works for standard
+    components (action will be called for a single instance in this case).
+  - Method `find` searches a component instance of the specified class. Works for standard components (predicate will be
+    called for a single instance in this case).
+  - Method `getAll` returns a generator that can be used for iteration over all instances of specific type components.
+  - Method `lengthOf` returns the number of existing components of the specified class.
+
+Breaking changes:
+
+- Signals `onComponentAdded`, `onComponentRemoved` now will be triggered for every LinkedComponent.
+- Adding a linked component with `add` or `addComponent` will remove all existing linked components of the same type.
+  Linked components will be replaced even if the passed component already exists in the Entity.
+
 # 3.0.1
 
 Fixes:

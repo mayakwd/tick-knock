@@ -311,9 +311,9 @@ export class Engine {
   }
 
   private connectEntity(entity: Entity) {
-    entity.onComponentAdded.connect(this.onComponentAdded);
-    entity.onComponentRemoved.connect(this.onComponentRemoved);
-    entity.onInvalidationRequested.connect(this.onInvalidationRequested);
+    entity.onComponentAdded.connect(this.onComponentAdded, Number.POSITIVE_INFINITY);
+    entity.onComponentRemoved.connect(this.onComponentRemoved, Number.POSITIVE_INFINITY);
+    entity.onInvalidationRequested.connect(this.onInvalidationRequested, Number.NEGATIVE_INFINITY);
   }
 
   private disconnectEntity(entity: Entity) {

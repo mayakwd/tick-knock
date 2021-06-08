@@ -1,13 +1,22 @@
-import {getComponentId} from './ComponentId';
+import {getComponentClass, getComponentId} from './ComponentId';
 import {Class} from '../utils/Class';
 import {Signal} from '../utils/Signal';
 import {isTag, Tag} from './Tag';
-import {ILinkedComponent} from './LinkedComponent';
+import {ILinkedComponent, isLinkedComponent} from './LinkedComponent';
+import {LinkedComponentList} from './LinkedComponentList';
 
 /**
  * Entity readonly interface
  */
 export interface ReadonlyEntity {
+  /**
+   * The signal dispatches if new component or tag was added to the entity
+   */
+  readonly onComponentAdded: Signal<ComponentUpdateHandler>;
+  /**
+   * The signal dispatches if component was removed from the entity
+   */
+  readonly onComponentRemoved: Signal<ComponentUpdateHandler>;
   /**
    * Returns components map, where key is component identifier, and value is a component itself
    * @see {@link getComponentId}, {@link Entity.getComponents}
@@ -22,7 +31,7 @@ export interface ReadonlyEntity {
   /**
    * Returns value indicating whether entity has a specific component or tag
    *
-   * @param componentClassOrTag
+   * @param {Class | Tag} componentClassOrTag
    * @example
    * ```ts
    * const BERSERK = 10091;
@@ -33,6 +42,26 @@ export interface ReadonlyEntity {
    * ```
    */
   has<T>(componentClassOrTag: Class<T> | Tag): boolean;
+
+  /**
+   * Returns value indicating whether entity contains a component instance.
+   * If the component is an instance of ILinkedComponent then all components of its type will be checked for equality.
+   *
+   * @param {T} component
+   * @param {Class<K>} resolveClass
+   * @example
+   * ```ts
+   * const boon = new Boon(BoonType.HEAL);
+   * entity
+   *   .append(new Boon(BoonType.PROTECTION));
+   *   .append(boon);
+   *
+   * if (entity.contains(boon)) {
+   *   logger.info('Ah, sweet. We have not only protection but heal as well!');
+   * }
+   * ```
+   */
+  contains<T extends K, K>(component: T, resolveClass?: Class<K>): boolean
 
   /**
    * Returns value indicating whether entity has a specific component
@@ -112,6 +141,66 @@ export interface ReadonlyEntity {
    * @param componentClass Specific component class
    */
   get<T>(componentClass: Class<T>): T | undefined;
+
+  /**
+   * Iterates over instances of linked component appended to the Entity and performs the action over each.<br>
+   * Works and for standard components (action will be called for a single instance in this case).
+   *
+   * @param {Class<T>} componentClass Component`s class
+   * @param {(component: T) => void} action Action to perform over every component instance.
+   * @example
+   * ```ts
+   * class Boon extends LinkedComponent {
+   *   public constructor(
+   *     public type: BoonType,
+   *     public duration: number
+   *   ) { super(); }
+   * }
+   * const entity = new Entity()
+   *   .append(new Boon(BoonType.HEAL, 2))
+   *   .append(new Boon(BoonType.PROTECTION, 3);
+   *
+   * // Let's decrease every boon duration and remove them if they are expired.
+   * entity.iterate(Boon, (boon) => {
+   *   if (--boon.duration <= 0) {
+   *      entity.pick(boon);
+   *   }
+   * });
+   * ```
+   */
+  iterate<T>(componentClass: Class<T>, action: (component: T) => void): void;
+
+  /**
+   * Returns generator with all instances of specified linked component class
+   *
+   * @param {Class<T>} componentClass Component`s class
+   * @example
+   * ```ts
+   * for (const damage of entity.linkedComponents(Damage)) {
+   *   if (damage.value < 0) {
+   *   throw new Error('Damage value can't be less than zero');
+   * }
+   * ```
+   */
+  getAll<T>(componentClass: Class<T>): Generator<T, void, T>;
+
+  /**
+   * Searches a component instance of specified linked component class.
+   * Works and for standard components (predicate will be called for a single instance in this case).
+   *
+   * @param {Class<T>} componentClass
+   * @param {(component: T) => boolean} predicate
+   * @return {T | undefined}
+   */
+  find<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined;
+
+  /**
+   * Returns number of components of specified class.
+   *
+   * @param {Class<T>} componentClass
+   * @return {number}
+   */
+  lengthOf<T>(componentClass: Class<T>): number;
 }
 
 /**
@@ -144,11 +233,11 @@ export interface ReadonlyEntity {
  */
 export class Entity implements ReadonlyEntity {
   /**
-   * The signal dispatches if new component or tag was added to the entity
+   * The signal dispatches if new component or tag was added to the entity. Works for every linked component as well.
    */
   public readonly onComponentAdded: Signal<ComponentUpdateHandler> = new Signal();
   /**
-   * The signal dispatches if component was removed from the entity
+   * The signal dispatches if component was removed from the entity. Works for every linked component as well.
    */
   public readonly onComponentRemoved: Signal<ComponentUpdateHandler> = new Signal();
   /**
@@ -169,6 +258,7 @@ export class Entity implements ReadonlyEntity {
   public readonly id = entityId++;
 
   private _components: Record<number, unknown> = {};
+  private _linkedComponents: Record<number, LinkedComponentList<ILinkedComponent>> = {};
   private _tags: Set<Tag> = new Set();
 
   /**
@@ -197,7 +287,11 @@ export class Entity implements ReadonlyEntity {
    * - During components replacement {@link onComponentRemoved} and {@link onComponentAdded} are will be triggered
    *  sequentially.
    * - If there is no component of the same type, or the tag is not present in the entity - then only
-   *   {@link onComponentAdded} will be triggered.
+   * - If the passed component is an instance of ILinkedComponent then all existing instances will be removed, and the
+   *  passed instance will be added to the Entity. {@link onComponentRemoved} will be triggered for every removed
+   *  instance and {@link onComponentAdded} will be triggered for the passed component.
+   * - Linked component always replaces all existing instances. Even if the passed instance already exists in the
+   *  Entity - all existing linked components will be removed anyway, and replaced with the passed one.
    *
    * @throws Throws error if component is null or undefined, or if component is not an instance of the class as well
    * @param {T | Tag} componentOrTag Component instance or Tag
@@ -205,7 +299,7 @@ export class Entity implements ReadonlyEntity {
    *  Passed class always should be an ancestor of Component's class.
    *  It has sense only if component instance is passed, but not the Tag.
    * @returns {Entity} Reference to the entity itself. It helps to build chain of calls.
-   * @see {@link addComponent}, {@link addTag}
+   * @see {@link addComponent, appendComponent}, {@link addTag}
    * @example
    * ```ts
    * const BULLET = 1;
@@ -230,10 +324,10 @@ export class Entity implements ReadonlyEntity {
   /**
    * Appends a linked component to the entity.
    *
-   * - If linked component is not exists, then it will be added via `addComponent` method and {@link onComponentAdded}
+   * - If linked component is not exists, then it will be added to the Entity and {@link onComponentAdded}
    * will be triggered.
-   * - If component already exists in the entity, then passed one will be appended to the tail. {@link
-    * onComponentAdded} wont be triggered.
+   * - If component already exists in the entity, then passed one will be appended to the tail. {@link onComponentAdded}
+   *  will be triggered as well.
    *
    * It's a shorthand to {@link appendComponent}
    *
@@ -241,7 +335,7 @@ export class Entity implements ReadonlyEntity {
    * @param {T | Tag} component ILinkedComponent instance
    * @param {K} resolveClass Class that should be used as resolving class.
    *  Passed class always should be an ancestor of Component's class.
-   *  It has sense only if component instance is passed, but not the Tag.
+   *
    * @returns {Entity} Reference to the entity itself. It helps to build chain of calls.
    * @see {@link addComponent}
    * @see {@link appendComponent}
@@ -249,18 +343,65 @@ export class Entity implements ReadonlyEntity {
    * ```ts
    * const damage = new Damage();
    * const entity = new Entity()
-   *  .append(new Damage())
-   *  .append(new Damage())
+   *  .append(new Damage(1))
+   *  .append(new Damage(2))
    *
    *  const damage = entity.get(Damage);
-   *  while (damage !== undefined) {
+   *  while (entity.has(Damage)) {
+   *    const entity = entity.withdraw(Damage);
    *    print(damage.value);
-   *    damage = damage.next;
    *  }
    * ```
    */
   public append<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
     return this.appendComponent(component, resolveClass);
+  }
+
+  /**
+   * Removes first appended linked component instance of the specified type.
+   * Unlike {@link remove} and {@link removeComponent} remaining linked components stays in the Entity.
+   *
+   * - If linked component exists in the Entity, then it will be removed from Entity and {@link onComponentRemoved}
+   * will be triggered.
+   *
+   * @param {Class<T>} componentClass
+   * @return {T | undefined} Component instance if any of the specified type exists in the entity, otherwise undefined
+   * @example
+   * ```ts
+   * const entity = new Entity()
+   *   .append(new Damage(1))
+   *   .append(new Damage(2))
+   *   .append(new Damage(3));
+   *
+   * entity.withdraw(Damage);
+   * entity.iterate(Damage, (damage) => {
+   *   print('Remaining damage: ' + damage.value);
+   * });
+   *
+   * // Remaining damage: 2
+   * // Remaining damage: 3
+   * ```
+   */
+  public withdraw<T>(componentClass: Class<T>): T | undefined {
+    const component = this.get(componentClass);
+    if (component !== undefined) {
+      return this.withdrawComponent(component as NonNullable<T>, componentClass);
+    }
+    return undefined;
+  }
+
+  /**
+   * Removes particular linked component instance from the Entity.
+   *
+   * - If linked component instance exists in the Entity, then it will be removed from Entity and
+   * {@link onComponentRemoved} will be triggered.
+   *
+   * @param {NonNullable<T>} component Linked component instance
+   * @param {Class<K>} resolveClass Resolve class
+   * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
+   */
+  public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined {
+    return this.withdrawComponent(component, resolveClass);
   }
 
   /**
@@ -288,24 +429,20 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): void {
-    let componentClass = Object.getPrototypeOf(component).constructor as Class<T>;
-    if (resolveClass) {
-      if (!(component instanceof resolveClass && componentClass != resolveClass)) {
-        throw new Error('Resolve class should be an ancestor of component class');
-      }
-      componentClass = resolveClass as Class<T>;
-    }
-
+    const componentClass = getComponentClass(component, resolveClass);
     const id = getComponentId(componentClass, true)!;
+    const linkedComponent = isLinkedComponent(component);
     if (this._components[id] !== undefined) {
-      if (component === this._components[id]) {
+      if (!linkedComponent && component === this._components[id]) {
         return;
       }
       this.remove(componentClass);
     }
-    this._components[id] = component;
-    if (this.onComponentAdded.hasHandlers) {
-      this.onComponentAdded.emit(this, component);
+    if (linkedComponent) {
+      this.append(component as ILinkedComponent, resolveClass as Class<ILinkedComponent>);
+    } else {
+      this._components[id] = component;
+      this.dispatchOnComponentAdded(component);
     }
   }
 
@@ -321,7 +458,7 @@ export class Entity implements ReadonlyEntity {
    * @param {T | Tag} component ILinkedComponent instance
    * @param {K} resolveClass Class that should be used as resolving class.
    *  Passed class always should be an ancestor of Component's class.
-   *  It has sense only if component instance is passed, but not the Tag.
+   *
    * @returns {Entity} Reference to the entity itself. It helps to build chain of calls.
    * @see {@link append}
    * @see {@link addComponent}
@@ -340,25 +477,14 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public appendComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
-    let componentClass = Object.getPrototypeOf(component).constructor as Class<T>;
-    if (resolveClass) {
-      if (!(component instanceof resolveClass && componentClass != resolveClass)) {
-        throw new Error('Resolve class should be an ancestor of component class');
-      }
-      componentClass = resolveClass as Class<T>;
+    const componentClass = getComponentClass(component, resolveClass);
+    const componentId = getComponentId(componentClass, true)!;
+    const componentList = this.getLinkedComponentList(componentId)!;
+    componentList.add(component);
+    if (this._components[componentId] === undefined) {
+      this._components[componentId] = componentList.head;
     }
-    if (this.hasComponent(componentClass)) {
-      let existingComponent: ILinkedComponent = this.get(componentClass)!;
-      while (existingComponent !== component && existingComponent.next !== undefined) {
-        existingComponent = existingComponent.next;
-      }
-      if (existingComponent === component) {
-        throw new Error('Component is already appended, appending it once again will break linked items order');
-      }
-      existingComponent.next = component;
-    } else {
-      this.addComponent(component, resolveClass);
-    }
+    this.dispatchOnComponentAdded(component);
     return this;
   }
 
@@ -384,14 +510,12 @@ export class Entity implements ReadonlyEntity {
   public addTag(tag: Tag): void {
     if (!this._tags.has(tag)) {
       this._tags.add(tag);
-      if (this.onComponentAdded.hasHandlers) {
-        this.onComponentAdded.emit(this, tag);
-      }
+      this.dispatchOnComponentAdded(tag);
     }
   }
 
   /**
-   * Returns value indicating whether entity has a specific component or tag
+   * Returns componentClassOrTag indicating whether entity has a specific component or tag
    *
    * @param componentClassOrTag
    * @example
@@ -408,6 +532,32 @@ export class Entity implements ReadonlyEntity {
       return this.hasTag(componentClassOrTag);
     }
     return this.hasComponent(componentClassOrTag);
+  }
+
+  /**
+   * Returns value indicating whether entity contains a component instance.
+   * If the component is an instance of ILinkedComponent then all components of its type will be checked for equality.
+   *
+   * @param {NonNullable<T>} component
+   * @param {Class<K>} resolveClass
+   * @example
+   * ```ts
+   * const boon = new Boon(BoonType.HEAL);
+   * entity
+   *   .append(new Boon(BoonType.PROTECTION));
+   *   .append(boon);
+   *
+   * if (entity.contains(boon)) {
+   *   logger.info('Ah, sweet. We have not only protection but heal as well!');
+   * }
+   * ```
+   */
+  public contains<T extends K, K>(component: NonNullable<T>, resolveClass?: Class<K>): boolean {
+    const componentClass = getComponentClass(component, resolveClass);
+    if (isLinkedComponent(component)) {
+      return this.find(componentClass, (value) => value === component) !== undefined;
+    }
+    return this.get(componentClass) === component;
   }
 
   /**
@@ -510,10 +660,21 @@ export class Entity implements ReadonlyEntity {
   /**
    * Removes a component or tag from the entity.
    *  In case if the component or tag is present - then {@link onComponentRemoved} will be
-   *  dispatched after removing it from the entity
+   *  dispatched after removing it from the entity.
+   *
+   * If linked component type provided:
+   * - For each instance of linked component {@link onComponentRemoved} will be called
+   * - Only head of the linked list will be returned.
+   *
+   * If you need to get all instances use {@link withdraw} or {@link pick} instead, or check {@link iterate},
+   * {@link getAll}
+   *
+   * It's a shorthand for {@link removeComponent}
    *
    * @param componentClassOrTag Specific component class or tag
    * @returns Component instance or `undefined` if it doesn't exists in the entity, or tag was removed
+   * @see {@link withdraw}
+   * @see {@link pick}
    */
   public remove<T>(componentClassOrTag: Class<T> | Tag): T | undefined {
     if (isTag(componentClassOrTag)) {
@@ -523,27 +684,53 @@ export class Entity implements ReadonlyEntity {
     return this.removeComponent(componentClassOrTag);
   }
 
+  /**
+   * Removes a component from the entity.
+   *  In case if the component or tag is present - then {@link onComponentRemoved} will be
+   *  dispatched after removing it from the entity.
+   *
+   * If linked component type provided:
+   * - For each instance of linked component {@link onComponentRemoved} will be called
+   * - Only head of the linked list will be returned.
+   *
+   * If you need to get all instances use {@link withdraw} or {@link pick} instead, or check {@link iterate},
+   * {@link getAll}
+   *
+   * @param componentClassOrTag Specific component class
+   * @returns Component instance or `undefined` if it doesn't exists in the entity
+   */
   public removeComponent<T>(componentClassOrTag: Class<T>): T | undefined {
     const id = getComponentId(componentClassOrTag);
     if (id === undefined || this._components[id] === undefined) {
       return undefined;
     }
 
-    const value = this._components[id];
-    delete this._components[id];
-    if (this.onComponentRemoved.hasHandlers) {
-      this.onComponentRemoved.emit(this, value);
+    let value = this._components[id];
+    if (isLinkedComponent(value)) {
+      const list = this.getLinkedComponentList(componentClassOrTag)!;
+      while (!list.isEmpty) {
+        this.withdraw(componentClassOrTag);
+      }
+    } else {
+      delete this._components[id];
+      this.dispatchOnComponentRemoved(value);
     }
 
     return value as T;
   }
 
-  public removeTag(componentClassOrTag: Tag): void {
-    if (this._tags.has(componentClassOrTag)) {
-      this._tags.delete(componentClassOrTag);
-      if (this.onComponentRemoved.hasHandlers) {
-        this.onComponentRemoved.emit(this, componentClassOrTag);
-      }
+  /**
+   * Removes a tag from the entity.
+   *  In case if the component tag is present - then {@link onComponentRemoved} will be
+   *  dispatched after removing it from the entity
+   *
+   * @param {Tag} tag Specific tag
+   * @returns {void}
+   */
+  public removeTag(tag: Tag): void {
+    if (this._tags.has(tag)) {
+      this._tags.delete(tag);
+      this.dispatchOnComponentRemoved(tag);
     }
   }
 
@@ -552,13 +739,119 @@ export class Entity implements ReadonlyEntity {
    */
   public clear(): void {
     this._components = {};
+    this._linkedComponents = {};
     this._tags.clear();
   }
 
+  /**
+   * Copies content from entity to itself.
+   * Linked components structure will be copied by the link, because we can't duplicate linked list order without
+   * cloning components itself. So modifying linked components in the copy will affect linked components in copy
+   * source.
+   *
+   * @param {Entity} entity
+   * @return {this}
+   */
   public copyFrom(entity: Entity): this {
     this._components = Object.assign({}, entity._components);
+    this._linkedComponents = Object.assign({}, entity._linkedComponents);
     this._tags = new Set(entity._tags);
     return this;
+  }
+
+  /**
+   * Iterates over instances of linked component appended to the Entity and performs the action over each.<br>
+   * Works and for standard components (action will be called for a single instance in this case).
+   *
+   * @param {Class<T>} componentClass Component`s class
+   * @param {(component: T) => void} action Action to perform over every component instance.
+   * @example
+   * ```ts
+   * class Boon extends LinkedComponent {
+   *   public constructor(
+   *     public type: BoonType,
+   *     public duration: number
+   *   ) { super(); }
+   * }
+   * const entity = new Entity()
+   *   .append(new Boon(BoonType.HEAL, 2))
+   *   .append(new Boon(BoonType.PROTECTION, 3);
+   *
+   * // Let's decrease every boon duration and remove them if they are expired.
+   * entity.iterate(Boon, (boon) => {
+   *   if (--boon.duration <= 0) {
+   *      entity.pick(boon);
+   *   }
+   * });
+   * ```
+   */
+  public iterate<T>(componentClass: Class<T>, action: (component: T) => void): void {
+    if (!this.hasComponent(componentClass)) return;
+    this.getLinkedComponentList(componentClass)?.iterate(action);
+  }
+
+  /**
+   * Returns generator with all instances of specified linked component class
+   *
+   * @param {Class<T>} componentClass Component`s class
+   * @example
+   * ```ts
+   * for (const damage of entity.linkedComponents(Damage)) {
+   *   if (damage.value < 0) {
+   *   throw new Error('Damage value can't be less than zero');
+   * }
+   * ```
+   */
+  public* getAll<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
+    if (!this.hasComponent(componentClass)) return;
+    const list = this.getLinkedComponentList(componentClass, false);
+    if (list === undefined) return undefined;
+    yield* list.nodes();
+  }
+
+  /**
+   * Searches a component instance of specified linked component class.
+   * Works and for standard components (predicate will be called for a single instance in this case).
+   *
+   * @param {Class<T>} componentClass
+   * @param {(component: T) => boolean} predicate
+   * @return {T | undefined}
+   */
+  public find<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined {
+    const componentIdToFind = getComponentId(componentClass, false);
+    if (componentIdToFind === undefined) return undefined;
+    const component = this._components[componentIdToFind];
+    if (component === undefined) return undefined;
+    if (isLinkedComponent(component)) {
+      let linkedComponent: ILinkedComponent | undefined = component;
+      while (linkedComponent !== undefined) {
+        if (predicate(linkedComponent as T)) return linkedComponent as T;
+        linkedComponent = linkedComponent.next;
+      }
+    } else return predicate(component as T) ? component as T : undefined;
+  }
+
+  /**
+   * Returns number of components of specified class.
+   *
+   * @param {Class<T>} componentClass
+   * @return {number}
+   */
+  public lengthOf<T>(componentClass: Class<T>): number {
+    let result = 0;
+    this.iterate(componentClass, () => {
+      result++;
+    });
+    return result;
+  }
+
+  /**
+   * Use this method to dispatch that entity component properties were changed, in case if
+   * queries predicates are depends on them.
+   * Components properties are not tracking by Engine itself, because it's too expensive.
+   */
+  public invalidate(): void {
+    this.onInvalidationRequested.emit(this);
   }
 
   /**
@@ -568,10 +861,11 @@ export class Entity implements ReadonlyEntity {
    * @param {Class<T>} resolveClass
    */
   public takeSnapshot<T>(result: EntitySnapshot, changedComponentOrTag?: T, resolveClass?: Class<T>): void {
-    result.current = this;
-
     const previousState = result.previous as Entity;
-    previousState.copyFrom(this);
+    if (result.current !== this) {
+      result.current = this;
+      previousState.copyFrom(this);
+    }
 
     if (changedComponentOrTag === undefined) {
       return;
@@ -597,12 +891,50 @@ export class Entity implements ReadonlyEntity {
   }
 
   /**
-   * Use this method to dispatch that entity component properties were changed, in case if
-   * queries predicates are depends on them.
-   * Components properties are not tracking by Engine itself, because it's too expensive.
+   * @internal
    */
-  public invalidate(): void {
-    this.onInvalidationRequested.emit(this);
+  public getLinkedComponentList(componentClassOrId: number | Class<any>, createIfNotExists = true): LinkedComponentList<any> | undefined {
+    if (typeof componentClassOrId !== 'number') {
+      componentClassOrId = getComponentId(componentClassOrId)!;
+    }
+    if (this._linkedComponents[componentClassOrId] !== undefined || !createIfNotExists) {
+      return this._linkedComponents[componentClassOrId];
+    } else {
+      return this._linkedComponents[componentClassOrId] = new LinkedComponentList<ILinkedComponent>();
+    }
+  }
+
+  private withdrawComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
+    const componentClass = getComponentClass(component, resolveClass);
+    if (!isLinkedComponent(component)) {
+      return this.remove(componentClass);
+    }
+    const componentList = this.getLinkedComponentList(componentClass, false);
+    if (!this.hasComponent(componentClass) || componentList === undefined) return undefined;
+    const result = componentList.remove(component) ? component : undefined;
+    const componentId = getComponentId(componentClass, true)!;
+    if (componentList.isEmpty) {
+      delete this._components[componentId];
+      delete this._linkedComponents[componentId];
+    } else {
+      this._components[componentId] = componentList.head;
+    }
+    if (result !== undefined) {
+      this.dispatchOnComponentRemoved(result);
+    }
+    return result;
+  }
+
+  private dispatchOnComponentAdded<T>(component: NonNullable<T>): void {
+    if (this.onComponentAdded.hasHandlers) {
+      this.onComponentAdded.emit(this, component);
+    }
+  }
+
+  private dispatchOnComponentRemoved<T>(value: NonNullable<T>): void {
+    if (this.onComponentRemoved.hasHandlers) {
+      this.onComponentRemoved.emit(this, value);
+    }
   }
 }
 
