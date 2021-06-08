@@ -660,12 +660,21 @@ export class Entity implements ReadonlyEntity {
   /**
    * Removes a component or tag from the entity.
    *  In case if the component or tag is present - then {@link onComponentRemoved} will be
-   *  dispatched after removing it from the entity
+   *  dispatched after removing it from the entity.
+   *
+   * If linked component type provided:
+   * - For each instance of linked component {@link onComponentRemoved} will be called
+   * - Only head of the linked list will be returned.
+   *
+   * If you need to get all instances use {@link withdraw} or {@link pick} instead, or check {@link iterate},
+   * {@link getAll}
    *
    * It's a shorthand for {@link removeComponent}
    *
    * @param componentClassOrTag Specific component class or tag
    * @returns Component instance or `undefined` if it doesn't exists in the entity, or tag was removed
+   * @see {@link withdraw}
+   * @see {@link pick}
    */
   public remove<T>(componentClassOrTag: Class<T> | Tag): T | undefined {
     if (isTag(componentClassOrTag)) {
@@ -677,8 +686,15 @@ export class Entity implements ReadonlyEntity {
 
   /**
    * Removes a component from the entity.
-   *  In case if the component is present - then {@link onComponentRemoved} will be
-   *  dispatched after removing it from the entity
+   *  In case if the component or tag is present - then {@link onComponentRemoved} will be
+   *  dispatched after removing it from the entity.
+   *
+   * If linked component type provided:
+   * - For each instance of linked component {@link onComponentRemoved} will be called
+   * - Only head of the linked list will be returned.
+   *
+   * If you need to get all instances use {@link withdraw} or {@link pick} instead, or check {@link iterate},
+   * {@link getAll}
    *
    * @param componentClassOrTag Specific component class
    * @returns Component instance or `undefined` if it doesn't exists in the entity
