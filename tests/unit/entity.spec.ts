@@ -524,6 +524,26 @@ describe('Removing component', () => {
     const entity = new Entity();
     expect(entity.remove(TAG)).toBeUndefined();
   });
+
+  it(`"withdraw" can remove regular component as well`, () => {
+    const entity = new Entity();
+    const position = new Position(1, 1);
+    const result = entity
+      .add(position)
+      .withdraw(Position);
+    expect(result).toBe(position);
+    expect(entity.has(Position)).toBeFalsy();
+  });
+
+  it(`"pick" can remove regular component as well`, () => {
+    const entity = new Entity();
+    const position = new Position(1, 1);
+    const result = entity
+      .add(position)
+      .pick(position);
+    expect(result).toBe(position);
+    expect(entity.has(Position)).toBeFalsy();
+  });
 });
 
 describe('Snapshot', () => {

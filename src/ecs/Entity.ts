@@ -382,9 +382,9 @@ export class Entity implements ReadonlyEntity {
    * // Remaining damage: 3
    * ```
    */
-  public withdraw<T extends ILinkedComponent>(componentClass: Class<T>): T | undefined {
+  public withdraw<T>(componentClass: Class<T>): T | undefined {
     const component = this.get(componentClass);
-    if (component !== undefined && isLinkedComponent(component)) {
+    if (component !== undefined) {
       return this.withdrawComponent(component as NonNullable<T>, componentClass);
     }
     return undefined;
@@ -400,7 +400,7 @@ export class Entity implements ReadonlyEntity {
    * @param {Class<K>} resolveClass Resolve class
    * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
    */
-  public pick<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
+  public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined {
     return this.withdrawComponent(component, resolveClass);
   }
 
@@ -886,6 +886,9 @@ export class Entity implements ReadonlyEntity {
 
   private withdrawComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
     const componentClass = getComponentClass(component, resolveClass);
+    if (!isLinkedComponent(component)) {
+      return this.remove(componentClass);
+    }
     const componentList = this.getLinkedComponentList(componentClass, false);
     if (!this.hasComponent(componentClass) || componentList === undefined) return undefined;
     const result = componentList.remove(component) ? component : undefined;
