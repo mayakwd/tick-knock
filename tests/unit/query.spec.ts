@@ -606,4 +606,47 @@ describe('Query signals', () => {
 
     expect(removedNumber).toBe(1);
   });
+
+  it(`Query.entityComponentAdded will be call after all other connected handlers`, () => {
+    const engine = new Engine();
+    const query = new Query((entity) => entity.has(View));
+    const entity = new Entity();
+    engine.addQuery(query);
+    engine.addEntity(entity);
+
+    let callIndex = 0;
+    let queryCallIndex;
+    entity.onComponentAdded.connect(() => {
+      callIndex++;
+    });
+    query.onEntityAdded.connect(() => {
+      queryCallIndex = callIndex++;
+    });
+    entity.add(new View());
+    expect(queryCallIndex).toBe(1);
+  });
+
+  it(`Query.entityComponentRemoved must be called only when all linked components are removed and after all other handlers`, () => {
+    const engine = new Engine();
+    const query = new Query((entity) => entity.has(Damage));
+    const entity = new Entity();
+    engine.addQuery(query);
+    engine.addEntity(entity);
+    entity
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage());
+    let callIndex = 0;
+    let queryCallIndex;
+    entity.onComponentRemoved.connect(() => {
+      callIndex++;
+    }, 1000);
+    query.onEntityRemoved.connect(() => {
+      queryCallIndex = callIndex++;
+    });
+    entity.remove(Damage);
+    expect(queryCallIndex).toBe(5);
+  });
 });

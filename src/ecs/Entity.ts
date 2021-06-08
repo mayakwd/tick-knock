@@ -690,15 +690,13 @@ export class Entity implements ReadonlyEntity {
     }
 
     let value = this._components[id];
-    delete this._components[id];
     if (isLinkedComponent(value)) {
       const list = this.getLinkedComponentList(componentClassOrTag)!;
-      delete this._linkedComponents[id];
-      list.iterate((component) => {
-        this.dispatchOnComponentRemoved(component);
-      });
-      list.clear();
+      while (!list.isEmpty) {
+        this.withdraw(componentClassOrTag);
+      }
     } else {
+      delete this._components[id];
       this.dispatchOnComponentRemoved(value);
     }
 
