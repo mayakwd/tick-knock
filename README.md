@@ -13,6 +13,7 @@
     - [Engine]
         - [Subscription]
     - [Component]
+    - [Linked Component]
     - [Tag]
     - [Entity]
     - [System]
@@ -24,6 +25,7 @@
             - [IterativeSystem]
     - [Snapshot]
     - [Shared Config]
+    - [Linked Components How-To]
 - [Restrictions]
     - [Shared and Local Queries]
     - [Queries with complex logic and Entity invalidation]
@@ -183,10 +185,9 @@ class DamageSystem extends IterativeSystem {
 
   public updateEntity(entity: Entity) {
     const health = entity.get(Health)!;
-    let damage = entity.remove(Damage)!;
-    while (damage !== undefined) {
+    while (entity.has(Damage)) {
+      const damage = entity.withdraw(Damage);
       health.value -= damage.value;
-      damage = damage.next;
     }
   }
 }
@@ -194,8 +195,8 @@ class DamageSystem extends IterativeSystem {
 
 ## Tag
 
-Also can be called a "label". It's a simplistic way to help you not "inflate" your code with classes without data. For
-instance, you want to mark your entity as Dead. There are two ways:
+It also can be called a "label". It's a simplistic way to help you not "inflate" your code with classes without data.
+For instance, you want to mark your entity as Dead. There are two ways:
 
 - To create a component class: `class Dead {}`
 - Or to create a tag - that can be represented as a `string` or `number`.
@@ -582,6 +583,139 @@ engine.addSystem(new ViewSystem());
 
 > ☝ Shared Config is the single instance connected to `Engine` since its initialization and can't be removed from it. It affects queries like any regular `Entity`.
 
+## How to work with linked components?
+
+Tick-knock provides an extended API for working with linked components since version 4.0.0.
+
+- Method `withdraw` removes the first LinkedComponent component of the provided type or existing standard component
+- Method `pick` removes provided LinkedComponent component instance or existing standard component.
+
+  **Example**
+  You have a system responsible for checking boons (buffs) expiration, and you wish to remove expired boons from the
+  hero:
+  ```ts
+  enum BoonType {
+    PROTECTION,
+    AEGIS,
+    REGENERATION
+  }
+
+  class Boon extends LinkedComponent {
+    public constructor(
+        public readonly type: BoonType,
+        public value: number,
+        public duration: number
+    ) { super(); }
+  }
+
+  class BoonExpirationTestSystem extends IterativeSystem {
+    public constructor() {
+      super((entity) => entity.has(Boon));
+    }
+    
+    public updateEntity(entity: Entity, dt: number) {
+      // Let's update all boons
+      entity.iterate(Boon, (boon) => {
+          // Let's reduce boon remaining duration
+          boon.duration -= dt;
+          // If boon is expired
+          if (boon.duration <= 0) {
+             // Then we need to removed it from the Entity
+             // But `entity.remove` will remove all boons, so we need to cherry-pick
+             entity.pick(boon);
+          } 
+      });
+    }
+  }
+  ```
+- Method `iterate` iterates over instances of LinkedComponent and performs the `action` over each. Works for standard
+  components (action will be called for a single instance in this case).
+  > 🎈 It's safe to `pick` only current entity during iteration.
+- Method `find` searches a component instance of the specified class. Works for standard components (predicate will be
+  called for a single instance in this case).
+- Method `getAll` returns a generator that can be used for iteration over all instances of specific type components.
+- Method `lengthOf` returns the number of existing components of the specified class.
+
+Now you know the basics. Now let's look at some examples to help you understand when linked components are helpful and
+how to work with them.
+
+### Real world example
+
+We want to get a system that handles "Regeneration" buff on the hero. There can be more than one sources of
+regeneration, so we must handle all of them at the same time.
+
+Regeneration has two effects:
+
+- Instantly healing heroes by constant amount of health points
+- Regenerates some amount of health over the time.
+
+Thus, our system should do the following:
+
+- Heal the hero on the adding every new Regeneration buff.
+- Heal the hero over the time.
+- Manages regeneration expiration.
+
+```ts
+class Regeneration extends LinkedComponent {
+  public constructor(
+          public instantHealValue: number,
+          public healPerSecond: number,
+          public duration: number
+  ) { super(); }
+}
+
+class RegenerationSystem extends IterativeSystem {
+  public constructor() {
+    super((entity) => entity.has(Hero, Regeneration));
+  }
+
+  public updateEntity(entity: Entity, dt: number) {
+    const hero = entity.get(Hero)!
+    // Let's update all regeneration components on our hero and apply their effects 
+    entity.iterate(Regeneration, (it) => {
+      // We need to heal hero
+      const healthPointsToAdd = Math.ceil(it.healPerSecond * dt);
+      hero.health += healthPointsToAdd;
+      // And then reduce regeneration duration
+      it.duration -= dt;
+      // If it's expired
+      if (it.duration <= 0) {
+        // Then we need to removed it from the Entity
+        // But `entity.remove` will remove all boons, so we need to cherry-pick
+        entity.pick(it);
+      }
+    });
+  }
+
+  protected entityAdded = ({current}: EntitySnapshot) => {
+    // When new entity appears in the queue, that means that it has Hero and Regeneration
+    // so we want to instantly heal the hero by existing Regeneration buffs
+    current.iterate(Regeneration, (regeneration) => {
+      this.instantlyHealHero(entity, regeneration);
+    })
+    // Also, if any additional Regeneration buff will appear in the entity, we will handle 
+    // them as well and instantly heal the hero
+    current.onComponentAdded.connect(this.instantlyHealHero);
+  }
+
+  protected entityRemoved = ({current}: EntitySnapshot) => {
+    // We don't want to know if any new components were added to the entity when it left 
+    // the queue already.
+    current.onComponentAdded.disconnect(this.instantlyHealHero);
+  }
+
+  private instantlyHealHero = (entity: Entity, regeneration: any) => {
+    // We need to filter components, because this function will called on every added 
+    // component (not only Regeneration)
+    if (!(regeneration instanceof Regeneration)) return;
+
+    const hero = entity.get(Hero)!;
+    hero.health += regeneration.instantHealValue;
+  }
+
+}
+```
+
 # Restrictions
 
 ## Shared and Local Queries
@@ -689,14 +823,29 @@ It's free and open source, but you can donate if you pleased:
 [QueryBuilder]: #querybuilder
 
 [Query]: #query
+
 [System]: #system
+
 [Entity]: #entity
+
 [Tag]: #tag
+
 [Component]: #component
+
+[Linked Component]: #linked-component
+
+[Linked Components How-To]: #how-to-work-with-linked-components
+
 [Installing]: #installing
+
 [How it works?]: #how-it-works
+
 [Inside the Tick-Knock]: #inside-the-tick-knock
+
 [Subscription]: #subscription
+
 [Engine]: #engine
+
 [License]: #license
+
 [Donation]: #donation
