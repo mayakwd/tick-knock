@@ -182,7 +182,7 @@ export interface ReadonlyEntity {
    * }
    * ```
    */
-  linkedComponents<T>(componentClass: Class<T>): Generator<T, void, T>;
+  getAll<T>(componentClass: Class<T>): Generator<T, void, T>;
 
   /**
    * Searches a component instance of specified linked component class.
@@ -192,7 +192,7 @@ export interface ReadonlyEntity {
    * @param {(component: T) => boolean} predicate
    * @return {T | undefined}
    */
-  findComponent<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined;
+  find<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined;
 
   /**
    * Returns number of components of specified class.
@@ -555,7 +555,7 @@ export class Entity implements ReadonlyEntity {
   public contains<T extends K, K>(component: NonNullable<T>, resolveClass?: Class<K>): boolean {
     const componentClass = getComponentClass(component, resolveClass);
     if (isLinkedComponent(component)) {
-      return this.findComponent(componentClass, (value) => value === component) !== undefined;
+      return this.find(componentClass, (value) => value === component) !== undefined;
     }
     return this.get(componentClass) === component;
   }
@@ -788,7 +788,7 @@ export class Entity implements ReadonlyEntity {
    * }
    * ```
    */
-  public* linkedComponents<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
+  public* getAll<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
     if (!this.hasComponent(componentClass)) return;
     const list = this.getLinkedComponentList(componentClass, false);
     if (list === undefined) return undefined;
@@ -803,7 +803,7 @@ export class Entity implements ReadonlyEntity {
    * @param {(component: T) => boolean} predicate
    * @return {T | undefined}
    */
-  public findComponent<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined {
+  public find<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined {
     const componentIdToFind = getComponentId(componentClass, false);
     if (componentIdToFind === undefined) return undefined;
     const component = this._components[componentIdToFind];
@@ -817,12 +817,18 @@ export class Entity implements ReadonlyEntity {
     } else return predicate(component as T) ? component as T : undefined;
   }
 
+  /**
+   * Returns number of components of specified class.
+   *
+   * @param {Class<T>} componentClass
+   * @return {number}
+   */
   public lengthOf<T>(componentClass: Class<T>): number {
-    let size = 0;
+    let result = 0;
     this.iterate(componentClass, () => {
-      size++;
+      result++;
     });
-    return size;
+    return result;
   }
 
   /**

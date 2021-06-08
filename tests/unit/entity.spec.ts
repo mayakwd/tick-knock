@@ -437,14 +437,14 @@ describe('Components and Tags', () => {
     entity
       .append(damage1)
       .append(damage2);
-    expect(entity.findComponent(Damage, (it) => it.value === 2)).toBe(damage2);
+    expect(entity.find(Damage, (it) => it.value === 2)).toBe(damage2);
   });
 
   it(`Find component returns regular component instance accepted by predicate`, () => {
     const entity = new Entity();
     entity.append(new Damage(1))
           .add(new Position(100, 100));
-    expect(entity.findComponent(Position, (it) => it.x === 100 && it.y === 100)).toBe(entity.get(Position));
+    expect(entity.find(Position, (it) => it.x === 100 && it.y === 100)).toBe(entity.get(Position));
   });
 
   it('Entity.linkedComponents returns all linked components instances for specific component class', () => {
@@ -454,7 +454,7 @@ describe('Components and Tags', () => {
       .append(new Damage(2))
       .append(new Damage(3));
     let amount = 0;
-    for (const damage of entity.linkedComponents(Damage)) {
+    for (const damage of entity.getAll(Damage)) {
       if (damage.value === amount + 1) {
         amount++;
       }
