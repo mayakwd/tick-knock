@@ -16,6 +16,8 @@ class Move {}
 
 class Stay {}
 
+class Damage extends LinkedComponent {}
+
 describe('Query builder', () => {
   it('Building query', () => {
     const query = new QueryBuilder()
@@ -556,5 +558,52 @@ describe('Query signals', () => {
 
     expect(currentState).toBeTruthy();
     expect(previousState).toBeTruthy();
+  });
+
+  it('Query onEntityAdded mustn\'t be triggered more than once if several linked components added to the entity', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Damage);
+    });
+
+    let addedNumber = 0;
+    query.onEntityAdded.connect(snapshot => {
+      addedNumber++;
+    });
+
+    const entity = new Entity()
+      .append(new Damage());
+
+    query.matchEntities([entity]);
+    for (let i = 0; i < 3; i++) {
+      const damage = new Damage();
+      entity.append(damage);
+      query.entityComponentAdded(entity, damage, Damage);
+    }
+
+    expect(addedNumber).toBe(1);
+  });
+
+  it('Query onEntityRemoved must be triggered only when last linked component withdrawn', () => {
+    const query = new Query((entity: Entity) => {
+      return entity.has(Damage);
+    });
+
+    let removedNumber = 0;
+    query.onEntityRemoved.connect(snapshot => {
+      removedNumber++;
+    });
+
+    const entity = new Entity()
+      .append(new Damage())
+      .append(new Damage())
+      .append(new Damage());
+
+    query.matchEntities([entity]);
+    while (entity.has(Damage)) {
+      const damage = entity.withdraw(Damage)!;
+      query.entityComponentRemoved(entity, damage, Damage);
+    }
+
+    expect(removedNumber).toBe(1);
   });
 });
