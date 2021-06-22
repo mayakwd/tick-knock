@@ -1,3 +1,9 @@
+# 4.0.1
+
+Fixes:
+
+- ReactionSystem now exported through index.ts
+
 # 4.0.0
 
 Features:
