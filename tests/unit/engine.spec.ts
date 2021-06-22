@@ -1,5 +1,4 @@
-import {Engine, Entity, IterativeSystem, LinkedComponent, Query, QueryBuilder, QueryPredicate, System} from '../../src';
-import {ReactionSystem} from '../../src/ecs/ReactionSystem';
+import {Engine, Entity, IterativeSystem, LinkedComponent, Query, QueryBuilder, QueryPredicate, System, ReactionSystem } from '../../src';
 
 class Component {}
 
