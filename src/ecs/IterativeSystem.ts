@@ -48,7 +48,7 @@ export abstract class IterativeSystem extends ReactionSystem {
   }
 
   public onAddedFromEngine() {
-    this._removed = true;
+    this._removed = false;
     super.onRemovedFromEngine();
   }
 
