@@ -1,3 +1,9 @@
+# 4.0.2
+
+Fixes:
+
+- If IterativeSystem was removed from the engine and added again later, no iteration took place.
+
 # 4.0.1
 
 Fixes:
