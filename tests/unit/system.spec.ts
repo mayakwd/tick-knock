@@ -161,5 +161,34 @@ describe('Failure on accessing engine if not attached to it', () => {
     expect(() => {engine.update(0);}).not.toThrowError();
     expect(amountOfIterations).toBe(1);
   });
+
+  it(`Iterative system should iterate over entities after removing and subsequent adding it to the engine`, () => {
+    class Component {}
+
+    const engine = new Engine();
+    const entity = new Entity().add(new Component());
+    let iterationsCount = 0;
+    const system = new class extends IterativeSystem {
+      public constructor() {
+        super((entity) => entity.has(Component));
+      }
+
+      protected updateEntity(entity: Entity, dt: number) {
+        iterationsCount++;
+      }
+    }();
+    engine.addEntity(entity);
+
+    engine.addSystem(system);
+    engine.update(1);
+
+    engine.removeSystem(system);
+    engine.update(1);
+
+    engine.addSystem(system);
+    engine.update(1);
+
+    expect(iterationsCount).toBe(2);
+  });
 });
 

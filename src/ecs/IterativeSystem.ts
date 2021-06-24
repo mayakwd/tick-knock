@@ -47,6 +47,11 @@ export abstract class IterativeSystem extends ReactionSystem {
     this.updateEntities(dt);
   }
 
+  public onAddedToEngine() {
+    this._removed = false;
+    super.onAddedToEngine();
+  }
+
   public onRemovedFromEngine() {
     this._removed = true;
     super.onRemovedFromEngine();
