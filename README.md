@@ -314,14 +314,14 @@ Adding this Query to the Engine will always contain an up-to-date list of entiti
 Besides, you can always find out when a new entity has appeared in the Query, or an old entity has left it.
 
 ```typescript
-displayListQuery.onEntityAdded = ({current}: EntitySnapshot) => {
+displayListQuery.onEntityAdded.connect(({current}: EntitySnapshot) => {
   console.log("We've got a rookie here!");
   container.addChild(current.get(View)!.view);
-}
-displayListQuery.onEntityRemoved = ({previous}: EntitySnapshot) => {
+});
+displayListQuery.onEntityRemoved.connect(({previous}: EntitySnapshot) => {
   container.removeChild(previous.get(View)!.view);
   console.log("Good bye, friend!");
-}
+});
 ```
 
 ### QueryBuilder
@@ -399,18 +399,18 @@ class ViewSystem extends System {
     view.rotaion.set(rotation);
   }
 
-  private onEntityAdded = ({entity}: EntitySnapshot) => {
+  private onEntityAdded = ({current}: EntitySnapshot) => {
     // Let's add new view to the screen
-    this.container.addChild(entity.get(View)!.view);
+    this.container.addChild(current.get(View)!.view);
     // Don't forget to update it's position on the screen
-    this.updatePosition(entity);
+    this.updatePosition(current);
   };
 
-  private onEntityRemoved = (snapshot: EntitySnapshot) => {
+  private onEntityRemoved = ({previous}: EntitySnapshot) => {
     // Let's remove the view from the screen, because Entity no longer 
     // meets the requirements (might be it lost the View component 
     // or it was hidden)
-    this.container.removeChild(snapshot.get(View)!.view);
+    this.container.removeChild(previous.get(View)!.view);
   };
 }
 ```
@@ -476,13 +476,13 @@ class ViewSystem extends ReactionSystem {
     view.rotaion.set(rotation);
   }
 
-  protected entityAdded = ({entity}: EntitySnapshot) => {
-    this.updatePosition(entity);
-    this.container.addChild(entity.get(View)!.view);
+  protected entityAdded = ({current}: EntitySnapshot) => {
+    this.updatePosition(current);
+    this.container.addChild(current.get(View)!.view);
   };
 
-  protected entityRemoved = (snapshot: EntitySnapshot) => {
-    this.container.removeChild(snapshot.get(View)!.view);
+  protected entityRemoved = ({previous}: EntitySnapshot) => {
+    this.container.removeChild(previous.get(View)!.view);
   };
 }
 ```
@@ -528,13 +528,12 @@ look at it with our `ViewSystem` example.
 ```typescript
 class ViewSystem extends IterativeSystem {
   // ...
-  protected entityAdded = (snapshot: EntitySnapshot) => {
+  protected entityAdded = ({current}: EntitySnapshot) => {
     // When entity added to the Query that means that it has `View` 
     // component - one hundred percent! So we just need its current 
     // state. 
-    const {current} = snapshot;
     this.container.addChild(current.get(View)!.view);
-    this.updatePosition(entity);
+    this.updatePosition(current);
   };
 
   protected entityRemoved = ({previous}: EntitySnapshot) => {
