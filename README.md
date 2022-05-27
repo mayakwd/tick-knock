@@ -169,7 +169,7 @@ of "add" the Damage component to the entity. That will do the job. After that, i
 sources:
 
 ```typescript
-class Damage implements ILinkedComponent {
+class Damage extends LinkedComponent {
   public constructor(
     public readonly value: number
   ) {}
@@ -289,7 +289,7 @@ class PhysicsSystem extends System {
 ```
 
 > There you go!
-🎁 In real life, you don't have to iterate through every entity in every system. It's completely uncomfortable and not optimal. In this library, there is a mechanism that can prepare a list of the entities that you need according to the criteria you set - it's called Query.
+> 🎁 In real life, you don't have to iterate through every entity in every system. It's completely uncomfortable and not optimal. In this library, there is a mechanism that can prepare a list of the entities that you need according to the criteria you set - it's called Query.
 
 ## Query
 

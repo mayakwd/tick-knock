@@ -4,6 +4,7 @@
  */
 
 export interface ILinkedComponent {
+  id?: string;
   next?: ILinkedComponent;
 }
 
@@ -14,7 +15,7 @@ export interface ILinkedComponent {
 export class LinkedComponent implements ILinkedComponent {
   public next?: this = undefined;
 
-  public constructor() {
+  public constructor(public readonly id?: string) {
   }
 }
 
