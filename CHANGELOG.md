@@ -1,3 +1,9 @@
+# 4.0.4
+
+Fixes:
+
+- `id` of `LinkedComponent` is not readonly anymore.
+
 # 4.0.3
 
 Features:
