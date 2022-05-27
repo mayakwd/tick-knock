@@ -1,3 +1,10 @@
+# 4.1.0
+
+Fixes:
+
+- \[Breaking Change\] Arguments order of `pick` by id API aligned with other APIs.
+- `isLinkedComponent` now returns false for undefined values, instead of throwing an Error.
+
 # 4.0.5
 
 Features:
