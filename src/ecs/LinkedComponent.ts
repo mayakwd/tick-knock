@@ -15,7 +15,7 @@ export interface ILinkedComponent {
 export class LinkedComponent implements ILinkedComponent {
   public next?: this = undefined;
 
-  public constructor(public readonly id?: string) {
+  public constructor(public id?: string) {
   }
 }
 
