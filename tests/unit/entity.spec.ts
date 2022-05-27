@@ -396,7 +396,7 @@ describe('Components and Tags', () => {
     const damage2 = new Damage(2, 'ka-boom');
     entity.append(damage1);
     entity.append(damage2);
-    const picked = entity.pick('ka-boom', Damage);
+    const picked = entity.pick(Damage, 'ka-boom');
     expect(damage2).toBe(picked);
   });
 
@@ -406,17 +406,8 @@ describe('Components and Tags', () => {
     const damage2 = new Damage(2);
     entity.append(damage1);
     entity.append(damage2);
-    const picked = entity.pick('ka-boom', Damage);
+    const picked = entity.pick(Damage, 'ka-boom');
     expect(picked).toBeUndefined();
-  });
-
-  it(`"pick" by throws error if resolveClass is undefined`, () => {
-    const entity = new Entity();
-    const damage1 = new Damage(1);
-    const damage2 = new Damage(2);
-    entity.append(damage1);
-    entity.append(damage2);
-    expect(() => { entity.pick('ka-boom');}).toThrowError();
   });
 
   it(`Withdrawing all components clears linked list associated to component class`, () => {

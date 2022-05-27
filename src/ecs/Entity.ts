@@ -399,11 +399,11 @@ export class Entity implements ReadonlyEntity {
    * - If linked component instance exists in the Entity, then it will be removed from Entity and
    * {@link onComponentRemoved} will be triggered.
    *
-   * @param {string} id Linked component id
    * @param {Class<K>} resolveClass Resolve class
+   * @param {string} id Linked component id
    * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
    */
-  public pick<T extends ILinkedComponent>(id: string, resolveClass: Class<T>): T | undefined;
+  public pick<T extends ILinkedComponent>(resolveClass: Class<T>, id: string): T | undefined;
   /**
    * Removes particular linked component instance from the Entity.
    *
@@ -415,18 +415,15 @@ export class Entity implements ReadonlyEntity {
    * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
    */
   public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined;
-  public pick<T>(componentOrComponentId: string | NonNullable<T>, resolveClass?: Class<T>): T | undefined {
-    if (typeof componentOrComponentId === 'string') {
-      if (resolveClass === undefined) {
-        throw new Error(`"resolveClass" can't be undefined when using "pick" by the component id.`);
-      }
-      const component = this.find<T>(resolveClass, (component) => (component as ILinkedComponent).id === componentOrComponentId);
+  public pick<T>(componentOrResolveClass: NonNullable<T> | Class<T>, resolveClassOrId?: Class<T> | string): T | undefined {
+    if (typeof resolveClassOrId === 'string') {
+      const component = this.find<T>(componentOrResolveClass as Class<T>, (component) => (component as ILinkedComponent).id === resolveClassOrId);
       if (component !== undefined) {
-        return this.withdrawComponent(component as NonNullable<T>, resolveClass);
+        return this.withdrawComponent(component as NonNullable<T>, componentOrResolveClass as Class<T>);
       }
       return undefined;
     }
-    return this.withdrawComponent(componentOrComponentId, resolveClass);
+    return this.withdrawComponent(componentOrResolveClass as NonNullable<T>, resolveClassOrId);
   }
 
   /**

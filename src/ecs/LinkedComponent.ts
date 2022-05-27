@@ -23,5 +23,5 @@ export class LinkedComponent implements ILinkedComponent {
  * @internal
  */
 export function isLinkedComponent(component: any): component is ILinkedComponent {
-  return component.hasOwnProperty('next');
+  return component !== undefined && component.hasOwnProperty('next');
 }
