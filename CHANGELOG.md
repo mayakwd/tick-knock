@@ -1,3 +1,13 @@
+# 4.0.3
+
+Features:
+
+- Linked components now have an optional id, and can be picked with `pick` by id.
+
+Fixes:
+
+- Fixed usage sample for LinkedComponents
+
 # 4.0.2
 
 Fixes:
