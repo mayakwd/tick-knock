@@ -1,3 +1,10 @@
+# 4.0.5
+
+Features:
+
+- The following APIs got an additional optional id parameter to make working with Linked Components easier: `has`
+  , `hasComponent`, `get`.
+
 # 4.0.4
 
 Fixes:

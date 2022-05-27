@@ -359,6 +359,37 @@ describe('Components and Tags', () => {
     expect(entity.get(Damage)).toBe(damage2);
   });
 
+  it(`get LinkedComponent by id returns specific linked component instance`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2, 'ka-boom');
+    entity.append(damage1);
+    entity.append(damage2);
+    expect(entity.get(Damage, 'ka-boom')).toBe(damage2);
+  });
+
+  it(`get regular component by id returns always undefined`, () => {
+    const entity = new Entity();
+    entity.add(new Position());
+    expect(entity.get(Position, 'ka-boom')).toBeUndefined();
+  });
+
+  it(`has LinkedComponent with id returns specific linked component instance`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2, 'ka-boom');
+    entity.append(damage1);
+    entity.append(damage2);
+    expect(entity.has(Damage, 'ka-boom')).toBeTruthy();
+  });
+
+  it(`has regular Component with id always returns false`, () => {
+    const entity = new Entity();
+    const position = new Position();
+    entity.add(position);
+    expect(entity.has(Position, 'ka-boom')).toBeFalsy();
+  });
+
   it(`"pick" by id removes component as expected`, () => {
     const entity = new Entity();
     const damage1 = new Damage(1);

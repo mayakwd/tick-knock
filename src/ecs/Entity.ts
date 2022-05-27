@@ -32,6 +32,7 @@ export interface ReadonlyEntity {
    * Returns value indicating whether entity has a specific component or tag
    *
    * @param {Class | Tag} componentClassOrTag
+   * @param id Identifier of the LinkedComponent
    * @example
    * ```ts
    * const BERSERK = 10091;
@@ -41,7 +42,7 @@ export interface ReadonlyEntity {
    * }
    * ```
    */
-  has<T>(componentClassOrTag: Class<T> | Tag): boolean;
+  has<T>(componentClassOrTag: Class<T> | Tag, id?: string): boolean;
 
   /**
    * Returns value indicating whether entity contains a component instance.
@@ -67,6 +68,7 @@ export interface ReadonlyEntity {
    * Returns value indicating whether entity has a specific component
    *
    * @param component
+   * @param id Identifier of the LinkedComponent
    * @example
    * ```
    * if (!entity.hasComponent(Immobile)) {
@@ -75,7 +77,7 @@ export interface ReadonlyEntity {
    * }
    * ```
    */
-  hasComponent<T>(component: Class<T>): boolean;
+  hasComponent<T>(component: Class<T>, id?: string): boolean;
 
   /**
    * Returns value indicating whether entity has a specific tag
@@ -139,8 +141,9 @@ export interface ReadonlyEntity {
    * - If you want to check presence of the tag then use {@link has} instead.
    *
    * @param componentClass Specific component class
+   * @param id Identifier of the LinkedComponent
    */
-  get<T>(componentClass: Class<T>): T | undefined;
+  get<T>(componentClass: Class<T>, id?: string): T | undefined;
 
   /**
    * Iterates over instances of linked component appended to the Entity and performs the action over each.<br>
@@ -540,6 +543,7 @@ export class Entity implements ReadonlyEntity {
    * Returns componentClassOrTag indicating whether entity has a specific component or tag
    *
    * @param componentClassOrTag
+   * @param id Identifier of the LinkedComponent
    * @example
    * ```ts
    * const BERSERK = 10091;
@@ -549,11 +553,11 @@ export class Entity implements ReadonlyEntity {
    * }
    * ```
    */
-  public has<T>(componentClassOrTag: Class<T> | Tag): boolean {
+  public has<T>(componentClassOrTag: Class<T> | Tag, id?: string): boolean {
     if (isTag(componentClassOrTag)) {
       return this.hasTag(componentClassOrTag);
     }
-    return this.hasComponent(componentClassOrTag);
+    return this.hasComponent(componentClassOrTag, id);
   }
 
   /**
@@ -585,7 +589,9 @@ export class Entity implements ReadonlyEntity {
   /**
    * Returns value indicating whether entity has a specific component
    *
-   * @param component
+   * @param component Component class
+   * @param id Identifier of the LinkedComponent
+   *
    * @example
    * ```
    * if (!entity.hasComponent(Immobile)) {
@@ -594,10 +600,8 @@ export class Entity implements ReadonlyEntity {
    * }
    * ```
    */
-  public hasComponent<T>(component: Class<T>): boolean {
-    const id = getComponentId(component);
-    if (id === undefined) return false;
-    return this._components[id] !== undefined;
+  public hasComponent<T>(component: Class<T>, id?: string): boolean {
+    return this.get(component, id) !== undefined;
   }
 
   /**
@@ -656,11 +660,22 @@ export class Entity implements ReadonlyEntity {
    * - If you want to check presence of the tag then use {@link has} instead.
    *
    * @param componentClass Specific component class
+   * @param id Identifier of the LinkedComponent
    */
-  public get<T>(componentClass: Class<T>): T | undefined {
-    const id = getComponentId(componentClass);
-    if (id === undefined) return undefined;
-    return this._components[id] as T;
+  public get<T>(componentClass: Class<T>, id?: string): T | undefined {
+    const cid = getComponentId(componentClass);
+    if (cid === undefined) return undefined;
+    let component = this._components[cid];
+    if (id !== undefined) {
+      if (isLinkedComponent(component)) {
+        while (component !== undefined) {
+          if ((component as ILinkedComponent).id === id) return component as T;
+          component = (component as ILinkedComponent).next;
+        }
+      }
+      return undefined;
+    }
+    return this._components[cid] as T;
   }
 
   /**
