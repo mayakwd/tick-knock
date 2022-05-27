@@ -61,7 +61,7 @@ export interface ReadonlyEntity {
    * }
    * ```
    */
-  contains<T extends K, K>(component: T, resolveClass?: Class<K>): boolean
+  contains<T extends K, K>(component: T, resolveClass?: Class<K>): boolean;
 
   /**
    * Returns value indicating whether entity has a specific component
@@ -120,7 +120,7 @@ export interface ReadonlyEntity {
    * }
    * ```
    */
-  hasAll(...componentClassOrTag: Array<Class<unknown> | Tag>): boolean
+  hasAll(...componentClassOrTag: Array<Class<unknown> | Tag>): boolean;
 
   /**
    * Returns an array of entity components
@@ -391,17 +391,39 @@ export class Entity implements ReadonlyEntity {
   }
 
   /**
+   * Removes particular linked component instance from the Entity by its id.
+   *
+   * - If linked component instance exists in the Entity, then it will be removed from Entity and
+   * {@link onComponentRemoved} will be triggered.
+   *
+   * @param {string} id Linked component id
+   * @param {Class<K>} resolveClass Resolve class
+   * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
+   */
+  public pick<T extends ILinkedComponent>(id: string, resolveClass: Class<T>): T | undefined;
+  /**
    * Removes particular linked component instance from the Entity.
    *
    * - If linked component instance exists in the Entity, then it will be removed from Entity and
    * {@link onComponentRemoved} will be triggered.
    *
    * @param {NonNullable<T>} component Linked component instance
-   * @param {Class<K>} resolveClass Resolve class
+   * @param {Class<K> | undefined} resolveClass Resolve class
    * @return {T | undefined} Component instance if it exists in the entity, otherwise undefined
    */
-  public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined {
-    return this.withdrawComponent(component, resolveClass);
+  public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined;
+  public pick<T>(componentOrComponentId: string | NonNullable<T>, resolveClass?: Class<T>): T | undefined {
+    if (typeof componentOrComponentId === 'string') {
+      if (resolveClass === undefined) {
+        throw new Error(`"resolveClass" can't be undefined when using "pick" by the component id.`);
+      }
+      const component = this.find<T>(resolveClass, (component) => (component as ILinkedComponent).id === componentOrComponentId);
+      if (component !== undefined) {
+        return this.withdrawComponent(component as NonNullable<T>, resolveClass);
+      }
+      return undefined;
+    }
+    return this.withdrawComponent(componentOrComponentId, resolveClass);
   }
 
   /**

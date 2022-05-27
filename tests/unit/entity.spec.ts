@@ -13,8 +13,9 @@ class Position {
 class Damage extends LinkedComponent {
   public constructor(
     public value: number,
+    id?: string,
   ) {
-    super();
+    super(id);
   }
 }
 
@@ -356,6 +357,35 @@ describe('Components and Tags', () => {
     entity.append(damage2);
     entity.pick(damage1);
     expect(entity.get(Damage)).toBe(damage2);
+  });
+
+  it(`"pick" by id removes component as expected`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2, 'ka-boom');
+    entity.append(damage1);
+    entity.append(damage2);
+    const picked = entity.pick('ka-boom', Damage);
+    expect(damage2).toBe(picked);
+  });
+
+  it(`"pick" by id won't remove anything if component is not entity`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2);
+    entity.append(damage1);
+    entity.append(damage2);
+    const picked = entity.pick('ka-boom', Damage);
+    expect(picked).toBeUndefined();
+  });
+
+  it(`"pick" by throws error if resolveClass is undefined`, () => {
+    const entity = new Entity();
+    const damage1 = new Damage(1);
+    const damage2 = new Damage(2);
+    entity.append(damage1);
+    entity.append(damage2);
+    expect(() => { entity.pick('ka-boom');}).toThrowError();
   });
 
   it(`Withdrawing all components clears linked list associated to component class`, () => {
