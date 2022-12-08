@@ -1,19 +1,22 @@
 # Tick-Knock
 
-> Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS) library written in TypeScript
+> Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS)
+> library written in TypeScript
 
 [![Build Status](https://travis-ci.org/mayakwd/tick-knock.svg?branch=master)](https://travis-ci.org/mayakwd/tick-knock)
 [![Codecov Coverage](https://img.shields.io/codecov/c/github/mayakwd/tick-knock/develop.svg?style=flat-square)](https://codecov.io/gh/mayakwd/tick-knock/)
+
+😊 [Buy me a coffee](https://www.buymeacoffee.com/rdolivaw)
 
 # Table of contents
 
 - [Installing]
 - [How it works?]
 - [Inside the Tick-Knock]
-    - [Engine]
-        - [Subscription]
-    - [Component]
-    - [Linked Component]
+  - [Engine]
+    - [Subscription]
+  - [Component]
+  - [Linked Component]
     - [Tag]
     - [Entity]
     - [System]
@@ -795,12 +798,6 @@ called `invalidate`, it will force Query to check this particular entity.
 
 This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
 
-# Donation
-
-It's free and open source, but you can donate if you pleased:  
-[![Donate](https://img.shields.io/badge/Donate-Yandex.Money-yellowgreen)](https://money.yandex.ru/to/41001136426726)
-> Paypal left Russia 😔
-
 [Restrictions]: #restrictions
 
 [Shared Config]: #shared-config
@@ -846,5 +843,3 @@ It's free and open source, but you can donate if you pleased:
 [Engine]: #engine
 
 [License]: #license
-
-[Donation]: #donation
