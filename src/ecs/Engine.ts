@@ -103,7 +103,7 @@ export class Engine {
 
   /**
    * Removes a system from engine
-   * Avoid remove the system during update cycle, do it only if your sure what your are doing.
+   * Avoid remove the system during update cycle, do it only if your sure what you are doing.
    * Note: {@link IterativeSystem} has aware guard during update loop, if system removed - updating is being stopped.
    *
    * @param system System to remove
@@ -206,7 +206,7 @@ export class Engine {
   }
 
   /**
-   * Adds a system to engine, and set it's priority inside of engine update loop.
+   * Adds a system to engine, and set its priority inside of engine update loop.
    *
    * @param system System to add to the engine
    * @param priority Value indicating the priority of updating system in update loop. Lower priority

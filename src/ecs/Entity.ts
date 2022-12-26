@@ -387,10 +387,12 @@ export class Entity implements ReadonlyEntity {
    */
   public withdraw<T>(componentClass: Class<T>): T | undefined {
     const component = this.get(componentClass);
-    if (component !== undefined) {
-      return this.withdrawComponent(component as NonNullable<T>, componentClass);
+    if (component === undefined) return;
+    if (isLinkedComponent(component)) {
+      return this.withdrawComponent(component, componentClass as Class<ILinkedComponent>);
+    } else {
+      return this.remove(componentClass);
     }
-    return undefined;
   }
 
   /**
@@ -417,13 +419,16 @@ export class Entity implements ReadonlyEntity {
   public pick<T>(component: NonNullable<T>, resolveClass?: Class<T>): T | undefined;
   public pick<T>(componentOrResolveClass: NonNullable<T> | Class<T>, resolveClassOrId?: Class<T> | string): T | undefined {
     if (typeof resolveClassOrId === 'string') {
-      const component = this.find<T>(componentOrResolveClass as Class<T>, (component) => (component as ILinkedComponent).id === resolveClassOrId);
-      if (component !== undefined) {
-        return this.withdrawComponent(component as NonNullable<T>, componentOrResolveClass as Class<T>);
+      const component = this.find<T>(componentOrResolveClass as Class<T>, (component) => isLinkedComponent(component) && component.id === resolveClassOrId);
+      if (isLinkedComponent(component)) {
+        return this.withdrawComponent(component, componentOrResolveClass as Class<ILinkedComponent>);
       }
       return undefined;
     }
-    return this.withdrawComponent(componentOrResolveClass as NonNullable<T>, resolveClassOrId);
+    if (isLinkedComponent(componentOrResolveClass)) {
+      return this.withdrawComponent(componentOrResolveClass, resolveClassOrId as Class<ILinkedComponent>);
+    }
+    return this.remove(resolveClassOrId ?? getComponentClass(componentOrResolveClass as NonNullable<T>));
   }
 
   /**
@@ -474,7 +479,7 @@ export class Entity implements ReadonlyEntity {
    * - If linked component is not exists, then it will be added via `addComponent` method and {@link onComponentAdded}
    * will be triggered.
    * - If component already exists in the entity, then passed one will be appended to the tail. {@link
-    * onComponentAdded} wont be triggered.
+    * onComponentAdded} won't be triggered.
    *
    * @throws Throws error if component is null or undefined, or if component is not an instance of the class as well
    * @param {T | Tag} component ILinkedComponent instance
@@ -739,7 +744,7 @@ export class Entity implements ReadonlyEntity {
       return undefined;
     }
 
-    let value = this._components[id];
+    let value = this._components[id]!;
     if (isLinkedComponent(value)) {
       const list = this.getLinkedComponentList(componentClassOrTag)!;
       while (!list.isEmpty) {
@@ -940,9 +945,6 @@ export class Entity implements ReadonlyEntity {
 
   private withdrawComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
     const componentClass = getComponentClass(component, resolveClass);
-    if (!isLinkedComponent(component)) {
-      return this.remove(componentClass);
-    }
     const componentList = this.getLinkedComponentList(componentClass, false);
     if (!this.hasComponent(componentClass) || componentList === undefined) return undefined;
     const result = componentList.remove(component) ? component : undefined;
@@ -1014,7 +1016,7 @@ export class EntitySnapshot {
  * @see {@link Entity.onComponentAdded}
  * @see {@link Entity.onComponentRemoved}
  */
-export type ComponentUpdateHandler = (entity: Entity, componentOrTag: unknown, componentClass?: Class<unknown>) => void;
+export type ComponentUpdateHandler = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => void;
 
 /**
  * Entity ids enumerator
