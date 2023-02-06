@@ -190,5 +190,21 @@ describe('Failure on accessing engine if not attached to it', () => {
 
     expect(iterationsCount).toBe(2);
   });
+
+  it(`After removal request system must be deleted`, () => {
+    const engine = new Engine();
+    let iterationsCount = 0;
+    const system = new class extends System {
+      public update(dt: number) {
+        iterationsCount++;
+        this.requestRemoval();
+      }
+    };
+    engine.addSystem(system);
+    for (let i = 0; i < 5; i++) {
+      engine.update(0);
+    }
+    expect(iterationsCount).toBe(1);
+  });
 });
 

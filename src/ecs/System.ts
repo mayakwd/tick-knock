@@ -8,6 +8,7 @@ import {Entity} from './Entity';
 export abstract class System {
   private _priority: number = 0;
   private _engine?: Engine;
+  private _isRemovalRequested: boolean = false;
 
   /**
    * Gets an {@link Engine} instance that system attached to
@@ -17,6 +18,15 @@ export abstract class System {
   public get engine(): Engine {
     if (this._engine === undefined) throw new Error(`Property "engine" can't be accessed when system is not added to the engine`);
     return this._engine;
+  }
+
+  /**
+   * Indicates that system should be removed from engine at the end of the current update cycle
+   * @internal
+   * @returns {boolean}
+   */
+  public get isRemovalRequested(): boolean {
+    return this._isRemovalRequested;
   }
 
   /**
@@ -106,5 +116,9 @@ export abstract class System {
    */
   public setPriority(priority: number): void {
     this._priority = priority;
+  }
+
+  protected requestRemoval(): void {
+    this._isRemovalRequested = true;
   }
 }
