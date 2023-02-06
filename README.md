@@ -1,9 +1,12 @@
 # Tick-Knock
 
-> Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS) library written in TypeScript
+> Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS)
+> library written in TypeScript
 
 [![Build Status](https://travis-ci.org/mayakwd/tick-knock.svg?branch=master)](https://travis-ci.org/mayakwd/tick-knock)
 [![Codecov Coverage](https://img.shields.io/codecov/c/github/mayakwd/tick-knock/develop.svg?style=flat-square)](https://codecov.io/gh/mayakwd/tick-knock/)
+
+😊 [Buy me a coffee](https://www.buymeacoffee.com/rdolivaw)
 
 # Table of contents
 
@@ -14,18 +17,18 @@
         - [Subscription]
     - [Component]
     - [Linked Component]
-    - [Tag]
-    - [Entity]
-    - [System]
-    - [Query]
-        - [QueryBuilder]
-        - [Queries and Systems]
-        - [Built-in query-based systems]
-            - [ReactionSystem]
-            - [IterativeSystem]
-    - [Snapshot]
-    - [Shared Config]
-    - [Linked Components How-To]
+        - [Tag]
+        - [Entity]
+        - [System]
+        - [Query]
+            - [QueryBuilder]
+            - [Queries and Systems]
+            - [Built-in query-based systems]
+                - [ReactionSystem]
+                - [IterativeSystem]
+        - [Snapshot]
+        - [Shared Config]
+        - [Linked Components How-To]
 - [Restrictions]
     - [Shared and Local Queries]
     - [Queries with complex logic and Entity invalidation]
@@ -129,7 +132,8 @@ engine.subscribe(GAME_OVER, () => {
 
 > **Details of implementation**
 >
-> When the `dispatch` method is called in the system, then to get the right listeners, the compliance of the `messageType` for each subscription will be checked.
+> When the `dispatch` method is called in the system, then to get the right listeners, the compliance of
+> the `messageType` for each subscription will be checked.
 > - If `typeof subscription.messageType` is a `'function'`, then the matching will be performed using `instanceOf`.
 > - Otherwise, the matching will be done through strict equality `message === subscription.messageType`.
 
@@ -289,7 +293,9 @@ class PhysicsSystem extends System {
 ```
 
 > There you go!
-> 🎁 In real life, you don't have to iterate through every entity in every system. It's completely uncomfortable and not optimal. In this library, there is a mechanism that can prepare a list of the entities that you need according to the criteria you set - it's called Query.
+> 🎁 In real life, you don't have to iterate through every entity in every system. It's completely uncomfortable and not
+> optimal. In this library, there is a mechanism that can prepare a list of the entities that you need according to the
+> criteria you set - it's called Query.
 
 ## Query
 
@@ -415,7 +421,8 @@ class ViewSystem extends System {
 }
 ```
 
-> 😎 I'm sure you saw the reference to `EntitySnapshot` and wondering, "what the heck is that?". Please, be patient, [I'll tell you about](#Snapshot) it a bit later.
+> 😎 I'm sure you saw the reference to `EntitySnapshot` and wondering, "what the heck is that?". Please, be
+> patient, [I'll tell you about](#Snapshot) it a bit later.
 > I think it looks good and clear for understanding!
 
 - 🤔 You can say: "we need to write too much boilerplate-code".
@@ -509,6 +516,24 @@ class ViewSystem extends IterativeSystem {
 }
 ```
 
+#### Remove the system as it's done
+
+It's possible to request removal of the system when you don't need it anymore. For example, the system is only
+needed to render the playing field, and trying to run it at every update cycle is wasteful.
+
+Fortunately, you can request deletion right from the system:
+
+```typescript
+class RenderBoardSystem extends System {
+  public update(dt: number): void {
+    // Your render board code
+    this.requestRemoval();
+  }
+}
+```
+
+That's it. Your system will be removed right after update cycle.
+
 ## Snapshot
 
 As you may have noticed, when we are tracking changes in Query, we get in `entityAdded` and `entityRemoved` not `Entity`
@@ -519,7 +544,8 @@ property always reflects the current state. Still, methods ` get` and `has` meth
 the previous state of the Entity before it was changed. So you can understand which components have been added and which
 have been removed.
 
-> ❗ It is important to note that changes in the same entity components' data will not be reflected in the snapshot, even if a manual invalidation of the entity has been triggered.
+> ❗ It is important to note that changes in the same entity components' data will not be reflected in the snapshot, even
+> if a manual invalidation of the entity has been triggered.
 
 Snapshots are very handy when you need to get a component or tag in Entity, but now it is missing. Let's take a closer
 look at it with our `ViewSystem` example.
@@ -580,7 +606,8 @@ engine.sharedConfig.add(NO_VISUALS);
 engine.addSystem(new ViewSystem());
 ```
 
-> ☝ Shared Config is the single instance connected to `Engine` since its initialization and can't be removed from it. It affects queries like any regular `Entity`.
+> ☝ Shared Config is the single instance connected to `Engine` since its initialization and can't be removed from it. It
+> affects queries like any regular `Entity`.
 
 ## How to work with linked components?
 
@@ -657,9 +684,9 @@ Thus, our system should do the following:
 ```ts
 class Regeneration extends LinkedComponent {
   public constructor(
-          public instantHealValue: number,
-          public healPerSecond: number,
-          public duration: number
+    public instantHealValue: number,
+    public healPerSecond: number,
+    public duration: number
   ) { super(); }
 }
 
@@ -737,6 +764,7 @@ To prevent this from happening, you need to use the shared queries approach. To 
 manually after initializing the Engine.
 
 > shared-queries.ts
+
 ```typescript
 export const heroes = new Query(entity => entity.has(Hero));
 export const enemies = new Query(entity => entity.has(Enemy));
@@ -795,12 +823,6 @@ called `invalidate`, it will force Query to check this particular entity.
 
 This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
 
-# Donation
-
-It's free and open source, but you can donate if you pleased:  
-[![Donate](https://img.shields.io/badge/Donate-Yandex.Money-yellowgreen)](https://money.yandex.ru/to/41001136426726)
-> Paypal left Russia 😔
-
 [Restrictions]: #restrictions
 
 [Shared Config]: #shared-config
@@ -846,5 +868,3 @@ It's free and open source, but you can donate if you pleased:
 [Engine]: #engine
 
 [License]: #license
-
-[Donation]: #donation
