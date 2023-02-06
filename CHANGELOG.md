@@ -1,3 +1,9 @@
+# 4.2.0
+
+Features:
+
+- Now you can request for system removal when it's no longer needed. Check `requestRemoval`.
+
 # 4.1.0
 
 Fixes:
