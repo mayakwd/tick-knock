@@ -471,7 +471,7 @@ export class Entity implements ReadonlyEntity {
       this._components[id] = component;
       this.dispatchOnComponentAdded(component);
     }
-    return this
+    return this;
   }
 
   /**
