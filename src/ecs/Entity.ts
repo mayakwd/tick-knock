@@ -1,9 +1,9 @@
-import {getComponentClass, getComponentId} from './ComponentId';
-import {Class} from '../utils/Class';
-import {Signal} from '../utils/Signal';
-import {isTag, Tag} from './Tag';
-import {ILinkedComponent, isLinkedComponent} from './LinkedComponent';
-import {LinkedComponentList} from './LinkedComponentList';
+import { getComponentClass, getComponentId } from './ComponentId';
+import { Class } from '../utils/Class';
+import { Signal } from '../utils/Signal';
+import { isTag, Tag } from './Tag';
+import { ILinkedComponent, isLinkedComponent } from './LinkedComponent';
+import { LinkedComponentList } from './LinkedComponentList';
 
 /**
  * Entity readonly interface
@@ -455,13 +455,13 @@ export class Entity implements ReadonlyEntity {
    *  .add(BULLET);
    * ```
    */
-  public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): void {
+  public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
     const componentClass = getComponentClass(component, resolveClass);
     const id = getComponentId(componentClass, true)!;
     const linkedComponent = isLinkedComponent(component);
     if (this._components[id] !== undefined) {
       if (!linkedComponent && component === this._components[id]) {
-        return;
+        return this;
       }
       this.remove(componentClass);
     }
@@ -471,6 +471,7 @@ export class Entity implements ReadonlyEntity {
       this._components[id] = component;
       this.dispatchOnComponentAdded(component);
     }
+    return this;
   }
 
   /**
@@ -841,7 +842,7 @@ export class Entity implements ReadonlyEntity {
    * }
    * ```
    */
-  public* getAll<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
+  public * getAll<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
     if (!this.hasComponent(componentClass)) return;
     const list = this.getLinkedComponentList(componentClass, false);
     if (list === undefined) return undefined;
