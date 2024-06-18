@@ -455,13 +455,13 @@ export class Entity implements ReadonlyEntity {
    *  .add(BULLET);
    * ```
    */
-  public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): void {
+  public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
     const componentClass = getComponentClass(component, resolveClass);
     const id = getComponentId(componentClass, true)!;
     const linkedComponent = isLinkedComponent(component);
     if (this._components[id] !== undefined) {
       if (!linkedComponent && component === this._components[id]) {
-        return;
+        return this;
       }
       this.remove(componentClass);
     }
@@ -471,6 +471,7 @@ export class Entity implements ReadonlyEntity {
       this._components[id] = component;
       this.dispatchOnComponentAdded(component);
     }
+    return this;
   }
 
   /**
