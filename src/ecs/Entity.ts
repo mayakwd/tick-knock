@@ -535,11 +535,12 @@ export class Entity implements ReadonlyEntity {
    *  .add(EXHAUSTED)
    * ```
    */
-  public addTag(tag: Tag): void {
+  public addTag(tag: Tag): Entity {
     if (!this._tags.has(tag)) {
       this._tags.add(tag);
       this.dispatchOnComponentAdded(tag);
     }
+    return this;
   }
 
   /**
