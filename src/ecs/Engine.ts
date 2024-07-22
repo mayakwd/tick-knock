@@ -24,6 +24,7 @@ export class Engine {
   private _queries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
   private _sharedConfig: Entity = new Entity();
+  private _removalRequested: Set<number> = new Set();
 
   /**
    * Gets a list of entities added to engine
@@ -88,17 +89,29 @@ export class Engine {
    * If engine not contains entity - it does nothing.
    *
    * @param entity Entity to remove from engine
+   * @param safe If true - entity will be removed after update loop, if false - entity is removed immediately.
+   * @since 4.3.0 - Added `safe` option.
+   *  The "safe" flag will be removed in the next major version release, and the default behavior will be changed to "safe".
    * @see onEntityRemoved
    */
-  public removeEntity(entity: Entity): Engine {
+  public removeEntity(entity: Entity, safe: boolean = false): Engine {
     if (!this._entityMap.has(entity.id)) return this;
-    const index = this._entities.indexOf(entity);
-    this._entities.splice(index, 1);
-    this._entityMap.delete(entity.id);
-    this.onEntityRemoved.emit(entity);
-    this.disconnectEntity(entity);
-
+    if (!safe) {
+      return this.removeEntityNow(entity);
+    }
+    this._removalRequested.add(entity.id)
     return this;
+  }
+
+  /**
+   * Gets an entity by its id
+   *
+   * @param {number} id Entity identifier
+   * @return {Entity | undefined} corresponding entity or undefined if it's not found.
+   */
+  public getEntityById(id: number): Entity | undefined {
+    if (this._removalRequested.has(id)) return undefined;
+    return this._entityMap.get(id);
   }
 
   /**
@@ -118,13 +131,26 @@ export class Engine {
   }
 
   /**
-   * Gets an entity by its id
+   * Updates the engine. This cause updating all the systems in the engine in the order of priority they've been added.
    *
-   * @param {number} id Entity identifier
-   * @return {Entity | undefined} corresponding entity or undefined if it's not found.
+   * @param dt Delta time in seconds
    */
-  public getEntityById(id: number): Entity | undefined {
-    return this._entityMap.get(id);
+  public update(dt: number): void {
+    for (const system of this._systems) {
+      system.update(dt);
+      if (system.isRemovalRequested) {
+        this.removeSystem(system);
+      }
+    }
+    if (this._removalRequested.size > 0) {
+      for (const id of this._removalRequested) {
+        const entity = this._entityMap.get(id);
+        if (entity) {
+          this.removeEntityNow(entity);
+        }
+      }
+      this._removalRequested.clear();
+    }
   }
 
   /**
@@ -179,18 +205,14 @@ export class Engine {
     this.removeAllQueries();
   }
 
-  /**
-   * Updates the engine. This cause updating all the systems in the engine in the order of priority they've been added.
-   *
-   * @param dt Delta time in seconds
-   */
-  public update(dt: number): void {
-    for (const system of this._systems) {
-      system.update(dt);
-      if (system.isRemovalRequested) {
-        this.removeSystem(system);
-      }
-    }
+  private removeEntityNow(entity: Entity): Engine {
+    const index = this._entities.indexOf(entity);
+    this._entities.splice(index, 1);
+    this._entityMap.delete(entity.id);
+    this.onEntityRemoved.emit(entity);
+    this.disconnectEntity(entity);
+
+    return this;
   }
 
   /**

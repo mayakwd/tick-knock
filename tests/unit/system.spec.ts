@@ -106,11 +106,41 @@ describe('Iterative system', () => {
     expect(onAdded).toEqual({snapshot: false, entity: true});
     expect(onRemoved).toEqual({snapshot: true, entity: false});
   });
+
+  it("Safe entities removal during iteration should not break the iteration ordering", () => {
+    class Health {
+      public constructor(public value: number) {
+      }
+    }
+
+    class HealthTickSystem extends IterativeSystem {
+      public constructor() {
+        super(new QueryBuilder().contains(Health).build());
+      }
+
+      protected updateEntity(entity: Entity, dt: number): void {
+        const health = entity.get(Health)!;
+        health.value -= 1;
+        if (health.value <= 0) {
+          this.engine.removeEntity(entity, true);
+        }
+      }
+    }
+
+    const engine = new Engine();
+    engine.addSystem(new HealthTickSystem());
+    for (let i = 0; i < 5; i++) {
+      engine.addEntity(new Entity().add(new Health(1)));
+    }
+    engine.update(1);
+    expect(engine.entities.length).toBe(0);
+  })
 });
 
 describe('Failure on accessing engine if not attached to it', () => {
   it(`Expected that engine can't be accessed if system is not attached to it`, () => {
-    class Message {}
+    class Message {
+    }
 
     class TestSystem extends System {
       public update(dt: number) {
@@ -123,7 +153,8 @@ describe('Failure on accessing engine if not attached to it', () => {
   });
 
   it(`Expected that message can't be sent if system is not attached to the engine`, () => {
-    class Message {}
+    class Message {
+    }
 
     class TestSystem extends System {
       public update(dt: number) {
@@ -136,7 +167,8 @@ describe('Failure on accessing engine if not attached to it', () => {
   });
 
   it(`Expected that removing system from engine breaking the iteration`, () => {
-    class Component {}
+    class Component {
+    }
 
     let amountOfIterations = 0;
 
@@ -158,12 +190,15 @@ describe('Failure on accessing engine if not attached to it', () => {
     engine.addEntity(new Entity().add(new Component()));
     engine.addEntity(new Entity().add(new Component()));
     engine.addEntity(new Entity().add(new Component()));
-    expect(() => {engine.update(0);}).not.toThrowError();
+    expect(() => {
+      engine.update(0);
+    }).not.toThrowError();
     expect(amountOfIterations).toBe(1);
   });
 
   it(`Iterative system should iterate over entities after removing and subsequent adding it to the engine`, () => {
-    class Component {}
+    class Component {
+    }
 
     const engine = new Engine();
     const entity = new Entity().add(new Component());
@@ -207,4 +242,3 @@ describe('Failure on accessing engine if not attached to it', () => {
     expect(iterationsCount).toBe(1);
   });
 });
-
