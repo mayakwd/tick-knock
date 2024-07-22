@@ -75,8 +75,10 @@ export class Engine {
    * @see onEntityAdded
    */
   public addEntity(entity: Entity): Engine {
-    if (this._entityMap.has(entity.id)) return this;
-
+    if (this._entityMap.has(entity.id)) {
+      this._removalRequested.delete(entity.id);
+      return this;
+    }
     this._entities.push(entity);
     this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);

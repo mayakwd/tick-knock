@@ -107,7 +107,7 @@ describe('Iterative system', () => {
     expect(onRemoved).toEqual({snapshot: true, entity: false});
   });
 
-  it("Safe entities removal during iteration should not break the iteration ordering", () => {
+  it("Entities safe removal during iteration should not break the iteration ordering", () => {
     class Health {
       public constructor(public value: number) {
       }
@@ -134,6 +134,26 @@ describe('Iterative system', () => {
     }
     engine.update(1);
     expect(engine.entities.length).toBe(0);
+  })
+
+  it.each([true, false])(`Re-adding entities which were removed should work after the engine update cycle`, (safe) => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).build();
+    engine.addQuery(query);
+
+    for (let i = 0; i < 5; i++) {
+      engine.addEntity(new Entity().add(new Position()));
+    }
+
+    const entities = query.entities.concat()
+    for (let entity of entities) {
+      engine.removeEntity(entity, safe);
+    }
+    for (let entity of entities) {
+      engine.addEntity(entity);
+    }
+    engine.update(0);
+    expect(engine.entities.length).toBe(5);
   })
 });
 
