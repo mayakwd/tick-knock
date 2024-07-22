@@ -3,7 +3,7 @@
 > Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS)
 > library written in TypeScript
 
-[![Build Status](https://travis-ci.org/mayakwd/tick-knock.svg?branch=master)](https://travis-ci.org/mayakwd/tick-knock)
+[![Build Status](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml/badge.svg)](https://travis-ci.org/mayakwd/tick-knock)
 [![Codecov Coverage](https://img.shields.io/codecov/c/github/mayakwd/tick-knock/develop.svg?style=flat-square)](https://codecov.io/gh/mayakwd/tick-knock/)
 
 😊 [Buy me a coffee](https://www.buymeacoffee.com/rdolivaw)
@@ -176,7 +176,9 @@ sources:
 class Damage extends LinkedComponent {
   public constructor(
     public readonly value: number
-  ) {}
+  ) {
+    super()
+  }
 }
 
 hero.append(new Damage(100));
