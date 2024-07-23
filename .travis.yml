@@ -25,14 +25,6 @@ after_success:
   - yarn pack
 
 deploy:
-  - provider: releases
-    edge: true
-    api_key: $GITHUB_TOKEN
-    file_glob: true
-    file: "tick-knock-*.tgz"
-    cleanup: false
-    on:
-      tags: true
   - provider: npm
     edge: true
     cleanup: false
