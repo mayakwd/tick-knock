@@ -1,3 +1,19 @@
+# 4.3.0
+
+Features:
+
+- Introduced possibility to safely remove entities from the engine.
+  Now `Engine.removeEntity` takes a boolean value as a second argument "safe",
+  which indicates whether the entity should be removed safely or not.
+
+  If safe argument value is `true` then the entity will be removed after the Engine update cycle is
+  iteration is finished, meaning that the entity will be removed after all systems have been updated.
+
+  Safely removed entities won't be discoverable by getEntityById method, but they will be still accessible
+  in the queries (and remaining systems updates).
+
+  This behavior will become default in the next major release.
+
 # 4.2.0
 
 Features:
