@@ -27,7 +27,21 @@ export class Query {
 
   private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
   private readonly _predicate: QueryPredicate;
-  private _entities: Entity[] = [];
+  private readonly _entities: Set<Entity> = new Set();
+  private _entitiesCache: Entity[] | undefined;
+  private _version: number = 0;
+
+  /**
+   * @internal
+   * Component identifiers this query depends on. Defined only for queries built by {@link QueryBuilder}.
+   * Engine uses it to skip query validation for unrelated component changes.
+   */
+  public componentIds?: ReadonlyArray<number>;
+  /**
+   * @internal
+   * Tags this query depends on. Defined only for queries built by {@link QueryBuilder}.
+   */
+  public tags?: ReadonlyArray<Tag>;
 
   /**
    * Initializes Query instance
@@ -38,10 +52,22 @@ export class Query {
   }
 
   /**
-   * Entities list which matches the query
+   * Entities list which matches the query.
+   * The list is a snapshot: it's rebuilt lazily only after the query has been changed.
    */
   public get entities(): ReadonlyArray<Entity> {
-    return this._entities;
+    if (this._entitiesCache === undefined) {
+      this._entitiesCache = Array.from(this._entities);
+    }
+    return this._entitiesCache;
+  }
+
+  /**
+   * @internal
+   * Value that changes every time the list of entities is changed.
+   */
+  public get version(): number {
+    return this._version;
   }
 
   /**
@@ -49,8 +75,8 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get first(): Entity | undefined {
-    if (this._entities.length === 0) return undefined;
-    return this._entities[0];
+    if (this._entities.size === 0) return undefined;
+    return this._entities.values().next().value;
   }
 
   /**
@@ -58,8 +84,9 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get last(): Entity | undefined {
-    if (this._entities.length === 0) return undefined;
-    return this._entities[this._entities.length - 1];
+    if (this._entities.size === 0) return undefined;
+    const entities = this.entities;
+    return entities[entities.length - 1];
   }
 
   /**
@@ -67,7 +94,7 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get length(): number {
-    return this._entities.length;
+    return this._entities.size;
   }
 
   /**
@@ -90,7 +117,10 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public find(predicate: QueryPredicate): Entity | undefined {
-    return this._entities.find(predicate);
+    for (const entity of this._entities) {
+      if (predicate(entity)) return entity;
+    }
+    return undefined;
   }
 
   /**
@@ -100,7 +130,11 @@ export class Query {
    * @returns {Entity[]}
    */
   public filter(predicate: QueryPredicate): Entity[] {
-    return this._entities.filter(predicate);
+    const result: Entity[] = [];
+    for (const entity of this._entities) {
+      if (predicate(entity)) result.push(entity);
+    }
+    return result;
   }
 
   /**
@@ -109,7 +143,7 @@ export class Query {
    * @returns {boolean}
    */
   public has(entity: Entity): boolean {
-    return this._entities.indexOf(entity) !== -1;
+    return this._entities.has(entity);
   }
 
   /**
@@ -118,48 +152,41 @@ export class Query {
    *
    * Entities that will pass testing will become a part of the query
    */
-  public matchEntities(entities: ReadonlyArray<Entity>) {
-    entities.forEach((entity) => this.entityAdded(entity));
+  public matchEntities(entities: Iterable<Entity>) {
+    for (const entity of entities) {
+      this.entityAdded(entity);
+    }
   }
 
   /**
    * Gets a value indicating that query is empty
    */
   public get isEmpty(): boolean {
-    return this.entities.length == 0;
+    return this._entities.size === 0;
   }
 
   /**
    * Clears the list of entities of the query
    */
   public clear(): void {
-    this._entities = [];
+    this._entities.clear();
+    this._entitiesCache = undefined;
+    this._version++;
   }
 
   /**
    * @internal
    */
   public validateEntity(entity: Entity): void {
-    const index = this._entities.indexOf(entity);
-    const isMatch = this._predicate(entity);
-    if (index !== -1 && !isMatch) {
-      this.entityRemoved(entity);
-    } else {
-      this.entityAdded(entity);
-    }
+    this.revalidate(entity);
   }
 
   /**
    * @internal
    */
   public entityAdded = (entity: Entity) => {
-    const index = this._entities.indexOf(entity);
-    if (index === -1 && this._predicate(entity)) {
-      this._entities.push(entity);
-      if (this.onEntityAdded.hasHandlers) {
-        entity.takeSnapshot(this._snapshot);
-        this.onEntityAdded.emit(this._snapshot);
-      }
+    if (!this._entities.has(entity) && this._predicate(entity)) {
+      this.add(entity);
     }
   };
 
@@ -167,13 +194,8 @@ export class Query {
    * @internal
    */
   public entityRemoved = (entity: Entity) => {
-    const index = this._entities.indexOf(entity);
-    if (index !== -1) {
-      this._entities.splice(index, 1);
-      if (this.onEntityRemoved.hasHandlers) {
-        entity.takeSnapshot(this._snapshot);
-        this.onEntityRemoved.emit(this._snapshot);
-      }
+    if (this._entities.has(entity)) {
+      this.delete(entity);
     }
   };
 
@@ -181,64 +203,56 @@ export class Query {
    * @internal
    */
   public entityComponentAdded = <T>(entity: Entity, componentOrTag: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
-    const hasAddedHandlers = this.onEntityAdded.hasHandlers;
-    const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
-
-    const index = this._entities.indexOf(entity);
-    const isMatch = this._predicate(entity);
-    if (index === -1 && isMatch) {
-      this._entities.push(entity);
-      if (hasAddedHandlers) {
-        entity.takeSnapshot(this._snapshot, componentOrTag, componentClass);
-        this.onEntityAdded.emit(this._snapshot);
-      }
-    } else if (index !== -1 && !isMatch) {
-      this._entities.splice(index, 1);
-      if (hasRemovedHandlers) {
-        entity.takeSnapshot(this._snapshot, componentOrTag, componentClass);
-        this.onEntityRemoved.emit(this._snapshot);
-      }
-    }
+    this.revalidate(entity, componentOrTag, componentClass);
   };
 
   /**
    * @internal
    */
   public entityComponentRemoved = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
-    const hasAddedHandlers = this.onEntityAdded.hasHandlers;
-    const hasRemovedHandlers = this.onEntityRemoved.hasHandlers;
-
-    const index = this._entities.indexOf(entity);
-    const isMatch = this._predicate(entity);
-    if (index !== -1 && !isMatch) {
-      this._entities.splice(index, 1);
-      if (hasRemovedHandlers) {
-        entity.takeSnapshot(this._snapshot, component, componentClass);
-        this.onEntityRemoved.emit(this._snapshot);
-      }
-    } else if (index === -1 && isMatch) {
-      this._entities.push(entity);
-      if (hasAddedHandlers) {
-        entity.takeSnapshot(this._snapshot, component, componentClass);
-        this.onEntityAdded.emit(this._snapshot);
-      }
-    }
+    this.revalidate(entity, component, componentClass);
   };
-}
 
-function hasAll(entity: Entity, components: Set<number>, tags: Set<Tag>): boolean {
-  if (components.size > 0) {
-    for (const componentId of components) {
-      if (entity.components[componentId] === undefined) {
-        return false;
-      }
+  private revalidate<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
+    const isMember = this._entities.has(entity);
+    const isMatch = this._predicate(entity);
+    if (!isMember && isMatch) {
+      this.add(entity, changed, changedClass);
+    } else if (isMember && !isMatch) {
+      this.delete(entity, changed, changedClass);
     }
   }
-  if (tags.size > 0) {
-    for (const tag of tags) {
-      if (!entity.tags.has(tag)) {
-        return false;
-      }
+
+  private add<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
+    this._entities.add(entity);
+    this._entitiesCache = undefined;
+    this._version++;
+    if (this.onEntityAdded.hasHandlers) {
+      entity.takeSnapshot(this._snapshot, changed, changedClass);
+      this.onEntityAdded.emit(this._snapshot);
+    }
+  }
+
+  private delete<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
+    this._entities.delete(entity);
+    this._entitiesCache = undefined;
+    this._version++;
+    if (this.onEntityRemoved.hasHandlers) {
+      entity.takeSnapshot(this._snapshot, changed, changedClass);
+      this.onEntityRemoved.emit(this._snapshot);
+    }
+  }
+}
+
+function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: ReadonlyArray<Tag>): boolean {
+  const entityComponents = entity.components;
+  for (let i = 0; i < components.length; i++) {
+    if (entityComponents[components[i]] === undefined) return false;
+  }
+  if (tags.length > 0) {
+    const entityTags = entity.tags;
+    for (let i = 0; i < tags.length; i++) {
+      if (!entityTags.has(tags[i])) return false;
     }
   }
   return true;
@@ -281,7 +295,12 @@ export class QueryBuilder {
    * Build query
    */
   public build(): Query {
-    return new Query((entity: Entity) => hasAll(entity, this._components, this._tags));
+    const components = Array.from(this._components);
+    const tags = Array.from(this._tags);
+    const query = new Query((entity: Entity) => hasAll(entity, components, tags));
+    query.componentIds = components;
+    query.tags = tags;
+    return query;
   }
 
   /**

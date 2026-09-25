@@ -155,6 +155,29 @@ describe('Iterative system', () => {
     engine.update(0);
     expect(engine.entities.length).toBe(5);
   })
+
+  it('Removing entities during update neither skips remaining entities nor updates removed ones', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+    const entities = [0, 1, 2, 3].map(() => new Entity().add(new Position()));
+
+    class RemovingSystem extends IterativeSystem {
+      public constructor() {
+        super(new QueryBuilder().contains(Position));
+      }
+
+      protected updateEntity(entity: Entity): void {
+        updated.push(entity);
+        if (entity === entities[0]) this.engine.removeEntity(entity);
+        if (entity === entities[1]) entities[2].remove(Position);
+      }
+    }
+
+    engine.addSystem(new RemovingSystem());
+    entities.forEach((entity) => engine.addEntity(entity));
+    engine.update(1);
+    expect(updated).toEqual([entities[0], entities[1], entities[3]]);
+  });
 });
 
 describe('Failure on accessing engine if not attached to it', () => {

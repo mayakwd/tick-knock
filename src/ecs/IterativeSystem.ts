@@ -58,8 +58,14 @@ export abstract class IterativeSystem extends ReactionSystem {
   }
 
   protected updateEntities(dt: number) {
-    for (let entity of this.query.entities) {
+    const query = this.query;
+    const entities = query.entities;
+    const version = query.version;
+    for (let i = 0; i < entities.length; i++) {
       if (this._removed) return;
+      const entity = entities[i];
+      // Skip entities that were removed from the query during this update
+      if (query.version !== version && !query.has(entity)) continue;
       this.updateEntity(entity, dt);
     }
   }

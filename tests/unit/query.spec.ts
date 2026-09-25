@@ -650,3 +650,57 @@ describe('Query signals', () => {
     expect(queryCallIndex).toBe(5);
   });
 });
+
+describe('Query indexing', () => {
+  class Base {}
+
+  class Derived extends Base {}
+
+  it('Built query reacts to components added with resolve class', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Base).build();
+    engine.addQuery(query);
+    const entity = new Entity();
+    engine.addEntity(entity);
+    entity.add(new Derived(), Base);
+    expect(query.has(entity)).toBeTruthy();
+    entity.remove(Base);
+    expect(query.has(entity)).toBeFalsy();
+  });
+
+  it('Built query is not affected by later builder changes', () => {
+    const engine = new Engine();
+    const builder = new QueryBuilder().contains(Position);
+    const query = builder.build();
+    builder.contains(View);
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    expect(query.has(entity)).toBeTruthy();
+  });
+
+  it('Removed query is not updated anymore', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position, 'tag').build();
+    engine.addQuery(query);
+    engine.removeQuery(query);
+    const entity = new Entity();
+    engine.addEntity(entity);
+    entity.add(new Position()).addTag('tag');
+    expect(query.isEmpty).toBeTruthy();
+  });
+
+  it('Query first, last and entities stay consistent', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map(() => new Entity().add(new Position()));
+    entities.forEach((entity) => engine.addEntity(entity));
+    expect(query.entities).toEqual(entities);
+    entities[0].remove(Position);
+    expect(query.first).toBe(entities[1]);
+    expect(query.last).toBe(entities[2]);
+    expect(query.entities).toEqual([entities[1], entities[2]]);
+    expect(query.length).toBe(2);
+  });
+});

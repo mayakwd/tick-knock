@@ -65,8 +65,9 @@ export class Signal<Handler extends (...args: any[]) => any> {
    * @param {any} args
    */
   public emit(...args: Parameters<Handler>): void {
-    for (const handler of this.handlers) {
-      handler.handle(...args);
+    const handlers = this.handlers;
+    for (let i = 0; i < handlers.length; i++) {
+      handlers[i].handler(...args);
     }
   }
 }
@@ -76,9 +77,5 @@ class SignalHandler<Handler extends (...args: any[]) => any> {
 
   public equals(handler: Handler): boolean {
     return this.handler === handler;
-  }
-
-  public handle(...args: any[]) {
-    this.handler(...args);
   }
 }

@@ -1,3 +1,25 @@
+# Unreleased
+
+Performance (public API is unchanged):
+
+- Queries store entities in an insertion-ordered `Set`: membership checks, adding and removing entities
+  are O(1) instead of O(n). `Query.entities` is rebuilt lazily, only after the query has changed.
+- Engine indexes queries built by `QueryBuilder` by their components and tags, so a component change validates
+  only the queries depending on it. Predicate queries are still validated on every change.
+- Engine removes entities in O(1).
+- `Signal.emit` no longer allocates arguments twice per handler.
+
+Fixes:
+
+- `IterativeSystem` no longer skips the next entity when the current one is removed from the query during update,
+  and doesn't update entities removed from the query earlier in the same update.
+- `onComponentAdded`/`onComponentRemoved` handlers now receive the resolve class of the component, so snapshots
+  are correct for components added with `resolveClass`.
+- Query built by `QueryBuilder` is no longer affected by calling `contains` on the builder after `build`.
+
+Note: `Query.entities` returns a snapshot array; entities added to the query during `IterativeSystem` update
+are processed starting from the next update.
+
 # 4.3.0
 
 Features:

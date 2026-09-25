@@ -4,6 +4,8 @@ import {Class} from '../utils/Class';
 import {Query} from './Query';
 import {Subscription} from './Subscription';
 import {Signal} from '../utils/Signal';
+import {isTag, Tag} from './Tag';
+import {getComponentClass, getComponentId} from './ComponentId';
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
@@ -19,9 +21,13 @@ export class Engine {
   public onEntityRemoved: Signal<(entity: Entity) => void> = new Signal();
 
   private _entityMap: Map<number, Entity> = new Map();
-  private _entities: Entity[] = [];
   private _systems: System[] = [];
   private _queries: Query[] = [];
+  // Queries built by QueryBuilder are indexed by their components and tags,
+  // so component changes validate only the queries that depend on them.
+  private _queriesByComponent: Map<number, Query[]> = new Map();
+  private _queriesByTag: Map<Tag, Query[]> = new Map();
+  private _predicateQueries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
   private _sharedConfig: Entity = new Entity();
   private _removalRequested: Set<number> = new Set();
@@ -30,7 +36,7 @@ export class Engine {
    * Gets a list of entities added to engine
    */
   public get entities(): ReadonlyArray<Entity> {
-    return Array.from(this._entities);
+    return Array.from(this._entityMap.values());
   }
 
   /**
@@ -79,7 +85,6 @@ export class Engine {
       this._removalRequested.delete(entity.id);
       return this;
     }
-    this._entities.push(entity);
     this._entityMap.set(entity.id, entity);
     this.onEntityAdded.emit(entity);
     this.connectEntity(entity);
@@ -182,6 +187,9 @@ export class Engine {
   public removeAllQueries(): void {
     const queries = this._queries;
     this._queries = [];
+    this._queriesByComponent.clear();
+    this._queriesByTag.clear();
+    this._predicateQueries = [];
     for (const query of queries) {
       this.disconnectQuery(query);
       query.clear();
@@ -208,8 +216,6 @@ export class Engine {
   }
 
   private removeEntityNow(entity: Entity): Engine {
-    const index = this._entities.indexOf(entity);
-    this._entities.splice(index, 1);
     this._entityMap.delete(entity.id);
     this.onEntityRemoved.emit(entity);
     this.disconnectEntity(entity);
@@ -227,8 +233,9 @@ export class Engine {
    */
   public addQuery(query: Query): Engine {
     this.connectQuery(query);
-    query.matchEntities(this.entities);
+    query.matchEntities(this._entityMap.values());
     this._queries[this._queries.length] = query;
+    this.indexQuery(query);
     return this;
   }
 
@@ -266,6 +273,7 @@ export class Engine {
     const index = this._queries.indexOf(query);
     if (index == -1) return undefined;
     this._queries.splice(index, 1);
+    this.unindexQuery(query);
     this.disconnectQuery(query);
     query.clear();
     return this;
@@ -359,9 +367,42 @@ export class Engine {
     this.onEntityRemoved.disconnect(query.entityRemoved);
   }
 
+  private indexQuery(query: Query) {
+    if (query.componentIds === undefined || query.tags === undefined) {
+      this._predicateQueries.push(query);
+      return;
+    }
+    for (const id of query.componentIds) {
+      addToIndex(this._queriesByComponent, id, query);
+    }
+    for (const tag of query.tags) {
+      addToIndex(this._queriesByTag, tag, query);
+    }
+  }
+
+  private unindexQuery(query: Query) {
+    if (query.componentIds === undefined || query.tags === undefined) {
+      removeFromList(this._predicateQueries, query);
+      return;
+    }
+    for (const id of query.componentIds) {
+      removeFromList(this._queriesByComponent.get(id), query);
+    }
+    for (const tag of query.tags) {
+      removeFromList(this._queriesByTag.get(tag), query);
+    }
+  }
+
+  private getIndexedQueries(componentOrTag: unknown, componentClass?: Class<unknown>): Query[] | undefined {
+    if (isTag(componentOrTag)) {
+      return this._queriesByTag.get(componentOrTag);
+    }
+    const id = getComponentId(componentClass ?? getComponentClass(componentOrTag as NonNullable<unknown>));
+    return id === undefined ? undefined : this._queriesByComponent.get(id);
+  }
+
   private removeAllEntitiesInternal(silently: boolean): void {
-    const entities = this._entities;
-    this._entities = [];
+    const entities = Array.from(this._entityMap.values());
     this._entityMap.clear();
     for (const entity of entities) {
       if (!silently) {
@@ -372,14 +413,37 @@ export class Engine {
   }
 
   private onComponentAdded = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
-    this._queries.forEach(value => value.entityComponentAdded(entity, component, componentClass));
+    const queries = this.getIndexedQueries(component, componentClass);
+    if (queries !== undefined) {
+      for (const query of queries) query.entityComponentAdded(entity, component, componentClass);
+    }
+    for (const query of this._predicateQueries) query.entityComponentAdded(entity, component, componentClass);
   };
 
   private onInvalidationRequested = (entity: Entity) => {
-    this._queries.forEach(value => value.validateEntity(entity));
+    for (const query of this._queries) query.validateEntity(entity);
   };
 
   private onComponentRemoved = <T>(entity: Entity, component: NonNullable<T>, componentClass?: Class<NonNullable<T>>) => {
-    this._queries.forEach(value => value.entityComponentRemoved(entity, component, componentClass));
+    const queries = this.getIndexedQueries(component, componentClass);
+    if (queries !== undefined) {
+      for (const query of queries) query.entityComponentRemoved(entity, component, componentClass);
+    }
+    for (const query of this._predicateQueries) query.entityComponentRemoved(entity, component, componentClass);
   };
+}
+
+function addToIndex<K>(index: Map<K, Query[]>, key: K, query: Query) {
+  const queries = index.get(key);
+  if (queries === undefined) {
+    index.set(key, [query]);
+  } else {
+    queries.push(query);
+  }
+}
+
+function removeFromList(queries: Query[] | undefined, query: Query) {
+  if (queries === undefined) return;
+  const index = queries.indexOf(query);
+  if (index !== -1) queries.splice(index, 1);
 }

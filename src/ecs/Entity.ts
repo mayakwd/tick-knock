@@ -469,7 +469,7 @@ export class Entity implements ReadonlyEntity {
       this.append(component as ILinkedComponent, resolveClass as Class<ILinkedComponent>);
     } else {
       this._components[id] = component;
-      this.dispatchOnComponentAdded(component);
+      this.dispatchOnComponentAdded(component, componentClass);
     }
     return this;
   }
@@ -512,7 +512,7 @@ export class Entity implements ReadonlyEntity {
     if (this._components[componentId] === undefined) {
       this._components[componentId] = componentList.head;
     }
-    this.dispatchOnComponentAdded(component);
+    this.dispatchOnComponentAdded(component, componentClass);
     return this;
   }
 
@@ -754,7 +754,7 @@ export class Entity implements ReadonlyEntity {
       }
     } else {
       delete this._components[id];
-      this.dispatchOnComponentRemoved(value);
+      this.dispatchOnComponentRemoved(value, componentClassOrTag);
     }
 
     return value as T;
@@ -958,20 +958,20 @@ export class Entity implements ReadonlyEntity {
       this._components[componentId] = componentList.head;
     }
     if (result !== undefined) {
-      this.dispatchOnComponentRemoved(result);
+      this.dispatchOnComponentRemoved(result, componentClass);
     }
     return result;
   }
 
-  private dispatchOnComponentAdded<T>(component: NonNullable<T>): void {
+  private dispatchOnComponentAdded<T>(component: NonNullable<T>, componentClass?: Class<any>): void {
     if (this.onComponentAdded.hasHandlers) {
-      this.onComponentAdded.emit(this, component);
+      this.onComponentAdded.emit(this, component, componentClass);
     }
   }
 
-  private dispatchOnComponentRemoved<T>(value: NonNullable<T>): void {
+  private dispatchOnComponentRemoved<T>(value: NonNullable<T>, componentClass?: Class<any>): void {
     if (this.onComponentRemoved.hasHandlers) {
-      this.onComponentRemoved.emit(this, value);
+      this.onComponentRemoved.emit(this, value, componentClass);
     }
   }
 }
