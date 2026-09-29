@@ -21,6 +21,7 @@ all scenarios:
 pnpm bench                                # current sources and other ECS libraries
 pnpm bench --baseline 4.3.0               # also a published tick-knock version, installed from npm
 pnpm bench --baseline ../other/lib        # also another tick-knock build
+pnpm bench --baseline ../other/lib --baseline-name old  # the same, with a custom name in the report
 pnpm bench --libraries none               # only tick-knock builds
 pnpm bench --libraries bitecs,miniplex    # only specified other libraries
 pnpm bench --filter churn --time 2000     # only matching scenarios, 2 seconds per scenario

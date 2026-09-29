@@ -5,6 +5,8 @@
  *   pnpm bench                                - benchmark current sources and other ECS libraries
  *   pnpm bench --baseline 4.3.0               - also benchmark published tick-knock version
  *   pnpm bench --baseline ../other/lib        - also benchmark another tick-knock build
+ *   pnpm bench --baseline ../other/lib --baseline-name old
+ *                                             - the same, with a custom name of the build in the report
  *   pnpm bench --libraries none               - benchmark only tick-knock builds
  *   pnpm bench --libraries bitecs,miniplex    - benchmark only specified other libraries
  *   pnpm bench --filter iterate --time 2000   - run only matching scenarios, 2 seconds per scenario
@@ -19,6 +21,7 @@ import {WorkerResult} from './worker';
 
 interface Options {
   baseline?: string;
+  baselineName?: string;
   libraries: string;
   filter?: string;
   time: number;
@@ -39,6 +42,9 @@ function parseOptions(args: ReadonlyArray<string>): Options {
       case 'filter':
         options[key] = value;
         break;
+      case 'baseline-name':
+        options.baselineName = value;
+        break;
       case 'time':
         options.time = Number(value);
         break;
@@ -51,11 +57,14 @@ function parseOptions(args: ReadonlyArray<string>): Options {
 
 /**
  * Resolves tick-knock baseline: either a path to a build, or a version that is installed from npm
+ *
+ * @param baseline Path to the build or published version
+ * @param name Name of the build in the report, by default it's derived from the path or version
  */
-function resolveBaseline(baseline: string): LibraryDescriptor {
+function resolveBaseline(baseline: string, name?: string): LibraryDescriptor {
   if (fs.existsSync(baseline)) {
     const buildPath = path.resolve(baseline);
-    return {id: 'tick-knock', name: `tick-knock (${path.relative(process.cwd(), buildPath)})`, path: buildPath};
+    return {id: 'tick-knock', name: `tick-knock (${name ?? getBuildName(buildPath)})`, path: buildPath};
   }
   const directory = path.join(ROOT, '.baseline', baseline);
   const buildPath = path.join(directory, 'node_modules', 'tick-knock', 'lib');
@@ -65,7 +74,16 @@ function resolveBaseline(baseline: string): LibraryDescriptor {
     // Baseline is installed as a standalone package, outside of the workspace
     execFileSync('pnpm', ['add', '--ignore-workspace', '--dir', directory, `tick-knock@${baseline}`], {stdio: 'ignore'});
   }
-  return {id: 'tick-knock', name: `tick-knock ${baseline}`, path: buildPath};
+  return {id: 'tick-knock', name: name !== undefined ? `tick-knock (${name})` : `tick-knock ${baseline}`, path: buildPath};
+}
+
+/**
+ * Derives a short name of the build from its path: the name of the build directory,
+ * or the name of its parent directory if the build is in the conventional `lib` directory.
+ */
+function getBuildName(buildPath: string): string {
+  const directory = path.basename(buildPath);
+  return directory === 'lib' ? path.basename(path.dirname(buildPath)) : directory;
 }
 
 function resolveLibraries(options: Options): LibraryDescriptor[] {
@@ -74,7 +92,7 @@ function resolveLibraries(options: Options): LibraryDescriptor[] {
   }
   const libraries: LibraryDescriptor[] = [{id: 'tick-knock', name: 'tick-knock (current)', path: CURRENT_BUILD}];
   if (options.baseline !== undefined) {
-    libraries.push(resolveBaseline(options.baseline));
+    libraries.push(resolveBaseline(options.baseline, options.baselineName));
   }
   if (options.libraries !== 'none') {
     const ids = options.libraries === 'all' ? Object.keys(otherLibraries) : options.libraries.split(',');
