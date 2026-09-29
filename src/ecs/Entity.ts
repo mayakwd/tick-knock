@@ -238,11 +238,17 @@ export class Entity implements ReadonlyEntity {
   /**
    * The signal dispatches if new component or tag was added to the entity. Works for every linked component as well.
    */
-  public readonly onComponentAdded: Signal<ComponentUpdateHandler> = new Signal();
+  public get onComponentAdded(): Signal<ComponentUpdateHandler> {
+    return this._onComponentAdded ??= new Signal();
+  }
+
   /**
    * The signal dispatches if component was removed from the entity. Works for every linked component as well.
    */
-  public readonly onComponentRemoved: Signal<ComponentUpdateHandler> = new Signal();
+  public get onComponentRemoved(): Signal<ComponentUpdateHandler> {
+    return this._onComponentRemoved ??= new Signal();
+  }
+
   /**
    * The signal dispatches that invalidation requested for this entity.
    * Which means that if the entity attached to the engine — its queries will be updated.
@@ -253,7 +259,9 @@ export class Entity implements ReadonlyEntity {
    * Only adding/removing components and tags are tracked by Engine. So you need to request queries invalidation
    * manually, if some of your queries depends on logic or component`s properties.
    */
-  public readonly onInvalidationRequested: Signal<(entity: Entity) => void> = new Signal();
+  public get onInvalidationRequested(): Signal<(entity: Entity) => void> {
+    return this._onInvalidationRequested ??= new Signal();
+  }
 
   /**
    * Unique id identifier
@@ -261,8 +269,13 @@ export class Entity implements ReadonlyEntity {
   public readonly id = entityId++;
 
   private _components: Record<number, unknown> = {};
-  private _linkedComponents: Record<number, LinkedComponentList<ILinkedComponent>> = {};
-  private _tags: Set<Tag> = new Set();
+  // Linked components, tags, signals and observers are created lazily to keep entities lightweight
+  private _linkedComponents?: Record<number, LinkedComponentList<ILinkedComponent>>;
+  private _tags?: Set<Tag>;
+  private _onComponentAdded?: Signal<ComponentUpdateHandler>;
+  private _onComponentRemoved?: Signal<ComponentUpdateHandler>;
+  private _onInvalidationRequested?: Signal<(entity: Entity) => void>;
+  private _observers?: EntityObserver[];
 
   /**
    * Returns components map, where key is component identifier, and value is a component itself
@@ -277,7 +290,7 @@ export class Entity implements ReadonlyEntity {
    * @see getComponentId
    */
   public get tags(): ReadonlySet<Tag> {
-    return this._tags;
+    return this._tags ??= new Set();
   }
 
   /**
@@ -536,8 +549,9 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public addTag(tag: Tag): Entity {
-    if (!this._tags.has(tag)) {
-      this._tags.add(tag);
+    const tags = this._tags ??= new Set();
+    if (!tags.has(tag)) {
+      tags.add(tag);
       this.dispatchOnComponentAdded(tag);
     }
     return this;
@@ -622,7 +636,7 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public hasTag(tag: Tag): boolean {
-    return this._tags.has(tag);
+    return this._tags !== undefined && this._tags.has(tag);
   }
 
   /**
@@ -695,7 +709,7 @@ export class Entity implements ReadonlyEntity {
    * Returns an array of tags applied to the entity
    */
   public getTags(): Tag[] {
-    return Array.from(this._tags);
+    return this._tags === undefined ? [] : Array.from(this._tags);
   }
 
   /**
@@ -769,7 +783,7 @@ export class Entity implements ReadonlyEntity {
    * @returns {void}
    */
   public removeTag(tag: Tag): void {
-    if (this._tags.has(tag)) {
+    if (this._tags !== undefined && this._tags.has(tag)) {
       this._tags.delete(tag);
       this.dispatchOnComponentRemoved(tag);
     }
@@ -780,8 +794,8 @@ export class Entity implements ReadonlyEntity {
    */
   public clear(): void {
     this._components = {};
-    this._linkedComponents = {};
-    this._tags.clear();
+    this._linkedComponents = undefined;
+    this._tags?.clear();
   }
 
   /**
@@ -795,8 +809,8 @@ export class Entity implements ReadonlyEntity {
    */
   public copyFrom(entity: Entity): this {
     this._components = Object.assign({}, entity._components);
-    this._linkedComponents = Object.assign({}, entity._linkedComponents);
-    this._tags = new Set(entity._tags);
+    this._linkedComponents = entity._linkedComponents === undefined ? undefined : Object.assign({}, entity._linkedComponents);
+    this._tags = entity._tags === undefined ? undefined : new Set(entity._tags);
     return this;
   }
 
@@ -892,7 +906,35 @@ export class Entity implements ReadonlyEntity {
    * Components properties are not tracking by Engine itself, because it's too expensive.
    */
   public invalidate(): void {
-    this.onInvalidationRequested.emit(this);
+    const observers = this._observers;
+    if (observers !== undefined) {
+      for (let i = 0; i < observers.length; i++) observers[i].entityInvalidated(this);
+    }
+    const signal = this._onInvalidationRequested;
+    if (signal !== undefined && signal.hasHandlers) {
+      signal.emit(this);
+    }
+  }
+
+  /**
+   * @internal
+   */
+  public addObserver(observer: EntityObserver): void {
+    if (this._observers === undefined) {
+      this._observers = [observer];
+    } else if (this._observers.indexOf(observer) === -1) {
+      this._observers.push(observer);
+    }
+  }
+
+  /**
+   * @internal
+   */
+  public removeObserver(observer: EntityObserver): void {
+    if (this._observers === undefined) return;
+    const index = this._observers.indexOf(observer);
+    if (index !== -1) this._observers.splice(index, 1);
+    if (this._observers.length === 0) this._observers = undefined;
   }
 
   /**
@@ -913,7 +955,7 @@ export class Entity implements ReadonlyEntity {
     }
 
     if (isTag(changedComponentOrTag)) {
-      const previousTags = previousState._tags;
+      const previousTags = previousState._tags ??= new Set();
       if (this.has(changedComponentOrTag)) {
         previousTags.delete(changedComponentOrTag);
       } else {
@@ -938,11 +980,11 @@ export class Entity implements ReadonlyEntity {
     if (typeof componentClassOrId !== 'number') {
       componentClassOrId = getComponentId(componentClassOrId)!;
     }
-    if (this._linkedComponents[componentClassOrId] !== undefined || !createIfNotExists) {
-      return this._linkedComponents[componentClassOrId];
-    } else {
-      return this._linkedComponents[componentClassOrId] = new LinkedComponentList<ILinkedComponent>();
+    const linkedComponents = this._linkedComponents;
+    if (linkedComponents !== undefined && linkedComponents[componentClassOrId] !== undefined || !createIfNotExists) {
+      return linkedComponents?.[componentClassOrId];
     }
+    return (this._linkedComponents ??= {})[componentClassOrId] = new LinkedComponentList<ILinkedComponent>();
   }
 
   private withdrawComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
@@ -953,7 +995,7 @@ export class Entity implements ReadonlyEntity {
     const componentId = getComponentId(componentClass, true)!;
     if (componentList.isEmpty) {
       delete this._components[componentId];
-      delete this._linkedComponents[componentId];
+      delete this._linkedComponents![componentId];
     } else {
       this._components[componentId] = componentList.head;
     }
@@ -964,14 +1006,24 @@ export class Entity implements ReadonlyEntity {
   }
 
   private dispatchOnComponentAdded<T>(component: NonNullable<T>, componentClass?: Class<any>): void {
-    if (this.onComponentAdded.hasHandlers) {
-      this.onComponentAdded.emit(this, component, componentClass);
+    const signal = this._onComponentAdded;
+    if (signal !== undefined && signal.hasHandlers) {
+      signal.emit(this, component, componentClass);
+    }
+    const observers = this._observers;
+    if (observers !== undefined) {
+      for (let i = 0; i < observers.length; i++) observers[i].entityComponentAdded(this, component, componentClass);
     }
   }
 
   private dispatchOnComponentRemoved<T>(value: NonNullable<T>, componentClass?: Class<any>): void {
-    if (this.onComponentRemoved.hasHandlers) {
-      this.onComponentRemoved.emit(this, value, componentClass);
+    const signal = this._onComponentRemoved;
+    if (signal !== undefined && signal.hasHandlers) {
+      signal.emit(this, value, componentClass);
+    }
+    const observers = this._observers;
+    if (observers !== undefined) {
+      for (let i = 0; i < observers.length; i++) observers[i].entityComponentRemoved(this, value, componentClass);
     }
   }
 }
@@ -1011,6 +1063,18 @@ export class EntitySnapshot {
   public get previous(): ReadonlyEntity {
     return this._previous;
   }
+}
+
+/**
+ * @internal
+ * Observer that is notified after entity signal handlers. Used by Engine to track entity changes.
+ */
+export interface EntityObserver {
+  entityComponentAdded(entity: Entity, componentOrTag: unknown, componentClass?: Class<any>): void;
+
+  entityComponentRemoved(entity: Entity, componentOrTag: unknown, componentClass?: Class<any>): void;
+
+  entityInvalidated(entity: Entity): void;
 }
 
 /**

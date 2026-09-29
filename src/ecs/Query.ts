@@ -249,11 +249,8 @@ function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: Readonl
   for (let i = 0; i < components.length; i++) {
     if (entityComponents[components[i]] === undefined) return false;
   }
-  if (tags.length > 0) {
-    const entityTags = entity.tags;
-    for (let i = 0; i < tags.length; i++) {
-      if (!entityTags.has(tags[i])) return false;
-    }
+  for (let i = 0; i < tags.length; i++) {
+    if (!entity.hasTag(tags[i])) return false;
   }
   return true;
 }

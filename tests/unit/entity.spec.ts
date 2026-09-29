@@ -68,6 +68,21 @@ describe('Components id', () => {
 
     expect(positionId == viewId).toBeFalsy();
   });
+
+  it('Subclass does not inherit component id of its parent', () => {
+    class Parent {
+    }
+
+    class Child extends Parent {
+    }
+
+    const parentId = getComponentId(Parent, true);
+    expect(getComponentId(Child)).toBeUndefined();
+    const childId = getComponentId(Child, true);
+    expect(childId).toBeDefined();
+    expect(childId).not.toBe(parentId);
+    expect(getComponentId(Parent)).toBe(parentId);
+  });
 });
 
 describe('Components and Tags', () => {

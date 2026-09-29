@@ -1,4 +1,4 @@
-import {Entity} from './Entity';
+import {Entity, EntityObserver} from './Entity';
 import {System} from './System';
 import {Class} from '../utils/Class';
 import {Query} from './Query';
@@ -346,15 +346,11 @@ export class Engine {
   }
 
   private connectEntity(entity: Entity) {
-    entity.onComponentAdded.connect(this.onComponentAdded, Number.POSITIVE_INFINITY);
-    entity.onComponentRemoved.connect(this.onComponentRemoved, Number.POSITIVE_INFINITY);
-    entity.onInvalidationRequested.connect(this.onInvalidationRequested, Number.NEGATIVE_INFINITY);
+    entity.addObserver(this._entityObserver);
   }
 
   private disconnectEntity(entity: Entity) {
-    entity.onComponentAdded.disconnect(this.onComponentAdded);
-    entity.onComponentRemoved.disconnect(this.onComponentRemoved);
-    entity.onInvalidationRequested.disconnect(this.onInvalidationRequested);
+    entity.removeObserver(this._entityObserver);
   }
 
   private connectQuery(query: Query) {
@@ -430,6 +426,13 @@ export class Engine {
       for (const query of queries) query.entityComponentRemoved(entity, component, componentClass);
     }
     for (const query of this._predicateQueries) query.entityComponentRemoved(entity, component, componentClass);
+  };
+
+  // Declared after the handlers, so they are already initialized
+  private readonly _entityObserver: EntityObserver = {
+    entityComponentAdded: this.onComponentAdded,
+    entityComponentRemoved: this.onComponentRemoved,
+    entityInvalidated: this.onInvalidationRequested,
   };
 }
 

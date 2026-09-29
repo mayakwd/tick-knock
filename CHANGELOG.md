@@ -8,6 +8,11 @@ Performance (public API is unchanged):
   only the queries depending on it. Predicate queries are still validated on every change.
 - Engine removes entities in O(1).
 - `Signal.emit` no longer allocates arguments twice per handler.
+- Component class id is stored in symbol properties of the class instead of being checked with `hasOwnProperty`.
+  `Entity.get`/`has` are several times faster.
+- Entities are ~3x lighter in memory (≈430 bytes instead of ≈1430 bytes for an entity with two components):
+  signals, tags and linked components are allocated lazily, and Engine tracks entity changes directly instead of
+  connecting three signal handlers to every entity. Iteration over large queries is faster due to better cache locality.
 
 Fixes:
 
