@@ -39,6 +39,7 @@
 
 # Installing
 
+- PNPM: `pnpm add tick-knock`
 - Yarn: `yarn add tick-knock`
 - NPM: `npm i --save tick-knock`
 
@@ -790,9 +791,9 @@ The repository contains benchmarks in the [bench](bench) folder. They compare ti
 and with other TypeScript ECS libraries: Ape-ECS, bitecs, ecsy, miniplex and sim-ecs.
 
 ```shell
-yarn bench                          # benchmark current sources and other ECS libraries
-yarn bench --baseline 4.3.0         # also benchmark a published tick-knock version
-yarn bench --filter iterate         # run only matching scenarios
+pnpm bench                          # benchmark current sources and other ECS libraries
+pnpm bench --baseline 4.3.0         # also benchmark a published tick-knock version
+pnpm bench --filter iterate         # run only matching scenarios
 ```
 
 See [bench/README.md](bench/README.md) for the list of scenarios and details.

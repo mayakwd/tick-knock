@@ -2,12 +2,12 @@
  * Benchmark runner.
  *
  * Usage (from the repository root):
- *   yarn bench                                - benchmark current sources and other ECS libraries
- *   yarn bench --baseline 4.3.0               - also benchmark published tick-knock version
- *   yarn bench --baseline ../other/lib        - also benchmark another tick-knock build
- *   yarn bench --libraries none               - benchmark only tick-knock builds
- *   yarn bench --libraries bitecs,miniplex    - benchmark only specified other libraries
- *   yarn bench --filter iterate --time 2000   - run only matching scenarios, 2 seconds per scenario
+ *   pnpm bench                                - benchmark current sources and other ECS libraries
+ *   pnpm bench --baseline 4.3.0               - also benchmark published tick-knock version
+ *   pnpm bench --baseline ../other/lib        - also benchmark another tick-knock build
+ *   pnpm bench --libraries none               - benchmark only tick-knock builds
+ *   pnpm bench --libraries bitecs,miniplex    - benchmark only specified other libraries
+ *   pnpm bench --filter iterate --time 2000   - run only matching scenarios, 2 seconds per scenario
  */
 import {execFileSync} from 'child_process';
 import * as fs from 'fs';
@@ -62,14 +62,15 @@ function resolveBaseline(baseline: string): LibraryDescriptor {
   if (!fs.existsSync(buildPath)) {
     console.log(`Installing tick-knock@${baseline}...`);
     fs.mkdirSync(directory, {recursive: true});
-    execFileSync('npm', ['install', '--no-save', '--no-package-lock', '--prefix', directory, `tick-knock@${baseline}`], {stdio: 'ignore'});
+    // Baseline is installed as a standalone package, outside of the workspace
+    execFileSync('pnpm', ['add', '--ignore-workspace', '--dir', directory, `tick-knock@${baseline}`], {stdio: 'ignore'});
   }
   return {id: 'tick-knock', name: `tick-knock ${baseline}`, path: buildPath};
 }
 
 function resolveLibraries(options: Options): LibraryDescriptor[] {
   if (!fs.existsSync(path.join(CURRENT_BUILD, 'index.js'))) {
-    throw new Error('tick-knock is not built, run "yarn build" in the repository root');
+    throw new Error('tick-knock is not built, run "pnpm build" in the repository root');
   }
   const libraries: LibraryDescriptor[] = [{id: 'tick-knock', name: 'tick-knock (current)', path: CURRENT_BUILD}];
   if (options.baseline !== undefined) {

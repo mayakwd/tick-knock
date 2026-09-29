@@ -1,7 +1,11 @@
-import {buildWorld, createSystem, IPreptimeWorld, IRuntimeWorld, ISystem, queryComponents, Read, Write} from 'sim-ecs';
+import type * as SimEcsModule from 'sim-ecs' with {'resolution-mode': 'import'};
+import type {IPreptimeWorld, IRuntimeWorld, ISystem} from 'sim-ecs' with {'resolution-mode': 'import'};
 import {A, B, C, D, E, Position, Rotation, Transform, Value, Velocity} from '../components';
 import {Benchmark, ScenarioId, Sizes} from '../Scenario';
 import {getPackageVersion, Library} from './Library';
+
+// sim-ecs provides type declarations only for ES modules, while its CommonJS build is used at runtime
+const {buildWorld, createSystem, queryComponents, Read, Write}: typeof SimEcsModule = require('sim-ecs');
 
 /**
  * sim-ecs - ECS with scheduling, which must be fully specified before running.

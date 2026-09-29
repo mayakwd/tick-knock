@@ -1,0 +1,6 @@
+packages:
+  - bench
+
+# Dependencies that are allowed to run install scripts
+onlyBuiltDependencies:
+  - '@swc/core'

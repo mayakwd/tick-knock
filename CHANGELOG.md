@@ -31,6 +31,14 @@ Fixes:
   are correct for components added with `resolveClass`.
 - Query built by `QueryBuilder` is no longer affected by calling `contains` on the builder after `build`.
 
+Tooling:
+
+- Migrated from yarn to pnpm. The repository is a pnpm workspace with the library and the benchmark package.
+- Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
+  for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
+- Compilation target is ES2017, which the library already required at runtime (`Object.values`).
+- CI runs on Node.js 22 and 24.
+
 Note: `Query.entities` returns a snapshot array; entities added to the query during `IterativeSystem` update
 are processed starting from the next update.
 

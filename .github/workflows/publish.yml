@@ -12,47 +12,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'yarn'
+          node-version: 22
+          cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check types
+        run: pnpm typecheck
 
       - name: Run tests
-        run: yarn test-ci
+        run: pnpm test-ci
 
   publish-to-npm:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [ 20 ]
     needs: build
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'yarn'
+          node-version: 22
+          cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: yarn build
+        run: pnpm build
 
       - name: Run tests
-        run: yarn test-ci
+        run: pnpm test-ci
 
       - name: Pack
-        run: yarn pack
+        run: pnpm pack
 
       - name: Publish to NPM
-        run: yarn publish --access public
+        # Tags are checked out in detached HEAD state, so git checks are skipped
+        run: pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -13,16 +13,17 @@ Benchmarks of tick-knock and other TypeScript ECS libraries.
 
 # Running
 
-Benchmarks are run from the repository root. The command builds tick-knock, installs benchmark dependencies and runs
+The benchmark is a package of the pnpm workspace, so its dependencies are installed together with the dependencies
+of tick-knock by `pnpm install`. Benchmarks are run from the repository root, the command builds tick-knock and runs
 all scenarios:
 
 ```shell
-yarn bench                                # current sources and other ECS libraries
-yarn bench --baseline 4.3.0               # also a published tick-knock version, installed from npm
-yarn bench --baseline ../other/lib        # also another tick-knock build
-yarn bench --libraries none               # only tick-knock builds
-yarn bench --libraries bitecs,miniplex    # only specified other libraries
-yarn bench --filter churn --time 2000     # only matching scenarios, 2 seconds per scenario
+pnpm bench                                # current sources and other ECS libraries
+pnpm bench --baseline 4.3.0               # also a published tick-knock version, installed from npm
+pnpm bench --baseline ../other/lib        # also another tick-knock build
+pnpm bench --libraries none               # only tick-knock builds
+pnpm bench --libraries bitecs,miniplex    # only specified other libraries
+pnpm bench --filter churn --time 2000     # only matching scenarios, 2 seconds per scenario
 ```
 
 The result is printed as a markdown table, the best result in every scenario is marked with bold.
