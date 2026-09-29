@@ -1,6 +1,12 @@
 # Unreleased
 
-Performance (public API is unchanged):
+Features:
+
+- `Query.column(ComponentClass)` returns components of the class aligned with `Query.entities`.
+  Iterating over columns is up to ~10x faster than calling `entity.get` for every entity of a big query.
+- Benchmarks: `yarn bench [--baseline <version>]`, see `bench` folder.
+
+Performance (existing API is unchanged):
 
 - Queries store entities in an insertion-ordered `Set`: membership checks, adding and removing entities
   are O(1) instead of O(n). `Query.entities` is rebuilt lazily, only after the query has changed.
@@ -13,6 +19,8 @@ Performance (public API is unchanged):
 - Entities are ~3x lighter in memory (≈430 bytes instead of ≈1430 bytes for an entity with two components):
   signals, tags and linked components are allocated lazily, and Engine tracks entity changes directly instead of
   connecting three signal handlers to every entity. Iteration over large queries is faster due to better cache locality.
+- `EntitySnapshot.previous` is restored lazily, only when it's accessed. If the entity is changed while a snapshot
+  is being dispatched, previous state is restored before the change.
 
 Fixes:
 

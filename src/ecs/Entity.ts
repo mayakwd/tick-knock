@@ -1,4 +1,4 @@
-import {getComponentClass, getComponentId} from './ComponentId';
+import {getComponentClass, getComponentId, touchComponent} from './ComponentId';
 import {Class} from '../utils/Class';
 import {Signal} from '../utils/Signal';
 import {isTag, Tag} from './Tag';
@@ -469,6 +469,7 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public addComponent<T extends K, K extends unknown>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
+    beforeChange();
     const componentClass = getComponentClass(component, resolveClass);
     const id = getComponentId(componentClass, true)!;
     const linkedComponent = isLinkedComponent(component);
@@ -518,6 +519,7 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public appendComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): Entity {
+    beforeChange();
     const componentClass = getComponentClass(component, resolveClass);
     const componentId = getComponentId(componentClass, true)!;
     const componentList = this.getLinkedComponentList(componentId)!;
@@ -549,6 +551,7 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public addTag(tag: Tag): Entity {
+    beforeChange();
     const tags = this._tags ??= new Set();
     if (!tags.has(tag)) {
       tags.add(tag);
@@ -755,6 +758,7 @@ export class Entity implements ReadonlyEntity {
    * @returns Component instance or `undefined` if it doesn't exists in the entity
    */
   public removeComponent<T>(componentClassOrTag: Class<T>): T | undefined {
+    beforeChange();
     const id = getComponentId(componentClassOrTag);
     if (id === undefined || this._components[id] === undefined) {
       return undefined;
@@ -783,6 +787,7 @@ export class Entity implements ReadonlyEntity {
    * @returns {void}
    */
   public removeTag(tag: Tag): void {
+    beforeChange();
     if (this._tags !== undefined && this._tags.has(tag)) {
       this._tags.delete(tag);
       this.dispatchOnComponentRemoved(tag);
@@ -793,6 +798,7 @@ export class Entity implements ReadonlyEntity {
    * Removes all components and tags from entity
    */
   public clear(): void {
+    beforeChange();
     this._components = {};
     this._linkedComponents = undefined;
     this._tags?.clear();
@@ -944,18 +950,21 @@ export class Entity implements ReadonlyEntity {
    * @param {Class<T>} resolveClass
    */
   public takeSnapshot<T>(result: EntitySnapshot, changedComponentOrTag?: T, resolveClass?: Class<T>): void {
-    const previousState = result.previous as Entity;
-    if (result.current !== this) {
-      result.current = this;
-      previousState.copyFrom(this);
-    }
+    result.reset(this, changedComponentOrTag, resolveClass);
+  }
 
+  /**
+   * @internal
+   * Restores the state of the entity before the change of the component or tag into the `previous` entity
+   */
+  public restorePreviousState(previous: Entity, changedComponentOrTag?: unknown, resolveClass?: Class<unknown>): void {
+    previous.copyFrom(this);
     if (changedComponentOrTag === undefined) {
       return;
     }
 
     if (isTag(changedComponentOrTag)) {
-      const previousTags = previousState._tags ??= new Set();
+      const previousTags = previous._tags ??= new Set();
       if (this.has(changedComponentOrTag)) {
         previousTags.delete(changedComponentOrTag);
       } else {
@@ -964,7 +973,7 @@ export class Entity implements ReadonlyEntity {
     } else {
       const componentClass = resolveClass ?? Object.getPrototypeOf(changedComponentOrTag).constructor;
       const componentId = getComponentId(componentClass!, true)!;
-      const previousComponents = previousState._components;
+      const previousComponents = previous._components;
       if (this.has(componentClass)) {
         delete previousComponents[componentId];
       } else {
@@ -988,6 +997,7 @@ export class Entity implements ReadonlyEntity {
   }
 
   private withdrawComponent<T extends K, K extends ILinkedComponent>(component: NonNullable<T>, resolveClass?: Class<K>): T | undefined {
+    beforeChange();
     const componentClass = getComponentClass(component, resolveClass);
     const componentList = this.getLinkedComponentList(componentClass, false);
     if (!this.hasComponent(componentClass) || componentList === undefined) return undefined;
@@ -1006,6 +1016,7 @@ export class Entity implements ReadonlyEntity {
   }
 
   private dispatchOnComponentAdded<T>(component: NonNullable<T>, componentClass?: Class<any>): void {
+    if (componentClass !== undefined) touchComponent(componentClass);
     const signal = this._onComponentAdded;
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, component, componentClass);
@@ -1017,6 +1028,7 @@ export class Entity implements ReadonlyEntity {
   }
 
   private dispatchOnComponentRemoved<T>(value: NonNullable<T>, componentClass?: Class<any>): void {
+    if (componentClass !== undefined) touchComponent(componentClass);
     const signal = this._onComponentRemoved;
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, value, componentClass);
@@ -1040,7 +1052,10 @@ export class Entity implements ReadonlyEntity {
  */
 export class EntitySnapshot {
   private _current?: Entity;
-  private _previous: ReadonlyEntity = new Entity();
+  private readonly _previous: Entity = new Entity();
+  private _changed?: unknown;
+  private _changedClass?: Class<unknown>;
+  private _isPreviousRestored: boolean = true;
 
   /**
    * Gets an instance of the actual entity
@@ -1054,14 +1069,59 @@ export class EntitySnapshot {
    * @internal
    */
   public set current(value: Entity) {
-    this._current = value;
+    this.reset(value);
   }
 
   /**
-   * Gets an instance of the previous state of entity
+   * Gets an instance of the previous state of entity.
+   * It's restored lazily on the first access, so it costs nothing if handler doesn't use it.
    */
   public get previous(): ReadonlyEntity {
+    this.restore();
     return this._previous;
+  }
+
+  /**
+   * @internal
+   */
+  public reset(current: Entity, changed?: unknown, changedClass?: Class<unknown>): void {
+    this._current = current;
+    this._changed = changed;
+    this._changedClass = changedClass;
+    this._isPreviousRestored = false;
+  }
+
+  /**
+   * @internal
+   */
+  public restore(): void {
+    if (this._isPreviousRestored) return;
+    this._isPreviousRestored = true;
+    this._current!.restorePreviousState(this._previous, this._changed, this._changedClass);
+  }
+
+  /**
+   * @internal
+   * Invokes `emit` while the snapshot is dispatched to handlers.
+   * If any entity is changed during dispatching, previous state is restored before the change.
+   */
+  public dispatch(emit: (snapshot: EntitySnapshot) => void): void {
+    dispatchedSnapshots.push(this);
+    try {
+      emit(this);
+    } finally {
+      dispatchedSnapshots.pop();
+    }
+  }
+}
+
+// Snapshots that are being dispatched right now. Stack, because dispatching can be nested.
+const dispatchedSnapshots: EntitySnapshot[] = [];
+
+function beforeChange(): void {
+  if (dispatchedSnapshots.length === 0) return;
+  for (let i = 0; i < dispatchedSnapshots.length; i++) {
+    dispatchedSnapshots[i].restore();
   }
 }
 

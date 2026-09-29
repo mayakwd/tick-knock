@@ -11,7 +11,8 @@
     "build": "tsc",
     "build-watch": "tsc --watch",
     "test": "jest",
-    "test-ci": "jest --config jest-ci.json"
+    "test-ci": "jest --config jest-ci.json",
+    "bench": "tsc && node bench/run.js"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",

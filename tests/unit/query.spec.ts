@@ -704,3 +704,112 @@ describe('Query indexing', () => {
     expect(query.length).toBe(2);
   });
 });
+
+describe('Query columns', () => {
+  class Health {
+    public constructor(public value: number = 0) {}
+  }
+
+  class Buff extends LinkedComponent {
+    public constructor(public value: number = 0) {
+      super();
+    }
+  }
+
+  function setup() {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map((i) => new Entity().add(new Position(i, i)));
+    entities.forEach((entity) => engine.addEntity(entity));
+    return {engine, query, entities};
+  }
+
+  it('Column is aligned with entities', () => {
+    const {query, entities} = setup();
+    const positions = query.column(Position);
+    expect(positions.length).toBe(3);
+    query.entities.forEach((entity, i) => expect(positions[i]).toBe(entity.get(Position)));
+    entities[1].remove(Position);
+    const updated = query.column(Position);
+    expect(updated).toEqual([entities[0].get(Position), entities[2].get(Position)]);
+  });
+
+  it('Column contains undefined for entities without the component', () => {
+    const {query, entities} = setup();
+    const health = new Health(10);
+    entities[1].add(health);
+    expect(query.column(Health)).toEqual([undefined, health, undefined]);
+  });
+
+  it('Column is updated when component is replaced without changing query membership', () => {
+    const {query, entities} = setup();
+    entities[0].add(new Health(1));
+    expect(query.column(Health)[0]!.value).toBe(1);
+    const replacement = new Health(2);
+    entities[0].add(replacement);
+    expect(query.column(Health)[0]).toBe(replacement);
+    const position = new Position(5, 5);
+    entities[2].add(position);
+    expect(query.column(Position)[2]).toBe(position);
+  });
+
+  it('Column of linked components contains the head of the list', () => {
+    const {query, entities} = setup();
+    const first = new Buff(1);
+    const second = new Buff(2);
+    entities[0].append(first).append(second);
+    expect(query.column(Buff)[0]).toBe(entities[0].get(Buff));
+    entities[0].pick(entities[0].get(Buff)!);
+    expect(query.column(Buff)[0]).toBe(entities[0].get(Buff));
+  });
+
+  it('Column is a snapshot and is reused while nothing changes', () => {
+    const {query, entities} = setup();
+    const positions = query.column(Position);
+    expect(query.column(Position)).toBe(positions);
+    entities[0].remove(Position);
+    expect(positions.length).toBe(3);
+    expect(query.column(Position).length).toBe(2);
+  });
+
+  it('Column is empty after query is cleared', () => {
+    const {engine, query} = setup();
+    expect(query.column(Position).length).toBe(3);
+    engine.removeQuery(query);
+    expect(query.column(Position).length).toBe(0);
+  });
+});
+
+describe('Lazy snapshot', () => {
+  it('Previous state is correct if handler changes entity before accessing it', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position, View).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position()).add(new View());
+    engine.addEntity(entity);
+    const results: boolean[] = [];
+    query.onEntityRemoved.connect(({current, previous}) => {
+      current.add(new Move());
+      current.remove(Position);
+      results.push(previous.has(Position), previous.has(View), previous.has(Move));
+    });
+    entity.remove(View);
+    expect(results).toEqual([true, true, false]);
+  });
+
+  it('Previous state is correct for consecutive changes of the same entity', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new View());
+    engine.addEntity(entity);
+    const log: string[] = [];
+    query.onEntityAdded.connect(({previous}) => log.push(`added ${previous.has(Position)} ${previous.has(Move)}`));
+    query.onEntityRemoved.connect(({previous}) => log.push(`removed ${previous.has(Position)} ${previous.has(Move)}`));
+    entity.add(new Position());
+    entity.add(new Move());
+    entity.remove(Position);
+    expect(log).toEqual(['added false false', 'removed true true']);
+  });
+});

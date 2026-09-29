@@ -1,4 +1,4 @@
-import {getComponentId} from './ComponentId';
+import {getComponentId, getComponentVersion} from './ComponentId';
 import {Entity, EntitySnapshot} from './Entity';
 import {isTag, Tag} from './Tag';
 import {Signal} from '../utils/Signal';
@@ -30,6 +30,7 @@ export class Query {
   private readonly _entities: Set<Entity> = new Set();
   private _entitiesCache: Entity[] | undefined;
   private _version: number = 0;
+  private readonly _columns: Map<number, QueryColumn> = new Map();
 
   /**
    * @internal
@@ -60,6 +61,47 @@ export class Query {
       this._entitiesCache = Array.from(this._entities);
     }
     return this._entitiesCache;
+  }
+
+  /**
+   * Returns components of the specified class for every entity of the query.
+   * The result is aligned with {@link entities}: `column(Position)[i]` is the component of `entities[i]`.
+   * For linked components it contains the first component of the list.
+   * If an entity has no such component, the corresponding value is `undefined`.
+   *
+   * Iterating over columns is much faster than calling `entity.get` for every entity,
+   * because component references are stored contiguously in memory.
+   * The same as {@link entities}, the column is a snapshot, rebuilt lazily after the query or
+   * components of the class have been changed.
+   *
+   * @example
+   * ```ts
+   * const positions = query.column(Position);
+   * const velocities = query.column(Velocity);
+   * for (let i = 0; i < positions.length; i++) {
+   *   positions[i].x += velocities[i].x;
+   * }
+   * ```
+   */
+  public column<T>(componentClass: Class<T>): ReadonlyArray<T> {
+    const id = getComponentId(componentClass, true)!;
+    const componentVersion = getComponentVersion(id);
+    let column = this._columns.get(id);
+    if (column === undefined) {
+      column = {queryVersion: -1, componentVersion: -1, components: []};
+      this._columns.set(id, column);
+    }
+    if (column.queryVersion !== this._version || column.componentVersion !== componentVersion) {
+      const entities = this.entities;
+      const components = new Array(entities.length);
+      for (let i = 0; i < entities.length; i++) {
+        components[i] = entities[i].components[id];
+      }
+      column.components = components;
+      column.queryVersion = this._version;
+      column.componentVersion = componentVersion;
+    }
+    return column.components as T[];
   }
 
   /**
@@ -171,6 +213,7 @@ export class Query {
   public clear(): void {
     this._entities.clear();
     this._entitiesCache = undefined;
+    this._columns.clear();
     this._version++;
   }
 
@@ -213,6 +256,9 @@ export class Query {
     this.revalidate(entity, component, componentClass);
   };
 
+  private readonly emitAdded = (snapshot: EntitySnapshot) => this.onEntityAdded.emit(snapshot);
+  private readonly emitRemoved = (snapshot: EntitySnapshot) => this.onEntityRemoved.emit(snapshot);
+
   private revalidate<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
     const isMember = this._entities.has(entity);
     const isMatch = this._predicate(entity);
@@ -229,7 +275,7 @@ export class Query {
     this._version++;
     if (this.onEntityAdded.hasHandlers) {
       entity.takeSnapshot(this._snapshot, changed, changedClass);
-      this.onEntityAdded.emit(this._snapshot);
+      this._snapshot.dispatch(this.emitAdded);
     }
   }
 
@@ -239,9 +285,15 @@ export class Query {
     this._version++;
     if (this.onEntityRemoved.hasHandlers) {
       entity.takeSnapshot(this._snapshot, changed, changedClass);
-      this.onEntityRemoved.emit(this._snapshot);
+      this._snapshot.dispatch(this.emitRemoved);
     }
   }
+}
+
+interface QueryColumn {
+  queryVersion: number;
+  componentVersion: number;
+  components: unknown[];
 }
 
 function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: ReadonlyArray<Tag>): boolean {

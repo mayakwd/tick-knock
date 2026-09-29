@@ -22,6 +22,7 @@
         - [System]
         - [Query]
             - [QueryBuilder]
+            - [Query columns]
             - [Queries and Systems]
             - [Built-in query-based systems]
                 - [ReactionSystem]
@@ -29,6 +30,7 @@
         - [Snapshot]
         - [Shared Config]
         - [Linked Components How-To]
+- [Performance]
 - [Restrictions]
     - [Shared and Local Queries]
     - [Queries with complex logic and Entity invalidation]
@@ -343,6 +345,44 @@ const query: Query = new QueryBuilder()
   .contains(TAG)
   .build();
 ```
+
+> 💡 Prefer `QueryBuilder` whenever it's enough. Engine knows which components and tags such queries depend on, so
+> adding or removing unrelated components doesn't touch them at all. Queries with predicates are checked on every
+> change of every entity.
+
+### Query columns
+
+`query.column(ComponentClass)` returns components of the specified class for every entity in the query. The result is
+aligned with `query.entities`: `query.column(Position)[i]` belongs to `query.entities[i]`.
+
+Iterating over columns is much faster than calling `entity.get` for every entity, especially for big queries, because
+component references are stored next to each other in memory, and there is no need to look up the component in
+every entity.
+
+```typescript
+class MovementSystem extends System {
+  private query = new QueryBuilder().contains(Position, Velocity).build();
+
+  public onAddedToEngine() {
+    this.engine.addQuery(this.query);
+  }
+
+  public update(dt: number) {
+    const positions = this.query.column(Position);
+    const velocities = this.query.column(Velocity);
+    for (let i = 0; i < positions.length; i++) {
+      positions[i].x += velocities[i].x * dt;
+      positions[i].y += velocities[i].y * dt;
+    }
+  }
+}
+```
+
+Columns, as well as `query.entities`, are snapshots: they are rebuilt lazily only when the query or components of the
+class have been changed, so it's safe to add or remove components and entities while iterating over them.
+
+- If an entity doesn't have the component, its value in the column is `undefined`.
+- For linked components the column contains the first component in the list.
 
 ### Queries and Systems
 
@@ -744,6 +784,17 @@ class RegenerationSystem extends IterativeSystem {
 }
 ```
 
+# Performance
+
+The repository contains a set of benchmarks in the `bench` folder. Every scenario runs in a separate process, so
+results of one scenario don't affect another. You can compare current build with any published version:
+
+```shell
+yarn bench                          # benchmark current sources
+yarn bench --baseline 4.3.0         # compare with published version
+yarn bench --filter iterate         # run only matching scenarios
+```
+
 # Restrictions
 
 ## Shared and Local Queries
@@ -826,6 +877,10 @@ called `invalidate`, it will force Query to check this particular entity.
 This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
 
 [Restrictions]: #restrictions
+
+[Performance]: #performance
+
+[Query columns]: #query-columns
 
 [Shared Config]: #shared-config
 
