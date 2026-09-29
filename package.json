@@ -12,7 +12,7 @@
     "build-watch": "tsc --watch",
     "test": "jest",
     "test-ci": "jest --config jest-ci.json",
-    "bench": "tsc && node bench/run.js"
+    "bench": "tsc && yarn --cwd bench install --frozen-lockfile --silent && yarn --cwd bench bench"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",

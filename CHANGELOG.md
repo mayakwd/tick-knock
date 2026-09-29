@@ -4,7 +4,8 @@ Features:
 
 - `Query.column(ComponentClass)` returns components of the class aligned with `Query.entities`.
   Iterating over columns is up to ~10x faster than calling `entity.get` for every entity of a big query.
-- Benchmarks: `yarn bench [--baseline <version>]`, see `bench` folder.
+- Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, bitecs, ecsy,
+  miniplex, sim-ecs): `yarn bench [--baseline <version>]`, see `bench` folder.
 
 Performance (existing API is unchanged):
 

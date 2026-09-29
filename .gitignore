@@ -62,5 +62,3 @@ typings/
 
 # Generated library
 lib
-# Benchmark baselines
-bench/.baseline
