@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tower defense · tick-knock</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0b0d12;
+      color: #c9d1d9;
+      font: 14px/1.5 system-ui, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    canvas {
+      border: 1px solid #30363d;
+    }
+  </style>
+</head>
+<body>
+<div id="game"></div>
+<div>Click the game to play: 1-4 to select a tower, click to build it, R to restart</div>
+<script type="module" src="./main.ts"></script>
+</body>
+</html>

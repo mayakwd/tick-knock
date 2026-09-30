@@ -17,6 +17,7 @@ export default defineConfig({
         snake: page('snake/index.html'),
         asteroids: page('asteroids/index.html'),
         bulletHell: page('bullet-hell/index.html'),
+        towerDefense: page('tower-defense/index.html'),
       },
     },
   },

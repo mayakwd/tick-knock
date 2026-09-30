@@ -1,13 +1,16 @@
 # Tick-Knock Examples
 
 Small games that show how to build a game with tick-knock. The game logic of every example doesn't depend on rendering
-and input, so the same code runs in a terminal, a browser and tests.
+and input, so the same code runs in a browser, a terminal and tests.
 
 # Table of contents
 
 - [Running]
+- [Structure]
 - [Snake]
 - [Asteroids]
+- [Bullet hell]
+- [Tower defense]
 - [Tests]
 
 # Running
@@ -16,59 +19,95 @@ Examples are a package of the pnpm workspace, so their dependencies are installe
 root. They use the sources of the library directly, so they don't need a build of it.
 
 ```shell
+pnpm --filter tick-knock-examples dev              # open all games in the browser
 pnpm --filter tick-knock-examples snake            # play Snake in the terminal
-pnpm --filter tick-knock-examples snake --demo     # watch the autopilot play
-pnpm --filter tick-knock-examples asteroids        # start Asteroids in the browser
+pnpm --filter tick-knock-examples snake --demo     # watch the autopilot play in the terminal
 ```
+
+Every game is played by an autopilot until you click it, then you take control.
+
+# Structure
+
+All games have the same structure:
+
+```
+game/
+  components/   data of entities, one class per file
+  entities/     factories, that create entities from components
+  systems/      the game logic
+  render/       pixi.js views and systems, that attach them to entities
+  input/        keyboard, pointer and the autopilot
+  tags.ts       tags of entities
+  messages.ts   messages dispatched by systems
+  game.ts       the engine with all systems, without rendering and input
+  mount.ts      starts the game in a page
+```
+
+Rendering is added to the game by the host through the `setup` option: reaction systems attach views to entities when
+they appear, and destroy them when entities are removed. The game itself never creates views, so tests play it
+without a browser. [shared](shared) contains code used by all games: keyboard input, the view component and the
+system that adds views to the stage.
 
 # Snake
 
-The classic snake in the terminal: arrows or WASD to turn, Q to quit.
-
-- [snake/game.ts](snake/game.ts) — the game logic.
-- [snake/autopilot.ts](snake/autopilot.ts) — a greedy autopilot for the demo mode and tests.
-- [snake/terminal.ts](snake/terminal.ts) — rendering to the terminal and keyboard input.
+The classic snake: arrows or WASD to turn.
 
 What it shows:
 
+- Tags (`HEAD`, `SEGMENT`, `FOOD`) in queries.
 - Class-based systems with dependencies passed in constructors: `SteeringSystem` reads the controls object,
   `CollisionSystem` receives the size of the grid.
-- Functional systems for small logic: the head leaves body segments behind with `engine.iterative`, and segments
-  disappear when their lifetime is over.
-- Tags (`HEAD`, `SEGMENT`, `FOOD`) in queries.
+- Functional systems for small logic: the head leaves body segments behind, and segments disappear when their lifetime
+  is over.
 - A reaction system, that spawns new food when the previous one is eaten.
 - Messages (`FoodEaten`, `GameOver`) dispatched by systems and handled outside of them.
-- System identifiers and priorities.
+- The same game rendered with pixi.js in the browser and as text in the terminal.
 
 # Asteroids
 
-Fly the ship, shoot asteroids, and survive as many waves as you can: arrows or WASD to fly, Space to fire, R to restart.
-
-- [asteroids/game.ts](asteroids/game.ts) — the game logic.
-- [asteroids/main.ts](asteroids/main.ts) — rendering to canvas and keyboard input.
+Fly the ship, shoot asteroids, and survive as many waves as you can: arrows or WASD to fly, Space to fire.
 
 What it shows:
 
 - Lots of entities created and removed every second: bullets with a lifetime, asteroids that split into smaller ones.
 - Typed queries with `forEach` in a class-based collision system.
-- A render system that receives the canvas context in the constructor and is added with the highest priority, so the
-  game logic runs in tests without a browser.
+- Safe removal: collided entities lose their colliders immediately, and are removed after the update.
 - A reaction system that starts the next wave when the last asteroid is destroyed.
+
+# Bullet hell
+
+Dodge hundreds of bullets and shoot enemies down: arrows or WASD to move, Shift to move slowly, Space or Z to fire.
+
+What it shows:
+
+- Hundreds of entities updated every frame by typed iterative systems.
+- Data-driven enemies: kinds of enemies and waves are data, one emitter system handles all firing patterns.
+- Optional behaviour as an optional component: only some enemies sway.
+- Temporary state as a component: the player is invulnerable while it has the `Invulnerable` component.
+- Views of bullets sharing geometry, so creating a view is cheap.
+
+# Tower defense
+
+Build towers along the path and don't let creeps through: 1-4 to select a tower, click to build it.
+
+What it shows:
+
+- Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
+- Game state that doesn't belong to entities: gold and lives are a plain object passed to the game systems.
+- Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
+- Static data outside of the engine: the map is a picture and a set of cells, not entities.
 
 # Tests
 
 ```shell
-pnpm --filter tick-knock-examples test         # play both games without rendering
+pnpm --filter tick-knock-examples test         # play all games by autopilots and check rendering
 pnpm --filter tick-knock-examples typecheck    # check types of the examples
 ```
 
-Smoke tests play both games with seeded random numbers and check that they behave as expected, so the examples keep
-working when the library changes.
-
 [Running]: #running
-
+[Structure]: #structure
 [Snake]: #snake
-
 [Asteroids]: #asteroids
-
+[Bullet hell]: #bullet-hell
+[Tower defense]: #tower-defense
 [Tests]: #tests
