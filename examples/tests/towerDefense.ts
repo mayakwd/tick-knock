@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import {Container} from 'pixi.js';
-import {Creep, Position, Projectile, SlowOnHit, Splash, Tower, Weapon} from '../tower-defense/components';
+import {Creep, Damage, Position, Projectile, Tower, Weapon} from '../tower-defense/components';
 import {createTowerDefenseGame} from '../tower-defense/game';
 import {createAutopilot} from '../tower-defense/input/autopilot';
 import {addRendering} from '../tower-defense/render/addRendering';
@@ -28,8 +28,9 @@ export function testTowerDefense(): void {
   for (const entity of towerEntities) {
     const {kind, level} = entity.get(Tower)!;
     const {range, damage} = TOWERS[kind].levels[level];
-    const weapon = entity.get(Weapon)!;
-    assert.ok(weapon.range === range && weapon.damage === damage, 'weapons match levels of towers');
+    const amounts = Array.from(entity.getAll(Damage), ({amount}) => amount);
+    assert.equal(entity.get(Weapon)!.range, range, 'weapons match levels of towers');
+    assert.deepEqual(amounts, damage.map(({amount}) => amount), 'damage matches levels of towers');
   }
   assert.ok(game.wave >= 5, `waves are defended, wave ${game.wave}`);
   assert.ok(game.economy.lives > 0, 'the autopilot survives first waves');
@@ -50,14 +51,16 @@ export function testTowerUpgrades(): void {
   assert.ok(game.build('frost', cell), 'a tower is built');
   const tower = game.engine.entities.find((entity) => entity.has(Tower))!;
   const firstView = tower.get(View)!.display;
-  assert.equal(tower.has(Splash), false, 'the first level of frost has no splash');
+  const splash = () => tower.find(Damage, ({type, splash}) => type === 'frost' && splash > 0);
+  assert.equal(splash(), undefined, 'the first level of frost has no splash');
   assert.equal(game.upgradeCost(cell), TOWERS.frost.levels[1].cost, 'the upgrade costs the next level');
   assert.ok(game.upgrade(cell) && game.upgrade(cell), 'the tower is upgraded twice');
   assert.equal(game.upgradeCost(cell), undefined, 'the last level can\'t be upgraded');
   assert.equal(game.upgrade(cell), false, 'the last level is not upgraded');
   assert.equal(tower.get(Tower)!.level, 2, 'the tower has the last level');
   assert.equal(tower.get(Weapon)!.range, TOWERS.frost.levels[2].range, 'the weapon has the range of the last level');
-  assert.ok(tower.has(Splash) && tower.has(SlowOnHit), 'the last level of frost has splash and slow');
+  assert.notEqual(splash(), undefined, 'the last level of frost freezes creeps around the target');
+  assert.equal(tower.lengthOf(Damage), TOWERS.frost.levels[2].damage.length, 'damage of previous levels is replaced');
   assert.notEqual(tower.get(View)!.display, firstView, 'the view is drawn again after the upgrade');
   assert.equal(firstView.destroyed, true, 'the previous view is destroyed');
   assert.equal(game.economy.gold, 1000 - TOWERS.frost.levels.reduce((sum, {cost}) => sum + cost, 0), 'gold is spent');

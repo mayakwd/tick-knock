@@ -28,7 +28,8 @@ most complex game of the tutorials, and it brings new questions:
 ## The map is not entities
 
 The map never changes. There is nothing to update, nothing to query, and nothing to react to, so it doesn't need to be
-entities. It's plain data: turns of the path, and a function that tells whether a tower can be built in a cell.
+entities. It's plain data: turns of the path, and functions that tell whether a cell is on the path, and whether a tower can be
+built in it.
 
 <<< @/../examples/tower-defense/map.ts
 
@@ -56,20 +57,20 @@ Every tower has a weapon:
 
 <<< @/../examples/tower-defense/components/Weapon.ts
 
-And effects are optional components. A tower deals damage in an area if it has `Splash`, slows creeps if it has
-`SlowOnHit`, and poisons them if it has `PoisonOnHit`:
+And the damage it deals. Physical damage is dealt once. Poison and frost are effects, that last for some time: poison
+takes health every second, and frost slows the creep down. Any damage can hit creeps around the target too.
 
-<<< @/../examples/tower-defense/components/Splash.ts
+<<< @/../examples/tower-defense/components/Damage.ts
 
-<<< @/../examples/tower-defense/components/SlowOnHit.ts
+The same description is used everywhere: levels of towers in the table, and components of towers, projectiles and
+creeps. A tower can deal several kinds of damage, and a creep can suffer several of them at the same time, so `Damage`
+is a [linked component](/guide/linked-components): an entity can have several components of the same class.
 
-<<< @/../examples/tower-defense/components/PoisonOnHit.ts
+There is no "cannon" or "frost tower" in the logic of the game. A cannon is a tower that deals physical damage with a
+splash, a frost tower deals a bit of physical damage and frost. Behaviour is composed from data.
 
-There is no "cannon" or "frost tower" in the logic of the game. A cannon is a tower with a weapon and `Splash`, a frost
-tower of the last level is a tower with a weapon, `SlowOnHit` and `Splash`. Behaviour is composed from components.
-
-One function turns a level into components. It adds components the level has, and removes components it doesn't have,
-so the tower becomes exactly what the level describes:
+One function turns a level into components. It replaces the weapon and all damage of the tower, so the tower becomes
+exactly what the level describes:
 
 <<< @/../examples/tower-defense/entities/equipTower.ts
 
@@ -106,15 +107,15 @@ have already been removed.
 
 ## Projectiles carry their effects
 
-When a tower fires, its damage and effects are copied to the projectile:
+When a tower fires, its damage is copied to the projectile:
 
 <<< @/../examples/tower-defense/entities/createProjectile.ts
 
 <<< @/../examples/tower-defense/components/Projectile.ts
 
 The projectile is independent of the tower: if the tower is upgraded while the projectile is flying, the projectile
-hits with the characteristics of the shot. And the projectile system doesn't need towers at all: it checks which
-effects the projectile has.
+hits with the characteristics of the shot. And the projectile system doesn't need towers at all: on hit, it copies
+the damage of the projectile to the target, or to all creeps around it, and doesn't even know what the damage does.
 
 <<< @/../examples/tower-defense/systems/ProjectileSystem.ts
 
@@ -132,15 +133,11 @@ could lose a life and get gold for the same creep.
 > ❗ Keep references to entities only as long as you check that they still take part in the game. A query of the
 > components you need is the simplest way to check it.
 
-## Linked components for effects
+## Suffering damage
 
-A creep can be slowed several times. If `Slow` were a usual component, the second slow would replace the first one,
-and when it expired, the creep would lose both. That's what [linked components](/guide/linked-components) are for:
-an entity can have several linked components of the same class.
-
-<<< @/../examples/tower-defense/components/Slow.ts
-
-<<< @/../examples/tower-defense/components/Poison.ts
+A creep can be poisoned by three poison towers and slowed by two frost towers at the same time. Every damage is
+appended to the creep, and expires on its own. If `Damage` were a usual component, the second poison would replace the
+first one, and when it expired, the creep would lose both.
 
 Linked components are added with `append` instead of `add`, as the projectile system does on hit. They are processed
 with `iterate`, which visits every linked component of the class. Expired ones are removed with `pick`, which removes
@@ -149,18 +146,19 @@ added to the engine:
 
 <<< @/../examples/tower-defense/game.ts#systems
 
-Poisons stack: every poison deals its damage. Slows don't: the path system applies the strongest one.
+Physical damage has no duration, so it's dealt and picked in the same update. Poisons stack: every poison deals its
+damage. Frost doesn't: the path system applies the strongest one.
 
 <<< @/../examples/tower-defense/systems/PathSystem.ts
 
-> 💡 A query of `[Slow]` contains every entity that has at least one slow. The component passed to the system is the
-> first one, and `entity.iterate(Slow, ...)` visits all of them.
+> 💡 A query of `[Damage, Health]` contains every creep that suffers at least one damage. The component passed to the
+> system is the first one, and `entity.iterate(Damage, ...)` visits all of them.
 
 ## Death
 
-Creeps are damaged by projectiles and poisons, in different systems. If every system removed killed creeps, a creep
-could be killed twice in one update, and give gold twice. Instead, damage only decreases health, and the death system,
-that runs after all damage, removes creeps without health. You can see it at the end of the systems above.
+Creeps are damaged by physical damage and poisons. If the damage system removed killed creeps, and later another system
+dealt damage too, a creep could be killed twice in one update, and give gold twice. Instead, damage only decreases
+health, and the death system, that runs after all damage, removes creeps without health. You can see it at the end of the systems above.
 
 ## Game state outside of entities
 
@@ -206,7 +204,9 @@ builds a tower in an empty cell or upgrades the tower on click:
 - Not everything must be an entity: static data is just data.
 - Kinds of things are data, but every entity owns its state: data is turned into components when an entity is created,
   and changing components changes the entity, for example on upgrade.
-- Behaviour is composed from optional components, and systems don't depend on kinds.
+- The same description can be data of a level and a component, so it's copied from a level to a tower, a projectile
+  and a creep without conversions.
+- Behaviour is composed from data, and systems don't depend on kinds.
 - Linked components store several components of the same class, `iterate` visits them, and `pick` removes one of them.
 - Game state, that doesn't belong to entities, can be a plain object kept by the game.
 - References to entities are checked with queries before use.

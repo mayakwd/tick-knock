@@ -10,7 +10,7 @@ give an entity only its kind, and let systems look up everything else:
 
 ```typescript
 // Systems read characteristics of every tower from the table by its kind
-const {range, damage} = TOWERS[tower.kind];
+const {range, interval} = TOWERS[tower.kind];
 ```
 
 It works until the first upgrade, buff or item. All towers of a kind are the same, so one tower can't become stronger.
@@ -25,8 +25,9 @@ when a tower is built or upgraded: the level is turned into components of the to
 ```typescript
 entity
   .add(new Tower(kind, cell, level))
-  .add(new Weapon(range, interval, damage, projectileSpeed));
-if (splash !== undefined) entity.add(new Splash(splash));
+  .add(new Weapon(range, interval, projectileSpeed));
+entity.remove(Damage);
+for (const description of damage) entity.append(new Damage(description));
 ```
 
 From that moment, the tower owns its characteristics:
@@ -35,11 +36,24 @@ From that moment, the tower owns its characteristics:
 - A buff could change the weapon of one tower, and nothing else.
 - Systems read the weapon of every tower, and don't know about kinds.
 
-## Behaviour is composed from components
+## Descriptions can be components
 
-Effects are optional components: `Splash`, `SlowOnHit`, `PoisonOnHit`. A tower has the effects of its level, and a
-level can have any combination of them. Systems check which effects an entity has, instead of switching on its kind,
-so a new kind of tower is a new combination of existing components, and often doesn't need new code.
+A description in the table and a component can share the same shape. `Damage` of the tower defense implements
+`DamageDescription`, and levels describe their damage with it:
+
+```typescript
+{cost: 130, range: 110, interval: 0.7, projectileSpeed: 360, damage: [
+  {type: 'physical', amount: 3},
+  {type: 'frost', amount: 0.65, duration: 2.5, splash: 40},
+]}
+```
+
+A component is created from a description with `new Damage(description)`, and copied from a tower to a projectile and
+from a projectile to a creep the same way. There are no parallel hierarchies of "config" and "runtime" classes, and a
+new kind of tower is a new combination of existing damage, that doesn't need new code.
+
+> ❗ Create a component for every entity. Don't add objects from the table to entities: they would be shared by all
+> entities, and changing one of them would change all.
 
 ## What stays data
 

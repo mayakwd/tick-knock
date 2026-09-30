@@ -1,3 +1,5 @@
+import {DamageDescription} from './components';
+
 export type TowerKind = 'arrow' | 'cannon' | 'frost' | 'poison';
 
 /**
@@ -17,14 +19,11 @@ export interface TowerLevel {
    * Time in seconds between shots
    */
   readonly interval: number;
-  readonly damage: number;
   readonly projectileSpeed: number;
   /**
-   * Radius of the explosion in pixels, all creeps in it are hit
+   * Damage of every hit, a tower can deal several kinds of damage at once
    */
-  readonly splash?: number;
-  readonly slow?: { factor: number; seconds: number };
-  readonly poison?: { damagePerSecond: number; seconds: number };
+  readonly damage: ReadonlyArray<DamageDescription>;
 }
 
 export interface TowerDescription {
@@ -36,35 +35,53 @@ export const TOWERS: Record<TowerKind, TowerDescription> = {
   arrow: {
     name: 'Arrow',
     levels: [
-      {cost: 50, range: 110, interval: 0.4, damage: 4, projectileSpeed: 420},
-      {cost: 60, range: 125, interval: 0.33, damage: 6, projectileSpeed: 460},
-      {cost: 90, range: 140, interval: 0.25, damage: 9, projectileSpeed: 500},
+      {cost: 50, range: 110, interval: 0.4, projectileSpeed: 420, damage: [{type: 'physical', amount: 4}]},
+      {cost: 60, range: 125, interval: 0.33, projectileSpeed: 460, damage: [{type: 'physical', amount: 6}]},
+      {cost: 90, range: 140, interval: 0.25, projectileSpeed: 500, damage: [{type: 'physical', amount: 9}]},
     ],
   },
   cannon: {
     name: 'Cannon',
     levels: [
-      {cost: 100, range: 100, interval: 1.4, damage: 10, projectileSpeed: 260, splash: 50},
-      {cost: 110, range: 110, interval: 1.3, damage: 15, projectileSpeed: 280, splash: 60},
-      {cost: 160, range: 120, interval: 1.2, damage: 22, projectileSpeed: 300, splash: 70},
+      {cost: 100, range: 100, interval: 1.4, projectileSpeed: 260, damage: [{type: 'physical', amount: 10, splash: 50}]},
+      {cost: 110, range: 110, interval: 1.3, projectileSpeed: 280, damage: [{type: 'physical', amount: 15, splash: 60}]},
+      {cost: 160, range: 120, interval: 1.2, projectileSpeed: 300, damage: [{type: 'physical', amount: 22, splash: 70}]},
     ],
   },
   frost: {
     name: 'Frost',
     levels: [
-      {cost: 80, range: 90, interval: 0.8, damage: 1, projectileSpeed: 320, slow: {factor: 0.5, seconds: 1.5}},
-      {cost: 90, range: 100, interval: 0.7, damage: 2, projectileSpeed: 340, slow: {factor: 0.4, seconds: 2}},
-      // The last level freezes creeps around the target too
-      {cost: 130, range: 110, interval: 0.7, damage: 3, projectileSpeed: 360, slow: {factor: 0.35, seconds: 2.5}, splash: 40},
+      {
+        cost: 80, range: 90, interval: 0.8, projectileSpeed: 320,
+        damage: [{type: 'physical', amount: 1}, {type: 'frost', amount: 0.5, duration: 1.5}],
+      },
+      {
+        cost: 90, range: 100, interval: 0.7, projectileSpeed: 340,
+        damage: [{type: 'physical', amount: 2}, {type: 'frost', amount: 0.6, duration: 2}],
+      },
+      {
+        // The last level freezes creeps around the target too
+        cost: 130, range: 110, interval: 0.7, projectileSpeed: 360,
+        damage: [{type: 'physical', amount: 3}, {type: 'frost', amount: 0.65, duration: 2.5, splash: 40}],
+      },
     ],
   },
   poison: {
     name: 'Poison',
     levels: [
-      {cost: 90, range: 100, interval: 1, damage: 1, projectileSpeed: 320, poison: {damagePerSecond: 5, seconds: 3}},
-      {cost: 100, range: 110, interval: 0.9, damage: 1, projectileSpeed: 340, poison: {damagePerSecond: 8, seconds: 3}},
-      // The last level poisons creeps around the target too
-      {cost: 140, range: 120, interval: 0.8, damage: 2, projectileSpeed: 360, poison: {damagePerSecond: 12, seconds: 4}, splash: 35},
+      {
+        cost: 90, range: 100, interval: 1, projectileSpeed: 320,
+        damage: [{type: 'physical', amount: 1}, {type: 'poison', amount: 5, duration: 3}],
+      },
+      {
+        cost: 100, range: 110, interval: 0.9, projectileSpeed: 340,
+        damage: [{type: 'physical', amount: 1}, {type: 'poison', amount: 8, duration: 3}],
+      },
+      {
+        // The last level poisons creeps around the target too
+        cost: 140, range: 120, interval: 0.8, projectileSpeed: 360,
+        damage: [{type: 'physical', amount: 2}, {type: 'poison', amount: 12, duration: 4, splash: 35}],
+      },
     ],
   },
 };

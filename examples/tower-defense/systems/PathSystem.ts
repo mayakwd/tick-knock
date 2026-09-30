@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {Creep, Health, PathFollower, Position, Slow} from '../components';
+import {Creep, Damage, Health, PathFollower, Position} from '../components';
 import {cellCenter, WAYPOINTS} from '../map';
 import {CreepEscaped} from '../messages';
 
@@ -8,13 +8,13 @@ import {CreepEscaped} from '../messages';
  */
 export class PathSystem extends IterativeSystem.of(Position, PathFollower, Creep) {
   protected updateEntity(entity: Entity, dt: number, position: Position, follower: PathFollower): void {
-    // Several slows don't stack: the strongest one is applied
-    let factor = 1;
-    entity.iterate(Slow, (slow) => {
-      factor = Math.min(factor, slow.factor);
+    // Frost doesn't stack: the strongest one is applied
+    let slow = 0;
+    entity.iterate(Damage, ({type, amount}) => {
+      if (type === 'frost') slow = Math.max(slow, amount);
     });
 
-    let step = follower.speed * factor * dt;
+    let step = follower.speed * (1 - slow) * dt;
     while (step > 0 && follower.waypoint < WAYPOINTS.length) {
       const target = cellCenter(WAYPOINTS[follower.waypoint]);
       const dx = target.x - position.x;

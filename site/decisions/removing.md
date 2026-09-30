@@ -29,7 +29,7 @@ update.
 Sometimes the entity is not gone, only one of its aspects is:
 
 - The invulnerability of the player is over — `Invulnerable` is removed, the player stays.
-- A slow has expired — one `Slow` is picked from the creep, others stay.
+- A poison has expired — one `Damage` is picked from the creep, others stay.
 
 ## Checking an entity you keep a reference to
 

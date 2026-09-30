@@ -1,5 +1,5 @@
 import {Engine, Entity, Query, QueryBuilder} from 'tick-knock';
-import {Creep, Health, Poison, Slow, Tower} from './components';
+import {Creep, Damage, Health, Tower} from './components';
 import {START_GOLD, START_LIVES} from './config';
 import {Economy} from './Economy';
 import {createTower, equipTower} from './entities';
@@ -64,7 +64,7 @@ export const Priority = {
   Movement: 1,
   Towers: 2,
   Projectiles: 3,
-  Effects: 4,
+  Damage: 4,
   Death: 5,
   Render: 100,
 } as const;
@@ -83,21 +83,16 @@ export function createTowerDefenseGame({setup}: TowerDefenseGameOptions = {}): T
     .addSystem(new PathSystem(), {priority: Priority.Movement, id: 'path'})
     .addSystem(new TowerSystem(), {priority: Priority.Towers, id: 'towers'})
     .addSystem(new ProjectileSystem(), {priority: Priority.Projectiles, id: 'projectiles'})
-    // Every slow expires on its own, so all of them are iterated, and expired ones are picked one by one
-    .iterative([Slow], (creep, dt) => {
-      creep.iterate(Slow, (slow) => {
-        slow.seconds -= dt;
-        if (slow.seconds <= 0) creep.pick(slow);
+    // Every damage the creep suffers is processed on its own: physical damage is dealt once, poison every second,
+    // and frost only slows the creep down in the path system. Expired damage is picked, the rest stays.
+    .iterative([Damage, Health], (creep, dt, first, health) => {
+      creep.iterate(Damage, (damage) => {
+        if (damage.type === 'physical') health.value -= damage.amount;
+        if (damage.type === 'poison') health.value -= damage.amount * Math.min(dt, damage.duration);
+        damage.duration -= dt;
+        if (damage.duration <= 0) creep.pick(damage);
       });
-    }, {priority: Priority.Effects, id: 'slowing'})
-    // Poisons stack: every poison deals its damage until it expires
-    .iterative([Poison, Health], (creep, dt, poison, health) => {
-      creep.iterate(Poison, (it) => {
-        health.value -= it.damagePerSecond * Math.min(dt, it.seconds);
-        it.seconds -= dt;
-        if (it.seconds <= 0) creep.pick(it);
-      });
-    }, {priority: Priority.Effects, id: 'poisoning'})
+    }, {priority: Priority.Damage, id: 'damage'})
     // Death runs after all damage of the update has been dealt, so the reward is given once
     .iterative([Health, Creep], (creep, dt, health, {reward}) => {
       if (health.value > 0) return;

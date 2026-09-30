@@ -1,5 +1,6 @@
 /**
- * Weapon of a tower. Every tower has one, and upgrades change its characteristics.
+ * Weapon of a tower. Every tower has one, and upgrades change its characteristics. The damage it deals is a separate
+ * component.
  */
 export class Weapon {
   /**
@@ -16,7 +17,6 @@ export class Weapon {
      * Time in seconds between shots
      */
     public readonly interval: number,
-    public readonly damage: number,
     public readonly projectileSpeed: number,
   ) {}
 }

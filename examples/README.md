@@ -95,12 +95,12 @@ upgrade it.
 What it shows:
 
 - Kinds of towers are data, but every tower owns its characteristics as components, so it can be upgraded.
-- Behaviour composed from optional components: splash, slow and poison.
+- Damage described once: the same `Damage` is data of a level and a component of towers, projectiles and creeps.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
 - Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
   report kills and escapes.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
-- Static data outside of the engine: the map is a picture and a set of cells, not entities.
+- Static data outside of the engine: the map is a picture and a list of turns of the path, not entities.
 
 # Tests
 

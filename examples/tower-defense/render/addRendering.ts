@@ -2,7 +2,7 @@ import {Engine} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {View} from '../../shared/render/View';
 import {ViewSystem} from '../../shared/render/ViewSystem';
-import {Creep, Health, Poison, Position, Projectile, Slow, Tower} from '../components';
+import {Creep, Damage, Health, Position, Projectile, Tower} from '../components';
 import {Priority} from '../game';
 import {CreepView} from './CreepView';
 import {drawProjectile, drawTower} from './graphics';
@@ -23,7 +23,9 @@ export function addRendering(engine: Engine, layer: Container): void {
     .iterative([View, Health, Creep], (entity, dt, {display}, health) => {
       const view = display as CreepView;
       view.setHealth(health.value / health.max);
-      view.setEffects(entity.has(Slow), entity.has(Poison));
+      const frozen = entity.find(Damage, ({type}) => type === 'frost') !== undefined;
+      const poisoned = entity.find(Damage, ({type}) => type === 'poison') !== undefined;
+      view.setEffects(frozen, poisoned);
     }, {priority: Priority.Render, id: 'creep-status'});
 }
 

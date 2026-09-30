@@ -28,27 +28,26 @@ export function cellCenter({column, row}: Cell): { x: number; y: number } {
 }
 
 /**
- * Cells covered by the path
+ * Returns a value indicating whether the cell is covered by the path. The path goes straight between its turns,
+ * so the cell is on the path if it's between two neighbouring turns.
  */
-export const PATH_CELLS: ReadonlySet<string> = (() => {
-  const cells = new Set<string>();
+export function isOnPath({column, row}: Cell): boolean {
   for (let i = 1; i < WAYPOINTS.length; i++) {
     const from = WAYPOINTS[i - 1];
     const to = WAYPOINTS[i];
-    const steps = Math.max(Math.abs(to.column - from.column), Math.abs(to.row - from.row));
-    for (let step = 0; step <= steps; step++) {
-      const column = from.column + Math.sign(to.column - from.column) * step;
-      const row = from.row + Math.sign(to.row - from.row) * step;
-      cells.add(`${column}:${row}`);
-    }
+    if (isBetween(column, from.column, to.column) && isBetween(row, from.row, to.row)) return true;
   }
-  return cells;
-})();
+  return false;
+}
 
 /**
  * Returns a value indicating whether a tower can be built in the cell: it's inside the map, not on the path,
  * and not in the top row, which is covered by the status line
  */
-export function isBuildable({column, row}: Cell): boolean {
-  return column >= 0 && column < COLUMNS && row >= 1 && row < ROWS && !PATH_CELLS.has(`${column}:${row}`);
+export function isBuildable(cell: Cell): boolean {
+  return cell.column >= 0 && cell.column < COLUMNS && cell.row >= 1 && cell.row < ROWS && !isOnPath(cell);
+}
+
+function isBetween(value: number, a: number, b: number): boolean {
+  return value >= Math.min(a, b) && value <= Math.max(a, b);
 }

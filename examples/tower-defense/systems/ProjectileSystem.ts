@@ -1,9 +1,9 @@
 import {Entity, IterativeSystem, QueryBuilder} from 'tick-knock';
-import {Creep, Health, Poison, PoisonOnHit, Position, Projectile, Slow, SlowOnHit, Splash} from '../components';
+import {Creep, Damage, Health, Position, Projectile} from '../components';
 
 /**
- * Moves projectiles to their targets and applies their effects on hit. Effects are components of the projectile:
- * the system checks which of them the projectile has, and doesn't know anything about kinds of towers.
+ * Moves projectiles to their targets and passes their damage to hit creeps. The system doesn't know what the damage
+ * does, and doesn't know anything about kinds of towers.
  */
 export class ProjectileSystem extends IterativeSystem.of(Position, Projectile) {
   private readonly creeps = new QueryBuilder().contains(Position, Health, Creep).build();
@@ -36,25 +36,18 @@ export class ProjectileSystem extends IterativeSystem.of(Position, Projectile) {
     }
 
     this.engine.removeEntity(projectile);
-    const splash = projectile.get(Splash);
-    if (splash === undefined) {
-      this.hit(target, projectile);
-      return;
-    }
-    const radius = splash.radius;
-    this.creeps.forEach((creep, creepPosition) => {
-      if ((creepPosition.x - targetPosition.x) ** 2 + (creepPosition.y - targetPosition.y) ** 2 <= radius * radius) {
-        this.hit(creep, projectile);
+    // Damage is a linked component: a creep can suffer several kinds of damage at the same time
+    projectile.iterate(Damage, (damage) => {
+      if (damage.splash === 0) {
+        target.append(new Damage(damage));
+        return;
       }
+      const radius = damage.splash;
+      this.creeps.forEach((creep, creepPosition) => {
+        if ((creepPosition.x - targetPosition.x) ** 2 + (creepPosition.y - targetPosition.y) ** 2 <= radius * radius) {
+          creep.append(new Damage(damage));
+        }
+      });
     });
-  }
-
-  private hit(creep: Entity, projectile: Entity): void {
-    creep.get(Health)!.value -= projectile.get(Projectile)!.damage;
-    // Effects are linked components: a creep can have several of them at the same time
-    const slow = projectile.get(SlowOnHit);
-    const poison = projectile.get(PoisonOnHit);
-    if (slow !== undefined) creep.append(new Slow(slow.factor, slow.seconds));
-    if (poison !== undefined) creep.append(new Poison(poison.damagePerSecond, poison.seconds));
   }
 }
