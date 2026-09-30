@@ -153,7 +153,7 @@ describe('Lists of components', () => {
 
   it('Expected that a list of components of unknown length passes components to forEach', () => {
     const list: Array<typeof Position> = [Position];
-    const query = new QueryBuilder().contains(...list).build();
+    const query = new QueryBuilder().with(...list).build();
     const engine = new Engine().addQuery(query);
     engine.addEntity(new Entity().add(new Position(5)));
     const seen: unknown[] = [];

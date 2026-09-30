@@ -79,7 +79,7 @@ export abstract class IterativeSystem<C extends unknown[] = any[]> extends React
   public static of<T extends Array<QueryItem>>(...componentsOrTags: T): abstract new () => IterativeSystem<ComponentsOf<T>> {
     abstract class TypedIterativeSystem extends IterativeSystem<ComponentsOf<T>> {
       public constructor() {
-        super(new QueryBuilder().contains(...componentsOrTags));
+        super(new QueryBuilder().with(...componentsOrTags));
       }
     }
 
@@ -144,7 +144,7 @@ export class FunctionalIterativeSystem<C extends unknown[]> extends IterativeSys
   protected readonly updateEntity: IterativeUpdate<C>;
 
   public constructor(componentsOrTags: ReadonlyArray<QueryItem>, update: IterativeUpdate<C>) {
-    super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
+    super(new QueryBuilder().with(...componentsOrTags) as unknown as QueryBuilder<C>);
     this.updateEntity = update;
   }
 }

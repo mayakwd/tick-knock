@@ -43,7 +43,7 @@ export class Exclusion {
  *   }
  * }
  *
- * const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+ * const query = new QueryBuilder().with(Position).without(DESTROYED).build();
  * ```
  */
 export function without(...componentsOrTags: Array<ComponentType | Tag>): Exclusion {
@@ -191,7 +191,7 @@ export class Query<C extends unknown[] = any[]> {
    *
    * @example
    * ```ts
-   * const query = new QueryBuilder().contains(Position, Velocity).build();
+   * const query = new QueryBuilder().with(Position, Velocity).build();
    * query.forEach((entity, position, velocity) => {
    *   position.x += velocity.x;
    * });
@@ -496,8 +496,8 @@ function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: Readonl
  * @example
  * ```ts
  * const query = new QueryBuilder()
- *  .contains(Position, Velocity)
- *  .contains(HERO)
+ *  .with(Position, Velocity)
+ *  .with(HERO)
  *  .without(DESTROYED)
  *  .build(); // Query<[Position, Velocity]>
  * ```
@@ -514,7 +514,7 @@ export class QueryBuilder<C extends unknown[] = []> {
    * Exclusions created by {@link without} can be listed here too.
    * @param items Component classes, tags and exclusions
    */
-  public contains<T extends Array<QueryItem>>(...items: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
+  public with<T extends Array<QueryItem>>(...items: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
     for (const item of items) {
       if (item instanceof Exclusion) {
         this.without(...item.componentsOrTags);
@@ -528,6 +528,15 @@ export class QueryBuilder<C extends unknown[] = []> {
       }
     }
     return this as unknown as QueryBuilder<[...C, ...ComponentsOf<T>]>;
+  }
+
+  /**
+   * Specifies components and tags that must be added to entity to be matched
+   * @param items Component classes, tags and exclusions
+   * @deprecated Use {@link with}, which pairs with {@link without}. It will be removed in the next major version.
+   */
+  public contains<T extends Array<QueryItem>>(...items: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
+    return this.with(...items);
   }
 
   /**

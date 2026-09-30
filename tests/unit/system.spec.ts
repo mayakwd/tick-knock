@@ -12,7 +12,7 @@ class Position {
 
 class MovementSystem extends IterativeSystem {
   public constructor() {
-    super(new QueryBuilder().contains(Position).build());
+    super(new QueryBuilder().with(Position).build());
   }
 
   protected updateEntity(entity: Entity, dt: number): void {
@@ -48,7 +48,7 @@ describe('Iterative system', () => {
 
     class TestSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Position).build());
+        super(new QueryBuilder().with(Position).build());
       }
 
       protected prepare() {
@@ -77,7 +77,7 @@ describe('Iterative system', () => {
 
     class MovementSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Position).build());
+        super(new QueryBuilder().with(Position).build());
       }
 
       protected updateEntity(entity: Entity, dt: number): void {
@@ -115,7 +115,7 @@ describe('Iterative system', () => {
 
     class HealthTickSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Health).build());
+        super(new QueryBuilder().with(Health).build());
       }
 
       protected updateEntity(entity: Entity, dt: number): void {
@@ -138,7 +138,7 @@ describe('Iterative system', () => {
 
   it(`Re-adding entities which were removed should work after the engine update cycle`, () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     engine.addQuery(query);
 
     for (let i = 0; i < 5; i++) {
@@ -183,7 +183,7 @@ describe('Iterative system', () => {
 
   it('Entities removed outside of the update are removed immediately', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     const entity = new Entity().add(new Position());
     engine.addQuery(query).addEntity(entity).removeEntity(entity);
     expect(query.isEmpty).toBeTruthy();
@@ -197,7 +197,7 @@ describe('Iterative system', () => {
 
     class RemovingSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Position));
+        super(new QueryBuilder().with(Position));
       }
 
       protected updateEntity(entity: Entity): void {

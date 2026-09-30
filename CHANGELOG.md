@@ -10,6 +10,8 @@ Features:
 - `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
   receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
   removing, including the removed one.
+- `QueryBuilder.with(Position, Velocity)` specifies components and tags entities must have, and pairs with `without`.
+  `QueryBuilder.contains` is deprecated and will be removed in the next major version.
 - Exclusions: `QueryBuilder.without(Frozen, DESTROYED)` and `without(...)` listed together with components, like
   `IterativeSystem.of(Position, without(Frozen))`, exclude entities with specific components or tags. An entity leaves
   the query when it gets an excluded component or tag, and joins it again when it's removed.
@@ -34,7 +36,7 @@ Breaking changes:
 - `EntitySnapshot.previous` is restored when it's accessed. A snapshot kept after its handler has returned reflects the
   state of the entity at the moment of access.
 - `Query` is generic: `Query<C>`, where `C` are types of components. `Query` without type arguments accepts any query.
-  Components of a list, which length is not known at compile time, like `contains(...list)`, are typed as `unknown[]`.
+  Components of a list, which length is not known at compile time, like `with(...list)`, are typed as `unknown[]`.
 - `Engine.removeEntity` removes entities safely by default, as promised in 4.3.0: entities removed during the update are
   removed after all systems have been updated, the `safe` argument is removed. Outside of the update entities are
   removed immediately. Until the end of the update removed entities stay in `Engine.entities` and queries, but
@@ -48,7 +50,8 @@ Breaking changes:
 - Replacing a component with `entity.add` removes the entity from queries and adds it again, as before, so the entity
   moves to the end of queries. During `Query.forEach` or `IterativeSystem` update such an entity is visited in the next
   iteration, as any other entity added to the query during iteration.
-- `QueryBuilder.contains` accepts only component classes and tags, instead of any values.
+- `QueryBuilder.with` (and deprecated `contains`) accepts only component classes, tags and exclusions, instead of any
+  values.
 - `Entity.components` is an array indexed by component ids instead of an object.
 - Component ids are stored in symbol properties of component classes. The `__componentClassId__` property is not
   used anymore.
@@ -78,7 +81,7 @@ Fixes:
   and doesn't update entities removed from the query earlier in the same update.
 - `onComponentAdded`/`onComponentRemoved` handlers now receive the resolve class of the component, so snapshots
   are correct for components added with `resolveClass`.
-- Query built by `QueryBuilder` is no longer affected by calling `contains` on the builder after `build`.
+- Query built by `QueryBuilder` is no longer affected by calling `with` on the builder after `build`.
 - `Engine.removeAllSystems` detaches systems from the engine, the same way `Engine.removeSystem` does.
 - Components added to an entity by handlers of `Engine.onEntityAdded` or `Query.onEntityAdded`, for example in
   `entityAdded` of a reaction system, update all queries. Before, queries that had already received the entity

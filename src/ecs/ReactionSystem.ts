@@ -13,7 +13,7 @@ import {System} from './System';
  * ```ts
  * class ViewSystem extends ReactionSystem {
  *   public constructor(private readonly container: Container) {
- *     super(new QueryBuilder().contains(View));
+ *     super(new QueryBuilder().with(View));
  *   }
  *
  *   // Add entity view to the screen
@@ -70,7 +70,7 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
   public static of<T extends Array<QueryItem>>(...componentsOrTags: T): abstract new () => ReactionSystem<ComponentsOf<T>> {
     abstract class TypedReactionSystem extends ReactionSystem<ComponentsOf<T>> {
       public constructor() {
-        super(new QueryBuilder().contains(...componentsOrTags));
+        super(new QueryBuilder().with(...componentsOrTags));
       }
     }
 
@@ -191,7 +191,7 @@ export interface ReactionHandlers<C extends unknown[]> {
  */
 export class FunctionalReactionSystem<C extends unknown[]> extends ReactionSystem<C> {
   public constructor(componentsOrTags: ReadonlyArray<QueryItem>, handlers: ReactionHandlers<C>) {
-    super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
+    super(new QueryBuilder().with(...componentsOrTags) as unknown as QueryBuilder<C>);
     if (handlers.added !== undefined) this.entityAdded = handlers.added;
     if (handlers.removed !== undefined) this.entityRemoved = handlers.removed;
   }

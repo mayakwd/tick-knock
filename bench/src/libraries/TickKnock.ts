@@ -44,6 +44,7 @@ function readVersion(modulePath: string): string {
 
 /**
  * Creates an engine with the main query and filler queries, as other libraries do.
+ * Queries are built with `contains`, which is deprecated in 5.0, because published versions don't have `with`.
  *
  * @param tk tick-knock module
  * @param mainQuery Components and tags of the main query

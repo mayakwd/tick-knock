@@ -55,7 +55,7 @@
 - **Typed queries.** `QueryBuilder` infers types of components, and `Query.forEach` passes them to the callback:
 
   ```typescript
-  const movable = new QueryBuilder().contains(Position, Velocity).build(); // Query<[Position, Velocity]>
+  const movable = new QueryBuilder().with(Position, Velocity).build(); // Query<[Position, Velocity]>
   engine.addQuery(movable);
   movable.forEach((entity, position, velocity) => {
     position.x += velocity.x;
@@ -152,7 +152,7 @@ the entity and the delta time, in the same order. Tags are checked, but not pass
 // 4.x
 class DamageSystem extends IterativeSystem {
   public constructor() {
-    super(new QueryBuilder().contains(Health, Damage, ALIVE).build());
+    super(new QueryBuilder().with(Health, Damage, ALIVE).build());
   }
 
   protected updateEntity(entity: Entity, dt: number) {
@@ -187,7 +187,7 @@ removing, including the removed one, so there's no need to read them from `snaps
 // 4.x
 class ViewSystem extends ReactionSystem {
   public constructor(private readonly stage: Container) {
-    super(new QueryBuilder().contains(View).build());
+    super(new QueryBuilder().with(View).build());
   }
 
   protected entityAdded = ({current}: EntitySnapshot) => {
@@ -232,13 +232,13 @@ of every entity:
 
 ```typescript
 // 4.x
-const query = new QueryBuilder().contains(Position, Velocity).build();
+const query = new QueryBuilder().with(Position, Velocity).build();
 for (const entity of query.entities) {
   const position = entity.get(Position)!;
 }
 
 // 5.0
-const query = new QueryBuilder().contains(Position, Velocity).build();
+const query = new QueryBuilder().with(Position, Velocity).build();
 query.forEach((entity, position, velocity) => {
   position.x += velocity.x;
 });
@@ -554,8 +554,8 @@ Components.
 
 ```typescript
 const query = new QueryBuilder()
-  .contains(ComponentA, ComponentB)
-  .contains(TAG)
+  .with(ComponentA, ComponentB)
+  .with(TAG)
   .build();
 ```
 
@@ -564,7 +564,7 @@ shouldn't collide anymore. Exclude them with `without`:
 
 ```typescript
 const movable = new QueryBuilder()
-  .contains(Position, Velocity)
+  .with(Position, Velocity)
   .without(Frozen, DESTROYED)
   .build();
 ```
@@ -585,8 +585,8 @@ Components are passed in the order they were specified, tags are only used for m
 
 ```typescript
 const movable = new QueryBuilder()
-  .contains(Position, Velocity)
-  .contains(MOVABLE)
+  .with(Position, Velocity)
+  .with(MOVABLE)
   .build(); // Query<[Position, Velocity]>
 
 movable.forEach((entity, position, velocity) => {

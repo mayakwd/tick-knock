@@ -42,7 +42,7 @@ class TestSystem2 extends TestSystem {
 
 class TestSystem3 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(new QueryBuilder().contains(Component), arr);
+    super(new QueryBuilder().with(Component), arr);
   }
 }
 
@@ -357,7 +357,7 @@ describe('Changing entities in handlers', () => {
   it('Expected that components added by handlers of added entities update predicate queries', () => {
     const engine = new Engine();
     const views = new Query((entity) => entity.has(View));
-    const markers = new QueryBuilder().contains(Marker).build();
+    const markers = new QueryBuilder().with(Marker).build();
     engine.addQuery(views).addQuery(markers);
     markers.onEntityAdded.connect(({current}) => current.add(new View()));
 
@@ -369,8 +369,8 @@ describe('Changing entities in handlers', () => {
 
   it('Expected that components added by handlers of added entities update queries added before', () => {
     const engine = new Engine();
-    const views = new QueryBuilder().contains(View).build();
-    const markers = new QueryBuilder().contains(Marker).build();
+    const views = new QueryBuilder().with(View).build();
+    const markers = new QueryBuilder().with(Marker).build();
     engine.addQuery(views).addQuery(markers);
     markers.onEntityAdded.connect(({current}) => current.add(new View()));
     const added: Entity[] = [];
@@ -386,7 +386,7 @@ describe('Changing entities in handlers', () => {
   it('Expected that changes made by handlers of removed entities don\'t add them back to queries', () => {
     const engine = new Engine();
     const any = new Query(() => true);
-    const markers = new QueryBuilder().contains(Marker).build();
+    const markers = new QueryBuilder().with(Marker).build();
     engine.addQuery(any).addQuery(markers);
     markers.onEntityRemoved.connect(({current}) => current.add(new View()));
 
@@ -479,7 +479,7 @@ describe('Changing the engine during the update', () => {
   it('Expected that removing all entities during the update is deferred', () => {
     const engine = new Engine();
     const entity = new Entity().add(new Marker());
-    const query = new QueryBuilder().contains(Marker).build();
+    const query = new QueryBuilder().with(Marker).build();
     engine.addQuery(query).addEntity(entity);
     let inQuery = false;
     engine.addSystem(new LogSystem('clear', [], () => {
@@ -523,9 +523,9 @@ describe('Removing queries while the engine notifies them', () => {
 
   it('Expected that removing a query on a component change doesn\'t skip other queries', () => {
     const engine = new Engine();
-    const q1 = new QueryBuilder().contains(A).build();
-    const q2 = new QueryBuilder().contains(A).build();
-    const q3 = new QueryBuilder().contains(A).build();
+    const q1 = new QueryBuilder().with(A).build();
+    const q2 = new QueryBuilder().with(A).build();
+    const q3 = new QueryBuilder().with(A).build();
     engine.addQuery(q1).addQuery(q2).addQuery(q3);
     q1.onEntityAdded.connect(() => engine.removeQuery(q1));
     const entity = new Entity();
@@ -537,8 +537,8 @@ describe('Removing queries while the engine notifies them', () => {
 
   it('Expected that removing a query on adding an entity doesn\'t skip other queries', () => {
     const engine = new Engine();
-    const q1 = new QueryBuilder().contains(A).build();
-    const q2 = new QueryBuilder().contains(A).build();
+    const q1 = new QueryBuilder().with(A).build();
+    const q2 = new QueryBuilder().with(A).build();
     engine.addQuery(q1).addQuery(q2);
     q1.onEntityAdded.connect(() => engine.removeQuery(q1));
     const entity = new Entity().add(new A());
@@ -548,7 +548,7 @@ describe('Removing queries while the engine notifies them', () => {
 
   it('Expected that adding a query twice and removing it once removes it', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(A).build();
+    const query = new QueryBuilder().with(A).build();
     engine.addQuery(query).addQuery(query).removeQuery(query);
     engine.addEntity(new Entity().add(new A()));
     expect(engine.queries).toEqual([]);

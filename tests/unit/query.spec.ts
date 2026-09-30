@@ -21,8 +21,8 @@ class Damage extends LinkedComponent {}
 describe('Query builder', () => {
   it('Building query', () => {
     const query = new QueryBuilder()
-      .contains(Position)
-      .contains(View)
+      .with(Position)
+      .with(View)
       .build();
     expect(query).toBeDefined();
     expect(query.entities).toBeDefined();
@@ -31,8 +31,8 @@ describe('Query builder', () => {
 
   it('Expected that built query matches defined pattern', () => {
     const query = new QueryBuilder()
-      .contains(Position)
-      .contains(View)
+      .with(Position)
+      .with(View)
       .build();
     const entities = [
       new Entity().add(new Position()).add(new View()),
@@ -44,23 +44,23 @@ describe('Query builder', () => {
 
   it(`Expected that adding the same component to the builder twice will use only it only once for construction of predicate `, () => {
     const builder = new QueryBuilder()
-      .contains(Position)
-      .contains(Position)
-      .contains(View);
+      .with(Position)
+      .with(Position)
+      .with(View);
     expect(builder.getComponents().size).toBe(2);
   });
 
   it(`Expected that adding the same tag to the builder twice will use only it only once for construction of predicate `, () => {
     const TAG = 1;
     const builder = new QueryBuilder()
-      .contains(TAG)
-      .contains(TAG);
+      .with(TAG)
+      .with(TAG);
     expect(builder.getTags().size).toBe(1);
   });
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(Position, TAG).build();
+    const query = new QueryBuilder().with(Position, TAG).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -72,7 +72,7 @@ describe('Query builder', () => {
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions (no components)`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(TAG).build();
+    const query = new QueryBuilder().with(TAG).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -84,7 +84,7 @@ describe('Query builder', () => {
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions (no tags)`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -103,7 +103,7 @@ describe('Query matching', () => {
 
   function getQuery() {
     return new QueryBuilder()
-      .contains(Position, View)
+      .with(Position, View)
       .build();
   }
 
@@ -658,7 +658,7 @@ describe('Query indexing', () => {
 
   it('Built query reacts to components added with resolve class', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Base).build();
+    const query = new QueryBuilder().with(Base).build();
     engine.addQuery(query);
     const entity = new Entity();
     engine.addEntity(entity);
@@ -670,9 +670,9 @@ describe('Query indexing', () => {
 
   it('Built query is not affected by later builder changes', () => {
     const engine = new Engine();
-    const builder = new QueryBuilder().contains(Position);
+    const builder = new QueryBuilder().with(Position);
     const query = builder.build();
-    builder.contains(View);
+    builder.with(View);
     engine.addQuery(query);
     const entity = new Entity().add(new Position());
     engine.addEntity(entity);
@@ -681,7 +681,7 @@ describe('Query indexing', () => {
 
   it('Removed query is not updated anymore', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position, 'tag').build();
+    const query = new QueryBuilder().with(Position, 'tag').build();
     engine.addQuery(query);
     engine.removeQuery(query);
     const entity = new Entity();
@@ -692,7 +692,7 @@ describe('Query indexing', () => {
 
   it('Query first, last and entities stay consistent', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     engine.addQuery(query);
     const entities = [0, 1, 2].map(() => new Entity().add(new Position()));
     entities.forEach((entity) => engine.addEntity(entity));
@@ -718,7 +718,7 @@ describe('Query forEach', () => {
 
   function setup() {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position, 'tag', Health).build();
+    const query = new QueryBuilder().with(Position, 'tag', Health).build();
     engine.addQuery(query);
     const entities = [0, 1, 2].map((i) => new Entity().add(new Position(i, i)).add(new Health(i)).add('tag'));
     entities.forEach((entity) => engine.addEntity(entity));
@@ -736,7 +736,7 @@ describe('Query forEach', () => {
       public constructor(public value: number) {}
     });
     const engine = new Engine();
-    const query = new QueryBuilder().contains(...classes).build();
+    const query = new QueryBuilder().with(...classes).build();
     engine.addQuery(query);
     const entities = [0, 1, 2].map((i) => {
       const entity = new Entity();
@@ -772,7 +772,7 @@ describe('Query forEach', () => {
 
   it('Passes the head of linked components', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Buff).build();
+    const query = new QueryBuilder().with(Buff).build();
     engine.addQuery(query);
     const entity = new Entity().append(new Buff(1)).append(new Buff(2));
     engine.addEntity(entity);
@@ -806,7 +806,7 @@ describe('Query forEach', () => {
   });
 
   it('Infers types of components', () => {
-    const query = new QueryBuilder().contains(Position).contains('tag', Health).build();
+    const query = new QueryBuilder().with(Position).with('tag', Health).build();
     query.forEach((entity: Entity, position: Position, health: Health) => {
       position.x = health.value;
     });
@@ -829,7 +829,7 @@ describe('Query forEach', () => {
 describe('Lazy snapshot', () => {
   it('Previous state is correct if handler changes entity before accessing it', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position, View).build();
+    const query = new QueryBuilder().with(Position, View).build();
     engine.addQuery(query);
     const entity = new Entity().add(new Position()).add(new View());
     engine.addEntity(entity);
@@ -845,7 +845,7 @@ describe('Lazy snapshot', () => {
 
   it('Previous state is correct for consecutive changes of the same entity', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     engine.addQuery(query);
     const entity = new Entity().add(new View());
     engine.addEntity(entity);
@@ -864,7 +864,7 @@ describe('Clearing a query during iteration', () => {
 
   it('Expected that forEach stops visiting entities after the query is removed from the engine', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(A).build();
+    const query = new QueryBuilder().with(A).build();
     engine.addQuery(query);
     for (let i = 0; i < 3; i++) engine.addEntity(new Entity().add(new A()));
     let calls = 0;
@@ -878,7 +878,7 @@ describe('Clearing a query during iteration', () => {
 
   it('Expected that the query works after it was cleared during iteration', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(A).build();
+    const query = new QueryBuilder().with(A).build();
     engine.addQuery(query);
     engine.addEntity(new Entity().add(new A()));
     query.forEach(() => query.clear());
@@ -899,7 +899,7 @@ describe('Query exclusions', () => {
 
   it('Entities with an excluded component or tag don\'t match the query', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).without(View, DESTROYED).build();
+    const query = new QueryBuilder().with(Position).without(View, DESTROYED).build();
     engine.addQuery(query);
     const moving = new Entity().add(new Position());
     const viewed = new Entity().add(new Position()).add(new View());
@@ -911,7 +911,7 @@ describe('Query exclusions', () => {
 
   it('Entity leaves the query when it gets an excluded component or tag, and joins it when it loses them', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).without(Stay, DESTROYED).build();
+    const query = new QueryBuilder().with(Position).without(Stay, DESTROYED).build();
     engine.addQuery(query);
     const entity = new Entity().add(new Position());
     engine.addEntity(entity);
@@ -935,7 +935,7 @@ describe('Query exclusions', () => {
 
   it('Exclusions are listed together with components and tags', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position, without(DESTROYED), View).build();
+    const query = new QueryBuilder().with(Position, without(DESTROYED), View).build();
     engine.addQuery(query);
     const entity = new Entity().add(new Position(1, 2)).add(new View());
     engine.addEntity(entity);
@@ -950,7 +950,7 @@ describe('Query exclusions', () => {
 
   it('Removed entity that had an excluded tag doesn\'t leave the query twice', () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+    const query = new QueryBuilder().with(Position).without(DESTROYED).build();
     engine.addQuery(query);
     const entity = new Entity().add(new Position());
     engine.addEntity(entity);
@@ -966,11 +966,22 @@ describe('Query exclusions', () => {
     const engine = new Engine();
     const entity = new Entity().add(new Position()).add(DESTROYED);
     engine.addEntity(entity);
-    const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+    const query = new QueryBuilder().with(Position).without(DESTROYED).build();
     engine.addQuery(query);
     expect(query.isEmpty).toBeTruthy();
 
     entity.remove(DESTROYED);
     expect(query.has(entity)).toBeTruthy();
+  });
+});
+
+describe('Deprecated QueryBuilder.contains', () => {
+  it('Works the same way as with', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position, 'tag').build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position()).add('tag');
+    engine.addEntity(entity);
+    expect(query.entities).toEqual([entity]);
   });
 });
