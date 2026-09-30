@@ -36,11 +36,11 @@ export class ShipControlSystem extends IterativeSystem.of(Position, Velocity, Ro
     velocity.x *= drag;
     velocity.y *= drag;
 
-    // The gun fires while the fire control is pressed, not more often than its cooldown allows
-    gun.cooldown.tick(dt);
-    if (!fire || !gun.cooldown.isReady) return;
+    // The gun fires while the fire control is pressed, when its cooldown is over
+    const {cooldown} = gun;
+    if (!fire || cooldown.remaining > 0) return;
 
-    gun.cooldown.restart();
+    cooldown.remaining += cooldown.interval;
     this.engine.addEntity(createBullet(position, velocity, rotation.angle));
   }
 }

@@ -1,10 +1,11 @@
 import {Engine} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {CooldownSystem} from '../shared/CooldownSystem';
 import {wrap} from '../shared/geometry';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {AngularVelocity, Asteroid, Lifetime, Position, Rotation, Velocity} from './components';
+import {AngularVelocity, Asteroid, Gun, Lifetime, Position, Rotation, Velocity} from './components';
 import {ASTEROIDS, AsteroidSize} from './config';
 import {Controls} from './Controls';
 import {createAsteroid, createShip} from './entities';
@@ -41,7 +42,8 @@ export class AsteroidsGame {
     this.random = random;
 
     this.engine
-      // The ship is controlled first, so it moves in the same update
+      // The ship is controlled first, so it moves in the same update. Its gun cools down before it fires.
+      .addSystem(new CooldownSystem(Gun))
       .addSystem(new ShipControlSystem(this.controls))
 
       // Everything that has a velocity moves, and wraps around the edges of the screen

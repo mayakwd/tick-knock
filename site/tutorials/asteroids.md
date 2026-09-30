@@ -44,12 +44,21 @@ Components are small and familiar by now:
 
 <<< @/../examples/asteroids/components/Asteroid.ts
 
-The gun keeps a cooldown, a small timer shared by all examples. The time passed after the cooldown is over is kept for
-the next shot, so the gun fires at the same rate on any frame rate:
+The gun keeps a cooldown, a small timer shared by all examples. It's data only: the interval between shots, and the time
+until the next shot:
 
 <<< @/../examples/asteroids/components/Gun.ts
 
 <<< @/../examples/shared/Cooldown.ts
+
+The logic is in systems. One system counts cooldowns down, and the system that fires checks whether the cooldown is
+over, and restarts it by adding the interval. The time passed after the cooldown is over is kept for the next shot, so
+the gun fires at the same rate on any frame rate:
+
+<<< @/../examples/shared/CooldownSystem.ts
+
+The system is created for a component class, `new CooldownSystem(Gun)`, and counts down cooldowns of all components of
+this class. It's added right before the system that fires, so the gun is ready in the same update.
 
 The ship and bullets don't have data of their own. Everything the ship has is a position, a velocity, a rotation,
 a collider and a gun, so it's marked with a tag, as well as bullets:

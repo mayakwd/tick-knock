@@ -1,5 +1,6 @@
 import {Engine, Entity} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {CooldownSystem} from '../shared/CooldownSystem';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
 import {Cell, Creep, Health, Hit, Payload, PathFollower, Poison, Position, Slow, Target, Tower, Weapon} from './components';
@@ -74,12 +75,13 @@ export class TowerDefenseGame {
       .addSystem(new TargetingSystem(TARGET_FIRST, this.creeps, (creep) => creep.get(PathFollower)!.distance))
       .addSystem(new TargetingSystem(TARGET_STRONGEST, this.creeps, (creep) => creep.get(Health)!.value))
 
-      // A tower fires at its target, when its weapon is ready
+      // A tower fires at its target, when the cooldown of its weapon is over
+      .addSystem(new CooldownSystem(Weapon))
       .iterative([Position, Weapon, Target, Payload], (tower, dt, position, weapon, {entity}, payload) => {
-        weapon.cooldown.tick(dt);
-        if (entity === undefined || !weapon.cooldown.isReady) return;
+        const {cooldown} = weapon;
+        if (entity === undefined || cooldown.remaining > 0) return;
 
-        weapon.cooldown.restart();
+        cooldown.remaining += cooldown.interval;
         this.engine.addEntity(createProjectile(position, entity, weapon.projectileSpeed, payload));
       })
 

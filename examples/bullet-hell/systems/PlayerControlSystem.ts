@@ -25,11 +25,11 @@ export class PlayerControlSystem extends IterativeSystem.of(Position, Gun, PLAYE
     position.x = clamp(position.x + dx * step, PLAYER_EDGE, WIDTH - PLAYER_EDGE);
     position.y = clamp(position.y + dy * step, PLAYER_EDGE, HEIGHT - PLAYER_EDGE);
 
-    // The gun fires while the fire control is pressed, every barrel fires a bullet
-    gun.cooldown.tick(dt);
-    if (!fire || !gun.cooldown.isReady) return;
+    // The gun fires while the fire control is pressed, when its cooldown is over. Every barrel fires a bullet.
+    const {cooldown} = gun;
+    if (!fire || cooldown.remaining > 0) return;
 
-    gun.cooldown.restart();
+    cooldown.remaining += cooldown.interval;
     for (const barrel of PLAYER_GUN_BARRELS) {
       this.engine.addEntity(createPlayerBullet(position.x + barrel.x, position.y + barrel.y));
     }

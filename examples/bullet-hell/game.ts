@@ -1,10 +1,11 @@
 import {Engine, Query, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {CooldownSystem} from '../shared/CooldownSystem';
 import {angleTo, isInside} from '../shared/geometry';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {AimedPattern, Invulnerable, Lives, Position, RingPattern, SpiralPattern, Sway, Velocity} from './components';
+import {AimedPattern, Gun, Invulnerable, Lives, Position, RingPattern, SpiralPattern, Sway, Velocity} from './components';
 import {HEIGHT, SCREEN, SCREEN_MARGIN, WIDTH} from './config';
 import {Controls} from './Controls';
 import {createEnemyBullet, createPlayer} from './entities';
@@ -48,7 +49,8 @@ export class BulletHellGame {
     this.engine.addQuery(this.players).addQuery(this.enemyBullets);
 
     this.engine
-      // The player moves and fires first, and new enemies appear
+      // The player moves and fires first, and new enemies appear. The gun cools down before it fires.
+      .addSystem(new CooldownSystem(Gun))
       .addSystem(new PlayerControlSystem(this.controls))
       .addSystem(new SpawnSystem(this.waves))
 
@@ -66,19 +68,27 @@ export class BulletHellGame {
         sway.offset = offset;
       })
 
-      // Every pattern is a component with its own system, so an enemy fires with every pattern it has.
-      // A cooldown can be over several times in one update, then the pattern fires several times.
+      // Every pattern is a component with its own cooldown and its own system, so an enemy fires with every pattern it
+      // has. A cooldown can be over several times in one update, then the pattern fires several times.
+      .addSystem(new CooldownSystem(RingPattern))
+      .addSystem(new CooldownSystem(SpiralPattern))
+      .addSystem(new CooldownSystem(AimedPattern))
+
       .iterative([Position, RingPattern], (entity, dt, position, ring) => {
-        ring.cooldown.repeat(dt, () => {
+        const {cooldown} = ring;
+        while (cooldown.remaining <= 0) {
           this.fireBullets(position, ring.count, ring.speed, random() * Math.PI, Math.PI * 2);
-        });
+          cooldown.remaining += cooldown.interval;
+        }
       })
 
       .iterative([Position, SpiralPattern], (entity, dt, position, spiral) => {
-        spiral.cooldown.repeat(dt, () => {
+        const {cooldown} = spiral;
+        while (cooldown.remaining <= 0) {
           this.fireBullets(position, spiral.count, spiral.speed, spiral.angle, Math.PI * 2);
           spiral.angle += spiral.step;
-        });
+          cooldown.remaining += cooldown.interval;
+        }
       })
 
       .iterative([Position, AimedPattern], (entity, dt, position, aimed) => {
@@ -86,10 +96,12 @@ export class BulletHellGame {
         const target = this.players.first?.get(Position);
         if (target === undefined) return;
 
-        aimed.cooldown.repeat(dt, () => {
-          const from = angleTo(position, target) - aimed.spread / 2;
+        const from = angleTo(position, target) - aimed.spread / 2;
+        const {cooldown} = aimed;
+        while (cooldown.remaining <= 0) {
           this.fireBullets(position, aimed.count, aimed.speed, from, aimed.spread);
-        });
+          cooldown.remaining += cooldown.interval;
+        }
       })
 
       // Collisions only report hits, and systems of hit entities decide what a hit does

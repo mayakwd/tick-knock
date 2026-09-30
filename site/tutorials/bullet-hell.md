@@ -30,7 +30,8 @@ Most components are familiar: position, velocity, collider, health.
 
 <<< @/../examples/bullet-hell/components/Health.ts
 
-The player has lives and a gun. The gun keeps a shared `Cooldown`, as in [Asteroids](/tutorials/asteroids):
+The player has lives and a gun. The gun keeps a shared `Cooldown`, counted down by `CooldownSystem`, as in
+[Asteroids](/tutorials/asteroids):
 
 <<< @/../examples/bullet-hell/components/Lives.ts
 
@@ -54,7 +55,8 @@ Instead, every pattern is a component with its own parameters:
 
 <<< @/../examples/bullet-hell/components/AimedPattern.ts
 
-Every pattern has a cooldown of its own, so patterns of one enemy fire independently.
+Every pattern has a cooldown of its own, so patterns of one enemy fire independently. `CooldownSystem` is added for
+every class of patterns, and counts down their cooldowns.
 
 An enemy fires with every pattern it has. A boss that fires a spiral and aimed fans at the same time is an entity with
 two components, and it needs no new code.
@@ -96,7 +98,7 @@ Most systems are a few lines long, so they are written right where they are adde
 - Swaying adds only the change of the swing to the horizontal position, so it works together with movement: an enemy
   descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
 - Every pattern has its own system. Patterns fire with the same method of the game, so each system describes only
-  the directions of bullets. `cooldown.repeat` fires as many times as the cooldown is over in this update: a spiral
+  the directions of bullets. A pattern fires while its cooldown is over, adding the interval after every shot: a spiral
   fires every 0.05 seconds, and on a slow frame it fires twice instead of losing a shot.
 - The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
   player, that the game has created.
