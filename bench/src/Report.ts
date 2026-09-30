@@ -23,15 +23,18 @@ export interface ReportRow {
 export class Report {
   private readonly rows: ReportRow[] = [];
 
-  public constructor(private readonly columns: ReadonlyArray<ReportColumn>) {}
+  /**
+   * @param columns Columns of the report
+   * @param environment Description of the environment the results were measured in, the current machine by default
+   */
+  public constructor(private readonly columns: ReadonlyArray<ReportColumn>, private readonly environment = describeMachine()) {}
 
   /**
    * Gets header of the report with environment description and table header
    */
   public get header(): string {
-    const cpus = os.cpus();
     return [
-      `Node ${process.version}, ${cpus[0]?.model.trim() ?? 'unknown CPU'}, ${cpus.length} cores`,
+      this.environment,
       '',
       'Speed is measured in operations per second (more is better), memory in bytes per entity (less is better).',
       'The best result in every scenario is marked with bold, "–" means that scenario is not implemented by the library.',
@@ -64,6 +67,11 @@ export class Report {
   }
 }
 
+function describeMachine(): string {
+  const cpus = os.cpus();
+  return `Node ${process.version}, ${cpus[0]?.model.trim() ?? 'unknown CPU'}, ${cpus.length} cores`;
+}
+
 function findBest(row: ReportRow): Measurement | undefined {
   const measurements = row.measurements.filter((value): value is Measurement => value !== undefined);
   if (measurements.length < 2) return undefined;
@@ -74,7 +82,8 @@ function findBest(row: ReportRow): Measurement | undefined {
 }
 
 function formatSpeed(measurement: Measurement): string {
-  return `${formatNumber(measurement.value)} ±${(measurement.deviation * 100).toFixed(1)}%`;
+  const value = formatNumber(measurement.value);
+  return measurement.deviation > 0 ? `${value} ±${(measurement.deviation * 100).toFixed(1)}%` : value;
 }
 
 function formatNumber(value: number): string {

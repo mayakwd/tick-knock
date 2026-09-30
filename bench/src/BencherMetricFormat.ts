@@ -19,11 +19,11 @@ export type BencherMetricFormat = Record<string, Record<string, Metric>>;
 /**
  * Built-in Bencher measure of speed, in operations per second
  */
-const THROUGHPUT = 'throughput';
+export const THROUGHPUT = 'throughput';
 /**
  * Custom measure of memory, in bytes per entity
  */
-const MEMORY = 'memory-per-entity';
+export const MEMORY = 'memory-per-entity';
 
 /**
  * Collects results for Bencher. Every scenario of every library is a separate benchmark, named

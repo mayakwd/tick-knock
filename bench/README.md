@@ -69,6 +69,13 @@ docker build -f bench/Dockerfile -t tick-knock-bench .                   # the i
 docker run --rm --network none -e BENCH_OUTPUT= tick-knock-bench      # results to stdout
 ```
 
+The comparison table in the [README](../README.md#performance) of the repository is generated from results of Bencher
+by [readme.ts](src/readme.ts), which accepts results in Bencher Metric Format:
+
+```shell
+node bench/dist/readme.js results.json README.md
+```
+
 The workflow is [bencher.yml](../.github/workflows/bencher.yml), it requires the `BENCHER_PROJECT` variable
 and the `BENCHER_API_KEY` secret.
 
