@@ -58,6 +58,9 @@ Fixes:
   are correct for components added with `resolveClass`.
 - Query built by `QueryBuilder` is no longer affected by calling `contains` on the builder after `build`.
 - `Engine.removeAllSystems` detaches systems from the engine, the same way `Engine.removeSystem` does.
+- Components added to an entity by handlers of `Engine.onEntityAdded` or `Query.onEntityAdded`, for example in
+  `entityAdded` of a reaction system, update all queries. Before, queries that had already received the entity
+  missed such changes. Changes made by handlers of removed entities no longer add them back to queries.
 
 Tooling:
 

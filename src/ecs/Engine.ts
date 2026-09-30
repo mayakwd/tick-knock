@@ -94,8 +94,9 @@ export class Engine {
       return this;
     }
     this._entityMap.set(entity.id, entity);
-    this.onEntityAdded.emit(entity);
+    // The entity is observed before handlers are called, so components added by handlers update queries
     this.connectEntity(entity);
+    this.onEntityAdded.emit(entity);
     return this;
   }
 
@@ -305,8 +306,9 @@ export class Engine {
 
   private removeEntityNow(entity: Entity): Engine {
     this._entityMap.delete(entity.id);
-    this.onEntityRemoved.emit(entity);
+    // Changes made by handlers of the removed entity don't add it back to queries
     this.disconnectEntity(entity);
+    this.onEntityRemoved.emit(entity);
 
     return this;
   }

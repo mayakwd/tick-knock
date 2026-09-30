@@ -348,3 +348,53 @@ describe('System manipulation', () => {
     expect(engine.getEntityById(id)).toBeUndefined();
   });
 });
+
+describe('Changing entities in handlers', () => {
+  class Marker {}
+
+  class View {}
+
+  it('Expected that components added by handlers of added entities update predicate queries', () => {
+    const engine = new Engine();
+    const views = new Query((entity) => entity.has(View));
+    const markers = new QueryBuilder().contains(Marker).build();
+    engine.addQuery(views).addQuery(markers);
+    markers.onEntityAdded.connect(({current}) => current.add(new View()));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+
+    expect(views.entities).toEqual([entity]);
+  });
+
+  it('Expected that components added by handlers of added entities update queries added before', () => {
+    const engine = new Engine();
+    const views = new QueryBuilder().contains(View).build();
+    const markers = new QueryBuilder().contains(Marker).build();
+    engine.addQuery(views).addQuery(markers);
+    markers.onEntityAdded.connect(({current}) => current.add(new View()));
+    const added: Entity[] = [];
+    views.onEntityAdded.connect(({current}) => added.push(current));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+
+    expect(views.entities).toEqual([entity]);
+    expect(added).toEqual([entity]);
+  });
+
+  it('Expected that changes made by handlers of removed entities don\'t add them back to queries', () => {
+    const engine = new Engine();
+    const any = new Query(() => true);
+    const markers = new QueryBuilder().contains(Marker).build();
+    engine.addQuery(any).addQuery(markers);
+    markers.onEntityRemoved.connect(({current}) => current.add(new View()));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+    engine.removeEntity(entity);
+
+    expect(markers.entities).toEqual([]);
+    expect(any.entities).toEqual([]);
+  });
+});
