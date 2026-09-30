@@ -155,3 +155,31 @@ function callWithComponents(
       return handler(snapshot, ...ids.map(get));
   }
 }
+
+/**
+ * Handlers of a reaction system created by {@link Engine.reactive}
+ * @typeParam C Types of components of the entity
+ */
+export interface ReactionHandlers<C extends unknown[]> {
+  /**
+   * Invoked when an entity is added to the query of the system, receives the snapshot and components of the entity
+   */
+  added?: (snapshot: EntitySnapshot, ...components: C) => void;
+  /**
+   * Invoked when an entity is removed from the query of the system, receives the snapshot and components the entity
+   * had before removing
+   */
+  removed?: (snapshot: EntitySnapshot, ...components: C) => void;
+}
+
+/**
+ * @internal
+ * Reaction system, which reacts with functions instead of overridden handlers
+ */
+export class FunctionalReactionSystem<C extends unknown[]> extends ReactionSystem<C> {
+  public constructor(componentsOrTags: Array<ComponentType | Tag>, handlers: ReactionHandlers<C>) {
+    super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
+    if (handlers.added !== undefined) this.entityAdded = handlers.added;
+    if (handlers.removed !== undefined) this.entityRemoved = handlers.removed;
+  }
+}

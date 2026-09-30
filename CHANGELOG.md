@@ -1,4 +1,4 @@
-# Unreleased
+# 5.0.0 (unreleased)
 
 Features:
 
@@ -11,8 +11,23 @@ Features:
   removing, including the removed one.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
   geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
+- Functional systems: `engine.iterative([Position, Velocity], (entity, dt, position, velocity) => ...)` and
+  `engine.reactive([View], {added, removed})` create systems from functions with inferred types of components.
+- Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.removeSystem`
+  accepts a system or its identifier.
 
-Performance (existing API is unchanged):
+Breaking changes:
+
+- `Engine.sharedConfig` and `System.sharedConfig` are removed. Data shared between systems doesn't need to be an entity:
+  pass it to class-based systems in the constructor, or read it from the closure in functional systems.
+- `Query.entities` returns a snapshot array, which is rebuilt after the query is changed, instead of the live array.
+  Entities added to the query during `IterativeSystem` update or `Query.forEach` are processed starting from the next
+  update.
+- `EntitySnapshot.previous` is restored when it's accessed. A snapshot kept after its handler has returned reflects the
+  state of the entity at the moment of access.
+- `Query` is generic: `Query<C>`, where `C` are types of components. `Query` without type arguments accepts any query.
+
+Performance:
 
 - Queries store entities and their components in dense arrays: membership checks, adding and removing entities
   are O(1) instead of O(n), removed entities are compacted lazily keeping the order.
@@ -46,9 +61,6 @@ Tooling:
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
 - Compilation target is ES2017, which the library already required at runtime (`Object.values`).
 - CI runs on Node.js 22 and 24.
-
-Note: `Query.entities` returns a snapshot array; entities added to the query during `IterativeSystem` update
-are processed starting from the next update.
 
 # 4.3.0
 

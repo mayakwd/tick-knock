@@ -1,11 +1,30 @@
 import {Entity, EntityObserver} from './Entity';
 import {System} from './System';
 import {Class} from '../utils/Class';
-import {Query} from './Query';
+import {ComponentsOf, ComponentType, Query} from './Query';
+import {FunctionalIterativeSystem, IterativeUpdate} from './IterativeSystem';
+import {FunctionalReactionSystem, ReactionHandlers} from './ReactionSystem';
 import {Subscription} from './Subscription';
 import {Signal} from '../utils/Signal';
 import {isTag, Tag} from './Tag';
 import {getComponentClass, getComponentId} from './ComponentId';
+
+/**
+ * Options of a system added to the engine
+ */
+export interface SystemOptions {
+  /**
+   * Value indicating the priority of updating system in update loop. Lower priority means sooner update.
+   * Default value is 0.
+   */
+  priority?: number;
+  /**
+   * Unique identifier of the system in the engine. It can be used to find or remove the system.
+   * @see Engine.getSystemById
+   * @see Engine.removeSystem
+   */
+  id?: string;
+}
 
 /**
  * Engine represents game state, and provides entities update loop on top of systems.
@@ -30,7 +49,7 @@ export class Engine {
   private _queriesByTag: Map<Tag, Query[]> = new Map();
   private _predicateQueries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
-  private _sharedConfig: Entity = new Entity();
+  private _systemsById: Map<string, System> = new Map();
   private _removalRequested: Set<number> = new Set();
 
   /**
@@ -54,24 +73,11 @@ export class Engine {
     return this._queries;
   }
 
-  public constructor() {
-    this.connectEntity(this._sharedConfig);
-  }
-
   /**
    * @internal
    */
   public get subscriptions(): ReadonlyArray<Subscription<any>> {
     return this._subscriptions;
-  }
-
-  /**
-   * Gets a shared config entity, that's accessible from every system added to engine
-   *
-   * @return {Entity}
-   */
-  public get sharedConfig(): Entity {
-    return this._sharedConfig;
   }
 
   /**
@@ -127,12 +133,18 @@ export class Engine {
    * Avoid remove the system during update cycle, do it only if your sure what you are doing.
    * Note: {@link IterativeSystem} has aware guard during update loop, if system removed - updating is being stopped.
    *
-   * @param system System to remove
+   * @param systemOrId System to remove, or its identifier
    */
-  public removeSystem(system: System): Engine {
+  public removeSystem(systemOrId: System | string): Engine {
+    const system = typeof systemOrId === 'string' ? this._systemsById.get(systemOrId) : systemOrId;
+    if (system === undefined) return this;
     const index = this._systems.indexOf(system);
     if (index === -1) return this;
     this._systems.splice(index, 1);
+    if (system.id !== undefined) {
+      this._systemsById.delete(system.id);
+      system.setId(undefined);
+    }
     system.onRemovedFromEngine();
     system.setEngine(undefined);
     return this;
@@ -162,6 +174,69 @@ export class Engine {
   }
 
   /**
+   * Gets a system by its identifier
+   *
+   * @param id Identifier of the system, specified when it was added
+   * @see SystemOptions
+   */
+  public getSystemById<T extends System = System>(id: string): T | undefined {
+    return this._systemsById.get(id) as T | undefined;
+  }
+
+  /**
+   * Adds a system, that updates every entity with specified components and tags using the function.
+   * Components are passed to the function after the entity and delta time, in the same order, tags are skipped.
+   *
+   * @param componentsOrTags Component classes and tags that entities must have
+   * @param update Function that updates an entity
+   * @param options Priority and identifier of the system
+   * @example
+   * ```ts
+   * engine
+   *   .iterative([Position, Velocity], (entity, dt, position, velocity) => {
+   *     position.x += velocity.x * dt;
+   *   })
+   *   .iterative([Health, Damage, ALIVE], (entity, dt, health, damage) => {
+   *     health.value -= damage.value;
+   *   }, {priority: 10, id: 'damage'});
+   * ```
+   */
+  public iterative<T extends Array<ComponentType | Tag>>(
+    componentsOrTags: [...T],
+    update: IterativeUpdate<ComponentsOf<T>>,
+    options?: SystemOptions,
+  ): Engine {
+    return this.addSystem(new FunctionalIterativeSystem(componentsOrTags, update), options);
+  }
+
+  /**
+   * Adds a system, that reacts on entities with specified components and tags added to or removed from the engine,
+   * or starting and stopping matching them.
+   * Components are passed to handlers after the snapshot, in the same order, tags are skipped.
+   *
+   * @param componentsOrTags Component classes and tags that entities must have
+   * @param handlers Functions invoked when an entity is added or removed
+   * @param options Priority and identifier of the system
+   * @example
+   * ```ts
+   * engine.reactive([View, Position], {
+   *   added: (snapshot, {view}, {x, y}) => {
+   *     view.position.set(x, y);
+   *     container.addChild(view);
+   *   },
+   *   removed: (snapshot, {view}) => container.removeChild(view),
+   * });
+   * ```
+   */
+  public reactive<T extends Array<ComponentType | Tag>>(
+    componentsOrTags: [...T],
+    handlers: ReactionHandlers<ComponentsOf<T>>,
+    options?: SystemOptions,
+  ): Engine {
+    return this.addSystem(new FunctionalReactionSystem(componentsOrTags, handlers), options);
+  }
+
+  /**
    * Gets a system of the specific class
    *
    * @param systemClass Class of the system that should be found
@@ -176,6 +251,7 @@ export class Engine {
   public removeAllSystems(): void {
     const systems = this._systems;
     this._systems = [];
+    this._systemsById.clear();
     for (const system of systems) {
       system.onRemovedFromEngine();
     }
@@ -244,10 +320,18 @@ export class Engine {
    * Adds a system to engine, and set its priority inside of engine update loop.
    *
    * @param system System to add to the engine
-   * @param priority Value indicating the priority of updating system in update loop. Lower priority
-   *  means sooner update.
+   * @param priorityOrOptions Priority of the system or {@link SystemOptions}. Lower priority means sooner update.
+   * @throws Error if a system with the same identifier is already added
    */
-  public addSystem(system: System, priority: number = 0): Engine {
+  public addSystem(system: System, priorityOrOptions: number | SystemOptions = 0): Engine {
+    const {priority = 0, id} = typeof priorityOrOptions === 'number' ? {priority: priorityOrOptions} : priorityOrOptions;
+    if (id !== undefined) {
+      if (this._systemsById.has(id)) {
+        throw new Error(`System with id "${id}" is already added to the engine`);
+      }
+      this._systemsById.set(id, system);
+      system.setId(id);
+    }
     system.setPriority(priority);
     if (this._systems.length === 0) {
       this._systems[0] = system;

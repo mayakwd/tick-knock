@@ -162,3 +162,23 @@ export abstract class IterativeSystem<C extends unknown[] = any[]> extends React
    */
   protected abstract updateEntity(entity: Entity, dt: number, ...components: C): void;
 }
+
+/**
+ * Update function of an iterative system created by {@link Engine.iterative}
+ * @typeParam C Types of components of the entity
+ */
+export type IterativeUpdate<C extends unknown[]> = (entity: Entity, dt: number, ...components: C) => void;
+
+/**
+ * @internal
+ * Iterative system, which updates entities with a function instead of an overridden method
+ */
+export class FunctionalIterativeSystem<C extends unknown[]> extends IterativeSystem<C> {
+  // The function replaces the method, so it's called by the update loop directly, without an additional call
+  protected readonly updateEntity: IterativeUpdate<C>;
+
+  public constructor(componentsOrTags: Array<ComponentType | Tag>, update: IterativeUpdate<C>) {
+    super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
+    this.updateEntity = update;
+  }
+}

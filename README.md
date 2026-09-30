@@ -27,8 +27,8 @@
             - [Built-in query-based systems]
                 - [ReactionSystem]
                 - [IterativeSystem]
+                - [Functional systems]
         - [Snapshot]
-        - [Shared Config]
         - [Linked Components How-To]
 - [Performance]
 - [Restrictions]
@@ -87,6 +87,15 @@ engine.addSystem(new PhysicsSystem(), 2);
 
 As you may have noticed, we pass two parameters: system instance, and the second is update priority. The higher the
 priority number is, the later the system will be processed.
+
+Instead of the priority you can pass options with the priority and an identifier. The identifier allows you to find or
+remove the system later:
+
+```typescript
+engine.addSystem(new ViewSystem(), {priority: 1, id: 'view'});
+engine.getSystemById('view');
+engine.removeSystem('view');
+```
 
 The third type of resident is Query, which is responsible for mapping entities within the Engine and returns a list of
 already filtered and ready-to-use entities.
@@ -621,6 +630,35 @@ class RenderBoardSystem extends System {
 
 That's it. Your system will be removed right after update cycle.
 
+#### Functional systems
+
+Small systems without their own state don't need a class. `Engine.iterative` and `Engine.reactive` create systems from
+functions, types of components are inferred from the list of components:
+
+```typescript
+engine
+  .iterative([Position, Velocity], (entity, dt, position, velocity) => {
+    position.x += velocity.x * dt;
+    position.y += velocity.y * dt;
+  })
+  .iterative([Health, Damage, ALIVE], (entity, dt, health, damage) => {
+    health.value -= damage.value;
+  }, {priority: 10, id: 'damage'})
+  .reactive([View, Position], {
+    added: (snapshot, {view}, {x, y}) => {
+      view.position.set(x, y);
+      container.addChild(view);
+    },
+    removed: (snapshot, {view}) => container.removeChild(view),
+  });
+```
+
+Functional systems are as fast as class-based ones, and they can be mixed in the same engine. Use classes when a system
+has its own state, dependencies or needs lifecycle methods.
+
+> 💡 Data shared between systems, like a configuration of the world, doesn't need to be an entity: functional systems
+> can read it from the closure, and class-based systems can receive it in the constructor.
+
 ## Snapshot
 
 As you may have noticed, when we are tracking changes in Query, we get in `entityAdded` and `entityRemoved` not `Entity`
@@ -658,43 +696,6 @@ class ViewSystem extends IterativeSystem {
   // ...
 }
 ```
-
-## Shared Config
-
-In real life, there is often a need to have a single Entity that acts as a configuration for the whole world.
-
-For example, you have a set of complex systems that involve both game logic and visualization, and animations. But for
-functional test purposes - you don't care about the visuals and animations. You face the situation of passing a specific
-flag in each system during initialization, which will be responsible for disabling animation and visualization.
-
-Now imagine that you have several configuration parameters, and each of them you need to pass to all systems of your
-world.
-
-To simplify handling such situations - you can use `Engine.sharedConfig`. Shared Config is an `Entity` available in all
-systems after adding them to `Engine`.
-
-**Example:**
-
-```typescript
-const NO_VISUALS = 'no-visuals';
-
-class ViewSystem extends IterativeSystem {
-  protected updateEntity(entity: Entity): void {
-    if (this.sharedConfig.has(NO_VISUALS)) {
-      return;
-    }
-
-    // Otherwise - update visuals
-  }
-}
-
-const engine = new Engine();
-engine.sharedConfig.add(NO_VISUALS);
-engine.addSystem(new ViewSystem());
-```
-
-> ☝ Shared Config is the single instance connected to `Engine` since its initialization and can't be removed from it. It
-> affects queries like any regular `Entity`.
 
 ## How to work with linked components?
 
@@ -927,9 +928,9 @@ This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/L
 
 [Performance]: #performance
 
-[Typed queries]: #typed-queries
+[Functional systems]: #functional-systems
 
-[Shared Config]: #shared-config
+[Typed queries]: #typed-queries
 
 [Shared and Local Queries]: #shared-and-local-queries
 

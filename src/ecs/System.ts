@@ -7,6 +7,7 @@ import {Entity} from './Entity';
  */
 export abstract class System {
   private _priority: number = 0;
+  private _id: string | undefined = undefined;
   private _engine?: Engine;
   private _isRemovalRequested: boolean = false;
 
@@ -30,12 +31,11 @@ export abstract class System {
   }
 
   /**
-   * Gets an {@link Entity} instance that is shared across all systems and can be used as a config.
-   * @return {Entity}
+   * Gets an identifier of the system, if it was added to the engine with one
+   * @see Engine.addSystem
    */
-  protected get sharedConfig(): Entity {
-    if (this._engine === undefined) throw new Error(`Property "sharedConfig" can't be accessed when system is not added to the engine`);
-    return this._engine.sharedConfig;
+  public get id(): string | undefined {
+    return this._id;
   }
 
   /**
@@ -109,6 +109,13 @@ export abstract class System {
    */
   public setEngine(engine: Engine | undefined): void {
     this._engine = engine;
+  }
+
+  /**
+   * @internal
+   */
+  public setId(id: string | undefined): void {
+    this._id = id;
   }
 
   /**
