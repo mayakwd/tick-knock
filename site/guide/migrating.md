@@ -138,8 +138,8 @@ for (const entity of query.entities) {
   const position = entity.get(Position)!;
 }
 
-// 5.0
-const query = new QueryBuilder().contains(Position, Velocity).build();
+// 5.0: `with` pairs with `without`, `contains` is deprecated
+const query = new QueryBuilder().with(Position, Velocity).build();
 query.forEach((entity, position, velocity) => {
   position.x += velocity.x;
 });

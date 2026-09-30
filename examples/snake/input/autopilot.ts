@@ -10,8 +10,8 @@ import {FOOD, HEAD} from '../tags';
  * It finds the head and food with its own queries, and looks into cells with the grid, as any system would do.
  */
 export class SnakeAutopilot implements Autopilot {
-  private readonly heads = new QueryBuilder().contains(Cell, Heading, HEAD).build();
-  private readonly food: Query<[Cell]> = new QueryBuilder().contains(Cell, FOOD).build();
+  private readonly heads = new QueryBuilder().with(Cell, Heading, HEAD).build();
+  private readonly food: Query<[Cell]> = new QueryBuilder().with(Cell, FOOD).build();
 
   public constructor(private readonly game: SnakeGame) {
     game.engine.addQuery(this.heads).addQuery(this.food);

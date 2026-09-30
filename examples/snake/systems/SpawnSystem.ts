@@ -11,7 +11,7 @@ import {FOOD} from '../tags';
  * filled the grid, and the player has won.
  */
 export class SpawnSystem extends System {
-  private readonly food = new QueryBuilder().contains(Cell, FOOD).build();
+  private readonly food = new QueryBuilder().with(Cell, FOOD).build();
 
   public constructor(private readonly grid: Grid, private readonly random: Random) {
     super();

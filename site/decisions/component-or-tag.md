@@ -10,7 +10,7 @@ A tag is a string or a number. It marks an entity as something, and queries can 
 const HEAD = 'head';
 const FOOD = 'food';
 
-const food = new QueryBuilder().contains(Cell, FOOD).build();
+const food = new QueryBuilder().with(Cell, FOOD).build();
 ```
 
 In [Snake](/tutorials/snake) the head, segments and food all have a `Cell`, and tags tell them apart. They don't

@@ -55,8 +55,8 @@ export class BulletHellGame {
   public readonly engine = new Engine();
   public readonly controls = new Controls();
   private readonly waves = new WaveState();
-  private readonly players: Query<[Position, Lives]> = new QueryBuilder().contains(Position, Lives, PLAYER).build();
-  private readonly enemyBullets = new QueryBuilder().contains(ENEMY_BULLET).build();
+  private readonly players: Query<[Position, Lives]> = new QueryBuilder().with(Position, Lives, PLAYER).build();
+  private readonly enemyBullets = new QueryBuilder().with(ENEMY_BULLET).build();
   private readonly _score = new Score();
 
   public constructor({layer}: BulletHellGameOptions) {

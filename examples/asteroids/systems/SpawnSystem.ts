@@ -19,7 +19,7 @@ export class WaveState {
  * the center, and every wave has one asteroid more.
  */
 export class SpawnSystem extends System {
-  private readonly asteroids = new QueryBuilder().contains(Asteroid).build();
+  private readonly asteroids = new QueryBuilder().with(Asteroid).build();
 
   public constructor(private readonly state: WaveState, private readonly screen: Size, private readonly random: Random) {
     super();

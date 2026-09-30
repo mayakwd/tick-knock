@@ -43,7 +43,7 @@ export class AsteroidsGame {
   public readonly height: number;
   private readonly _score = new Score();
   private readonly waves = new WaveState();
-  private readonly ships = new QueryBuilder().contains(SHIP).build();
+  private readonly ships = new QueryBuilder().with(SHIP).build();
 
   public constructor({width, height, layer, random = Math.random}: AsteroidsGameOptions) {
     this.width = width;

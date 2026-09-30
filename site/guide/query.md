@@ -40,8 +40,8 @@ Components.
 
 ```typescript
 const query = new QueryBuilder()
-  .contains(ComponentA, ComponentB)
-  .contains(TAG)
+  .with(ComponentA, ComponentB)
+  .with(TAG)
   .build();
 ```
 
@@ -56,7 +56,7 @@ shouldn't collide anymore. Exclude them with `without`:
 
 ```typescript
 const movable = new QueryBuilder()
-  .contains(Position, Velocity)
+  .with(Position, Velocity)
   .without(Frozen, DESTROYED)
   .build();
 ```
@@ -81,8 +81,8 @@ Components are passed in the order they were specified, tags are only used for m
 
 ```typescript
 const movable = new QueryBuilder()
-  .contains(Position, Velocity)
-  .contains(MOVABLE)
+  .with(Position, Velocity)
+  .with(MOVABLE)
   .build(); // Query<[Position, Velocity]>
 
 movable.forEach((entity, position, velocity) => {

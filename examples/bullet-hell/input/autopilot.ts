@@ -37,9 +37,9 @@ const VERTICAL_WEIGHT = 0.2;
  * bullets flying to it.
  */
 export class BulletHellAutopilot implements Autopilot {
-  private readonly players = new QueryBuilder().contains(Position, PLAYER).build();
-  private readonly enemies = new QueryBuilder().contains(Position, Enemy).build();
-  private readonly bullets = new QueryBuilder().contains(Position, Velocity, ENEMY_BULLET).build();
+  private readonly players = new QueryBuilder().with(Position, PLAYER).build();
+  private readonly enemies = new QueryBuilder().with(Position, Enemy).build();
+  private readonly bullets = new QueryBuilder().with(Position, Velocity, ENEMY_BULLET).build();
 
   public constructor(private readonly game: BulletHellGame) {
     game.engine.addQuery(this.players).addQuery(this.enemies).addQuery(this.bullets);

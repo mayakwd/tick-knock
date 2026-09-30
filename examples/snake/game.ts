@@ -39,9 +39,9 @@ export class SnakeGame {
    * Entities indexed by their cells
    */
   public readonly grid: Grid;
-  private readonly heads: Query<[Body]> = new QueryBuilder().contains(Body, HEAD).build();
-  private readonly movingHeads = new QueryBuilder().contains(Heading, HEAD).build();
-  private readonly food = new QueryBuilder().contains(Cell, FOOD).build();
+  private readonly heads: Query<[Body]> = new QueryBuilder().with(Body, HEAD).build();
+  private readonly movingHeads = new QueryBuilder().with(Heading, HEAD).build();
+  private readonly food = new QueryBuilder().with(Cell, FOOD).build();
 
   public constructor({width, height, layer, random = Math.random}: SnakeGameOptions) {
     this.grid = new Grid(width, height);

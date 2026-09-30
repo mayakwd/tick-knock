@@ -19,8 +19,8 @@ const FIRE_ANGLE = 0.3;
  * It reads the game through its own queries, the same way any system would do.
  */
 export class AsteroidsAutopilot implements Autopilot {
-  private readonly ships = new QueryBuilder().contains(Position, Rotation, SHIP).build();
-  private readonly asteroids = new QueryBuilder().contains(Position, Asteroid).build();
+  private readonly ships = new QueryBuilder().with(Position, Rotation, SHIP).build();
+  private readonly asteroids = new QueryBuilder().with(Position, Asteroid).build();
 
   public constructor(private readonly game: AsteroidsGame) {
     game.engine.addQuery(this.ships).addQuery(this.asteroids);

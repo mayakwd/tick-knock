@@ -5,7 +5,7 @@
 - **Typed queries.** `QueryBuilder` infers types of components, and `Query.forEach` passes them to the callback:
 
   ```typescript
-  const movable = new QueryBuilder().contains(Position, Velocity).build(); // Query<[Position, Velocity]>
+  const movable = new QueryBuilder().with(Position, Velocity).build(); // Query<[Position, Velocity]>
   engine.addQuery(movable);
   movable.forEach((entity, position, velocity) => {
     position.x += velocity.x;

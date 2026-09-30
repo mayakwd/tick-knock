@@ -28,7 +28,7 @@ export class WaveState {
  * the screen. The system keeps the progress of waves in its own fields: it's state of the system, not of entities.
  */
 export class SpawnSystem extends System {
-  private readonly enemies = new QueryBuilder().contains(Enemy).build();
+  private readonly enemies = new QueryBuilder().with(Enemy).build();
   private time = -PAUSE;
   private pending: Spawn[] = [];
 
