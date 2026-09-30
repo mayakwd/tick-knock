@@ -1,7 +1,7 @@
 import {Entity, EntityObserver} from './Entity';
 import {System} from './System';
 import {Class} from '../utils/Class';
-import {ComponentsOf, ComponentType, Query} from './Query';
+import {ComponentsOf, Query, QueryItem} from './Query';
 import {FunctionalIterativeSystem, IterativeUpdate} from './IterativeSystem';
 import {FunctionalReactionSystem, ReactionHandlers} from './ReactionSystem';
 import {Subscription} from './Subscription';
@@ -222,7 +222,7 @@ export class Engine {
    *   }, {priority: 10, id: 'damage'});
    * ```
    */
-  public iterative<T extends ReadonlyArray<ComponentType | Tag>>(
+  public iterative<T extends ReadonlyArray<QueryItem>>(
     componentsOrTags: readonly [...T],
     update: IterativeUpdate<ComponentsOf<T>>,
     options?: SystemOptions,
@@ -249,7 +249,7 @@ export class Engine {
    * });
    * ```
    */
-  public reactive<T extends ReadonlyArray<ComponentType | Tag>>(
+  public reactive<T extends ReadonlyArray<QueryItem>>(
     componentsOrTags: readonly [...T],
     handlers: ReactionHandlers<ComponentsOf<T>>,
     options?: SystemOptions,

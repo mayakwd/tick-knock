@@ -10,6 +10,9 @@ Features:
 - `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
   receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
   removing, including the removed one.
+- Exclusions: `QueryBuilder.without(Frozen, DESTROYED)` and `without(...)` listed together with components, like
+  `IterativeSystem.of(Position, without(Frozen))`, exclude entities with specific components or tags. An entity leaves
+  the query when it gets an excluded component or tag, and joins it again when it's removed.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
   geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
 - Examples: Snake in the terminal and Asteroids in the browser, see `examples` folder.

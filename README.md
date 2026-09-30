@@ -62,6 +62,8 @@
   });
   ```
 
+- **Exclusions.** `without` excludes entities with specific components or tags from queries and systems:
+  `IterativeSystem.of(Position, Velocity, without(Frozen))`.
 - **Typed systems.** `IterativeSystem.of` and `ReactionSystem.of` create base classes of systems, which receive
   components of the entity with inferred types, no more `entity.get(Position)!`:
 
@@ -557,6 +559,21 @@ const query = new QueryBuilder()
   .build();
 ```
 
+And what if some entities must not get into the query? For example, frozen entities shouldn't move, and destroyed ones
+shouldn't collide anymore. Exclude them with `without`:
+
+```typescript
+const movable = new QueryBuilder()
+  .contains(Position, Velocity)
+  .without(Frozen, DESTROYED)
+  .build();
+```
+
+An entity leaves the query as soon as it gets an excluded component or tag, and joins it again when the component or tag
+is removed. The same exclusion can be listed together with components, wherever they are listed:
+`IterativeSystem.of(Position, Velocity, without(Frozen))`, `ReactionSystem.of(Collider, without(DESTROYED))` or
+`engine.iterative([Position, without(Frozen)], ...)`.
+
 > 💡 Prefer `QueryBuilder` whenever it's enough. Engine knows which components and tags such queries depend on, so
 > adding or removing unrelated components doesn't touch them at all. Queries with predicates are checked on every
 > change of every entity.
@@ -569,7 +586,7 @@ Components are passed in the order they were specified, tags are only used for m
 ```typescript
 const movable = new QueryBuilder()
   .contains(Position, Velocity)
-  .contains(FROZEN)
+  .contains(MOVABLE)
   .build(); // Query<[Position, Velocity]>
 
 movable.forEach((entity, position, velocity) => {

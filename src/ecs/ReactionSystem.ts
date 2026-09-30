@@ -1,5 +1,4 @@
-import {ComponentsOf, ComponentType, isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryPredicate} from './Query';
-import {Tag} from './Tag';
+import {ComponentsOf, isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryItem, QueryPredicate} from './Query';
 import {Engine} from './Engine';
 import {Entity, EntitySnapshot} from './Entity';
 import {System} from './System';
@@ -68,7 +67,7 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
    * }
    * ```
    */
-  public static of<T extends Array<ComponentType | Tag>>(...componentsOrTags: T): abstract new () => ReactionSystem<ComponentsOf<T>> {
+  public static of<T extends Array<QueryItem>>(...componentsOrTags: T): abstract new () => ReactionSystem<ComponentsOf<T>> {
     abstract class TypedReactionSystem extends ReactionSystem<ComponentsOf<T>> {
       public constructor() {
         super(new QueryBuilder().contains(...componentsOrTags));
@@ -191,7 +190,7 @@ export interface ReactionHandlers<C extends unknown[]> {
  * Reaction system, which reacts with functions instead of overridden handlers
  */
 export class FunctionalReactionSystem<C extends unknown[]> extends ReactionSystem<C> {
-  public constructor(componentsOrTags: ReadonlyArray<ComponentType | Tag>, handlers: ReactionHandlers<C>) {
+  public constructor(componentsOrTags: ReadonlyArray<QueryItem>, handlers: ReactionHandlers<C>) {
     super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
     if (handlers.added !== undefined) this.entityAdded = handlers.added;
     if (handlers.removed !== undefined) this.entityRemoved = handlers.removed;

@@ -1,5 +1,4 @@
-import {ComponentsOf, ComponentType, Query, QueryBuilder, QueryPredicate} from './Query';
-import {Tag} from './Tag';
+import {ComponentsOf, Query, QueryBuilder, QueryItem, QueryPredicate} from './Query';
 import {Entity} from './Entity';
 import {ReactionSystem} from './ReactionSystem';
 import {RowSystem, updateRows} from '../utils/rows';
@@ -77,7 +76,7 @@ export abstract class IterativeSystem<C extends unknown[] = any[]> extends React
    * }
    * ```
    */
-  public static of<T extends Array<ComponentType | Tag>>(...componentsOrTags: T): abstract new () => IterativeSystem<ComponentsOf<T>> {
+  public static of<T extends Array<QueryItem>>(...componentsOrTags: T): abstract new () => IterativeSystem<ComponentsOf<T>> {
     abstract class TypedIterativeSystem extends IterativeSystem<ComponentsOf<T>> {
       public constructor() {
         super(new QueryBuilder().contains(...componentsOrTags));
@@ -144,7 +143,7 @@ export class FunctionalIterativeSystem<C extends unknown[]> extends IterativeSys
   // The function replaces the method, so it's called by the update loop directly, without an additional call
   protected readonly updateEntity: IterativeUpdate<C>;
 
-  public constructor(componentsOrTags: ReadonlyArray<ComponentType | Tag>, update: IterativeUpdate<C>) {
+  public constructor(componentsOrTags: ReadonlyArray<QueryItem>, update: IterativeUpdate<C>) {
     super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
     this.updateEntity = update;
   }

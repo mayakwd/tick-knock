@@ -1,4 +1,4 @@
-import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, ReactionSystem, System} from '../../src';
+import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, ReactionSystem, System, without} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -472,5 +472,53 @@ describe('Failure on accessing engine if not attached to it', () => {
       engine.update(0);
     }
     expect(iterationsCount).toBe(1);
+  });
+});
+describe('Systems with exclusions', () => {
+  const DESTROYED = 'destroyed';
+
+  it('Iterative system skips entities with excluded tags', () => {
+    class MoveSystem extends IterativeSystem.of(Position, without(DESTROYED)) {
+      protected updateEntity(entity: Entity, dt: number, position: Position): void {
+        position.x += dt;
+      }
+    }
+
+    const engine = new Engine().addSystem(new MoveSystem());
+    const alive = new Entity().add(new Position(0, 0));
+    const destroyed = new Entity().add(new Position(0, 0)).add(DESTROYED);
+    engine.addEntity(alive).addEntity(destroyed);
+    engine.update(1);
+
+    expect(alive.get(Position)!.x).toBe(1);
+    expect(destroyed.get(Position)!.x).toBe(0);
+  });
+
+  it('Reaction system is notified when an entity gets an excluded tag, and receives its components', () => {
+    const removed: Position[] = [];
+
+    class IndexSystem extends ReactionSystem.of(Position, without(DESTROYED)) {
+      protected entityRemoved = (snapshot: EntitySnapshot, position: Position) => {
+        removed.push(position);
+      };
+    }
+
+    const engine = new Engine().addSystem(new IndexSystem());
+    const entity = new Entity().add(new Position(1, 2));
+    engine.addEntity(entity);
+    entity.add(DESTROYED);
+
+    expect(removed).toEqual([entity.get(Position)]);
+  });
+
+  it('Functional systems accept exclusions', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+    engine.iterative([Position, without(DESTROYED)], (entity) => updated.push(entity));
+    const alive = new Entity().add(new Position());
+    engine.addEntity(alive).addEntity(new Entity().add(new Position()).add(DESTROYED));
+    engine.update(1);
+
+    expect(updated).toEqual([alive]);
   });
 });

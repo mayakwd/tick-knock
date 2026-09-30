@@ -1,4 +1,4 @@
-import {Engine, Entity, LinkedComponent, Query, QueryBuilder} from '../../src';
+import {Engine, Entity, LinkedComponent, Query, QueryBuilder, without} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -891,5 +891,86 @@ describe('Clearing a query during iteration', () => {
     expect(visited.length).toBe(2);
     expect(query.length).toBe(2);
     expect(query.entities).toContain(entity);
+  });
+});
+
+describe('Query exclusions', () => {
+  const DESTROYED = 'destroyed';
+
+  it('Entities with an excluded component or tag don\'t match the query', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).without(View, DESTROYED).build();
+    engine.addQuery(query);
+    const moving = new Entity().add(new Position());
+    const viewed = new Entity().add(new Position()).add(new View());
+    const destroyed = new Entity().add(new Position()).add(DESTROYED);
+    engine.addEntity(moving).addEntity(viewed).addEntity(destroyed);
+
+    expect(query.entities).toEqual([moving]);
+  });
+
+  it('Entity leaves the query when it gets an excluded component or tag, and joins it when it loses them', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).without(Stay, DESTROYED).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    const added = jest.fn();
+    const removed = jest.fn();
+    query.onEntityAdded.connect(added);
+    query.onEntityRemoved.connect(removed);
+
+    entity.add(DESTROYED);
+    expect(query.has(entity)).toBeFalsy();
+    expect(removed).toHaveBeenCalledTimes(1);
+
+    entity.add(new Stay());
+    entity.remove(DESTROYED);
+    expect(query.has(entity)).toBeFalsy();
+
+    entity.remove(Stay);
+    expect(query.has(entity)).toBeTruthy();
+    expect(added).toHaveBeenCalledTimes(1);
+  });
+
+  it('Exclusions are listed together with components and tags', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position, without(DESTROYED), View).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position(1, 2)).add(new View());
+    engine.addEntity(entity);
+
+    const callback = jest.fn();
+    query.forEach(callback);
+    expect(callback).toHaveBeenCalledWith(entity, entity.get(Position), entity.get(View));
+
+    entity.add(DESTROYED);
+    expect(query.isEmpty).toBeTruthy();
+  });
+
+  it('Removed entity that had an excluded tag doesn\'t leave the query twice', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    const removed = jest.fn();
+    query.onEntityRemoved.connect(removed);
+
+    entity.add(DESTROYED);
+    engine.removeEntity(entity);
+    expect(removed).toHaveBeenCalledTimes(1);
+  });
+
+  it('Queries matched with existing entities respect exclusions', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position()).add(DESTROYED);
+    engine.addEntity(entity);
+    const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+    engine.addQuery(query);
+    expect(query.isEmpty).toBeTruthy();
+
+    entity.remove(DESTROYED);
+    expect(query.has(entity)).toBeTruthy();
   });
 });

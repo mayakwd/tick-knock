@@ -18,7 +18,46 @@ export type QueryPredicate = (entity: Entity) => boolean;
 export type ComponentType<T = unknown> = abstract new (...args: any[]) => T;
 
 /**
- * Converts a list of component classes and tags to the tuple of component types. Tags are skipped.
+ * Components and tags, that entities must not have to match a query. Created by {@link without}.
+ */
+export class Exclusion {
+  /**
+   * @param componentsOrTags Component classes and tags, that entities must not have
+   */
+  public constructor(public readonly componentsOrTags: ReadonlyArray<ComponentType | Tag>) {}
+}
+
+/**
+ * Excludes entities that have any of the specified components or tags from a query.
+ * It's used together with components and tags, that entities must have, wherever they are listed.
+ *
+ * An entity leaves the query as soon as it gets an excluded component or tag, and joins the query again when
+ * the component or tag is removed.
+ *
+ * @param componentsOrTags Component classes and tags, that entities must not have
+ * @example
+ * ```ts
+ * class MovementSystem extends IterativeSystem.of(Position, Velocity, without(Frozen, DESTROYED)) {
+ *   protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity) {
+ *     // Frozen and destroyed entities don't move
+ *   }
+ * }
+ *
+ * const query = new QueryBuilder().contains(Position).without(DESTROYED).build();
+ * ```
+ */
+export function without(...componentsOrTags: Array<ComponentType | Tag>): Exclusion {
+  return new Exclusion(componentsOrTags);
+}
+
+/**
+ * An item of a query description: a component class or a tag, that entities must have, or an {@link Exclusion} of
+ * components and tags, that entities must not have.
+ */
+export type QueryItem = ComponentType | Tag | Exclusion;
+
+/**
+ * Converts a list of component classes and tags to the tuple of component types. Tags and exclusions are skipped.
  * An array, which length is not known at compile time, is converted to `unknown[]`.
  * @example
  * ```ts
@@ -61,13 +100,14 @@ export class Query<C extends unknown[] = any[]> {
 
   /**
    * @internal
-   * Component identifiers this query depends on. Defined only for queries built by {@link QueryBuilder}.
+   * Component identifiers this query depends on, required and excluded ones.
+   * Defined only for queries built by {@link QueryBuilder}.
    * Engine uses it to skip query validation for unrelated component changes.
    */
   public componentIds?: ReadonlyArray<number>;
   /**
    * @internal
-   * Tags this query depends on. Defined only for queries built by {@link QueryBuilder}.
+   * Tags this query depends on, required and excluded ones. Defined only for queries built by {@link QueryBuilder}.
    */
   public tags?: ReadonlyArray<Tag>;
 
@@ -426,6 +466,17 @@ function isEntity(entity: Entity | undefined): entity is Entity {
   return entity !== undefined;
 }
 
+function hasNone(entity: Entity, components: ReadonlyArray<number>, tags: ReadonlyArray<Tag>): boolean {
+  const entityComponents = entity.components;
+  for (let i = 0; i < components.length; i++) {
+    if (entityComponents[components[i]] !== undefined) return false;
+  }
+  for (let i = 0; i < tags.length; i++) {
+    if (entity.hasTag(tags[i])) return false;
+  }
+  return true;
+}
+
 function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: ReadonlyArray<Tag>): boolean {
   const entityComponents = entity.components;
   for (let i = 0; i < components.length; i++) {
@@ -447,24 +498,30 @@ function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: Readonl
  * const query = new QueryBuilder()
  *  .contains(Position, Velocity)
  *  .contains(HERO)
+ *  .without(DESTROYED)
  *  .build(); // Query<[Position, Velocity]>
  * ```
  */
 export class QueryBuilder<C extends unknown[] = []> {
   private readonly _components: Set<number> = new Set();
   private readonly _tags: Set<Tag> = new Set();
+  private readonly _excludedComponents: Set<number> = new Set();
+  private readonly _excludedTags: Set<Tag> = new Set();
   private readonly _columns: number[] = [];
 
   /**
-   * Specifies components and tags that must be added to entity to be matched
-   * @param componentsOrTags Component classes and tags
+   * Specifies components and tags that must be added to entity to be matched.
+   * Exclusions created by {@link without} can be listed here too.
+   * @param items Component classes, tags and exclusions
    */
-  public contains<T extends Array<ComponentType | Tag>>(...componentsOrTags: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
-    for (const componentOrTag of componentsOrTags) {
-      if (isTag(componentOrTag)) {
-        this._tags.add(componentOrTag);
+  public contains<T extends Array<QueryItem>>(...items: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
+    for (const item of items) {
+      if (item instanceof Exclusion) {
+        this.without(...item.componentsOrTags);
+      } else if (isTag(item)) {
+        this._tags.add(item);
       } else {
-        const componentId = getComponentId(componentOrTag as Class<unknown>, true)!;
+        const componentId = getComponentId(item as Class<unknown>, true)!;
         this._components.add(componentId);
         // Every specified component is passed to callbacks, even if it's specified twice
         this._columns.push(componentId);
@@ -474,14 +531,35 @@ export class QueryBuilder<C extends unknown[] = []> {
   }
 
   /**
+   * Specifies components and tags that entity must not have to be matched
+   * @param componentsOrTags Component classes and tags
+   */
+  public without(...componentsOrTags: Array<ComponentType | Tag>): QueryBuilder<C> {
+    for (const componentOrTag of componentsOrTags) {
+      if (isTag(componentOrTag)) {
+        this._excludedTags.add(componentOrTag);
+      } else {
+        this._excludedComponents.add(getComponentId(componentOrTag as Class<unknown>, true)!);
+      }
+    }
+    return this;
+  }
+
+  /**
    * Build query
    */
   public build(): Query<C> {
     const components = Array.from(this._components);
     const tags = Array.from(this._tags);
-    const query = new Query<C>((entity: Entity) => hasAll(entity, components, tags));
-    query.componentIds = components;
-    query.tags = tags;
+    const excludedComponents = Array.from(this._excludedComponents);
+    const excludedTags = Array.from(this._excludedTags);
+    const query = excludedComponents.length === 0 && excludedTags.length === 0
+      ? new Query<C>((entity: Entity) => hasAll(entity, components, tags))
+      : new Query<C>((entity: Entity) => hasAll(entity, components, tags)
+        && hasNone(entity, excludedComponents, excludedTags));
+    // The query depends on excluded components and tags too: adding or removing them changes whether it matches
+    query.componentIds = Array.from(new Set([...components, ...excludedComponents]));
+    query.tags = Array.from(new Set([...tags, ...excludedTags]));
     query.setColumns(this._columns.slice());
     return query;
   }
