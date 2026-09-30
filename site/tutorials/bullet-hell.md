@@ -156,7 +156,8 @@ When the player becomes invulnerable, a reaction system of `Invulnerable` destro
 keeps in its own query. It doesn't matter what has made the player invulnerable: the reaction follows the component.
 
 Lives belong to the player: the game reads the `Lives` component of the player when it shows the status. The game is
-over when the player is destroyed, and the query of the player is empty.
+over when the player is destroyed, and the query of the player is empty. The system of player hits dispatches
+`GameOver` for the page.
 
 ## Hundreds of bullets on the screen
 

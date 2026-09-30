@@ -1,4 +1,6 @@
+import {Engine} from 'tick-knock';
 import {Application, Container, Ticker} from 'pixi.js';
+import {GameOver} from './GameOver';
 import {Keyboard} from './Keyboard';
 import {Hud} from './render/Hud';
 
@@ -18,8 +20,11 @@ export interface Autopilot {
   update(): void;
 }
 
+/**
+ * A game the demo can start: the demo subscribes to messages of its engine
+ */
 export interface DemoGame {
-  readonly isOver: boolean;
+  readonly engine: Engine;
 }
 
 export interface DemoSettings {
@@ -63,6 +68,10 @@ export abstract class Demo<G extends DemoGame> {
   protected game!: G;
   private hud!: Hud;
   private autopilot!: Autopilot;
+  /**
+   * The message of the end of the game, undefined while the game goes on
+   */
+  private gameOver?: GameOver;
   private overTime = 0;
 
   protected constructor(private readonly settings: DemoSettings) {}
@@ -102,7 +111,7 @@ export abstract class Demo<G extends DemoGame> {
 
     this.keyboard = new Keyboard(canvas, [...keys, 'KeyR']);
     this.keyboard.onPress('KeyR', () => {
-      if (this.game.isOver) this.restart();
+      if (this.gameOver !== undefined) this.restart();
     });
     // A click on the canvas focuses it, so the player takes control from the autopilot
     canvas.addEventListener('pointerdown', this.takeControl);
@@ -160,7 +169,13 @@ export abstract class Demo<G extends DemoGame> {
     for (const child of this.world.removeChildren()) child.destroy({children: true});
     this.game = this.createGame(this.world);
     this.autopilot = this.createAutopilot(this.game);
+    this.gameOver = undefined;
     this.overTime = 0;
+
+    // The game tells when it's over, and the demo shows it
+    this.game.engine.subscribe(GameOver, (message) => {
+      this.gameOver = message;
+    });
   }
 
   private readonly takeControl = () => {
@@ -174,14 +189,19 @@ export abstract class Demo<G extends DemoGame> {
     const playing = this.isPlaying;
     this.hud.setStatus(this.status);
     this.hud.setHint(playing ? this.settings.hint ?? '' : 'Autopilot is playing, click to take control');
-    if (!this.game.isOver) {
+    if (this.gameOver === undefined) {
       this.hud.setMessage('');
       return;
     }
 
-    // The demo restarts by itself after the autopilot has lost
+    // The demo restarts by itself after the autopilot has finished
     this.overTime += dt;
-    if (!playing && this.overTime > (this.settings.restartDelay ?? 2)) this.restart();
-    this.hud.setMessage(playing ? 'Game over\nPress R to restart' : 'Game over');
+    if (!playing && this.overTime > (this.settings.restartDelay ?? 2)) {
+      this.restart();
+      return;
+    }
+
+    const title = this.gameOver.isWon ? 'You win!' : 'Game over';
+    this.hud.setMessage(playing ? `${title}\nPress R to restart` : title);
   };
 }

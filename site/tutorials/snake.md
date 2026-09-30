@@ -141,6 +141,10 @@ its heading, so it doesn't move anymore, and the game is over:
 
 <<< @/../examples/snake/systems/CollisionSystem.ts
 
+The end of the game is important for the world outside of the game: the page shows it, a real game would play a sound.
+That's what [messages](/guide/messages) are for. The system dispatches `GameOver`, and whoever is interested subscribes
+to it, like the [demo](/tutorials/demo). Nothing inside the game needs the message: the snake has already stopped.
+
 The movement system moves the head one cell forward, and leaves a segment behind:
 
 <<< @/../examples/snake/systems/MovementSystem.ts
@@ -151,7 +155,7 @@ the grid keeps a list of entities in every cell. The eaten food is destroyed, an
 <<< @/../examples/snake/systems/EatingSystem.ts
 
 And the spawn system adds new food, when there is no food on the grid. It has its own query of food, so it just checks
-whether the query is empty:
+whether the query is empty. When there are no free cells, the snake has filled the grid, and the player has won:
 
 <<< @/../examples/snake/systems/SpawnSystem.ts
 
@@ -176,7 +180,7 @@ Systems are updated in the order they are added, so the constructor reads the sa
 Where are the score and the end of the game? They are already in entities! Every eaten food makes the snake one segment
 longer, so the score is the length the snake has grown by. The game is over when the head has lost its heading, or
 when the snake has filled the grid, and there is nowhere to put food. The game reads it from its queries, and doesn't
-keep a copy.
+keep a copy. Systems only tell the outside world, when the game is over.
 
 ## Views on the screen
 
@@ -231,5 +235,6 @@ never displayed, and the grid is printed as text.
 - Systems destroy entities with a tag, and the destroy system removes them after the update.
 - Removing a component, that queries and indexes depend on, makes an entity stop taking part in the game immediately.
 - State, that can be read from entities, is read from them, not copied.
+- Messages tell the world outside of the game about important things, like the end of the game.
 
 Next, in [Asteroids](/tutorials/asteroids), the world stops being a grid: things fly, collide, and break apart. 🚀

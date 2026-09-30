@@ -1,4 +1,5 @@
 import {QueryBuilder, System} from 'tick-knock';
+import {GameOver} from '../../shared/GameOver';
 import {Random} from '../../shared/random';
 import {Cell} from '../components';
 import {createFood} from '../entities';
@@ -7,7 +8,7 @@ import {FOOD} from '../tags';
 
 /**
  * Adds food to a random free cell, when there is no food on the grid. When there are no free cells, the snake has
- * filled the grid, and there is nowhere to put food.
+ * filled the grid, and the player has won.
  */
 export class SpawnSystem extends System {
   private readonly food = new QueryBuilder().contains(Cell, FOOD).build();
@@ -30,7 +31,10 @@ export class SpawnSystem extends System {
 
     // The snake has filled the grid
     const free = this.grid.freeCells();
-    if (free.length === 0) return;
+    if (free.length === 0) {
+      this.dispatch(new GameOver(true));
+      return;
+    }
 
     const {x, y} = free[Math.floor(this.random() * free.length)];
     this.engine.addEntity(createFood(x, y));

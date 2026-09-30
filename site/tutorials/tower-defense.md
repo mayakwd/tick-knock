@@ -244,7 +244,8 @@ the game:
 Systems, that change them, receive the economy explicitly: the death system gives gold for a killed creep, and the path
 system takes a life, when a creep escapes.
 
-The game is over when there are no lives left. See [Where to keep game state?](/decisions/game-state) for more about
+The game is over when there are no lives left, and the path system dispatches `GameOver` for the page, when the last
+life is lost. See [Where to keep game state?](/decisions/game-state) for more about
 this choice.
 
 ## Views and input

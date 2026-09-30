@@ -49,21 +49,22 @@ The user interface is not a system. It doesn't take part in the update, and it w
 happened: to show the game over screen, or to play a sound. That's what messages are for:
 
 ```typescript
-// In a system
+// In the collision system of Asteroids
+ship.add(DESTROYED);
 this.dispatch(new GameOver());
 
-// In the user interface
-engine.subscribe(GameOver, () => showGameOverScreen());
+// In the demo, that runs the game in a page
+game.engine.subscribe(GameOver, (message) => {
+  this.gameOver = message;
+});
 ```
 
-The examples don't need messages at all: the user interface reads the game every frame, and the game reads its
-queries. For example, the game of Asteroids is over when there is no ship:
+Every example dispatches `GameOver` from the system, that has noticed the end of the game, and the
+[demo](/tutorials/demo) shows it. Nothing inside the game subscribes to it. The same way a game could tell the outside
+world that points are scored, to play a sound, or that a record is set, to save it.
 
-```typescript
-public get isOver(): boolean {
-  return this.ships.isEmpty;
-}
-```
+What the outside world only reads, like the score in the status line, doesn't need messages: the status line reads it
+every frame.
 
 > 💡 Messages are synchronous: the handler runs inside `dispatch`, maybe in the middle of the update. That's another
 > reason to keep the game logic in systems, where the order is clear.

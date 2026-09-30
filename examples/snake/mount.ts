@@ -17,8 +17,7 @@ class SnakeDemo extends Demo<SnakeGame> {
   }
 
   protected get status(): string {
-    const {score, isWon} = this.game;
-    return isWon ? `Score: ${score}   The snake fills the grid!` : `Score: ${score}`;
+    return `Score: ${this.game.score}`;
   }
 
   protected setup(): void {

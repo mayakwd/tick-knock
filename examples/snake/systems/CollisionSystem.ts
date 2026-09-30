@@ -1,4 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
+import {GameOver} from '../../shared/GameOver';
 import {Cell, Heading} from '../components';
 import {Grid} from '../Grid';
 import {HEAD, SEGMENT} from '../tags';
@@ -19,5 +20,6 @@ export class CollisionSystem extends IterativeSystem.of(Cell, Heading, HEAD) {
 
     // The crashed snake loses its heading, so it doesn't move anymore
     head.remove(Heading);
+    this.dispatch(new GameOver());
   }
 }

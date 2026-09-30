@@ -45,7 +45,7 @@ game/
 
 A view is a component, that factories create together with entities, and the game adds views to the layer it
 receives. pixi.js creates display objects without a renderer, so tests play the games without a browser.
-[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons, the destroy system,
+[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons, the destroy system, the `GameOver` message,
 keyboard input, views and the demo loop, that lets the autopilot play until the player takes control.
 
 # Snake
@@ -62,6 +62,7 @@ What it shows:
 - Entities destroyed with the `DESTROYED` tag, and removed by the shared destroy system.
 - A spawn system, that adds new food when there is no food on the grid.
 - State read from entities: the score is the length of the snake, the game is over when the head can't move.
+- A message (`GameOver`) for the world outside of the game: the page subscribes to it, the game logic doesn't need it.
 - The same game rendered with pixi.js in the browser and as text in the terminal.
 
 # Asteroids

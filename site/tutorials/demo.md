@@ -9,13 +9,21 @@ can focus on the games themselves.
 
 ## The game and the autopilot
 
-The demo works with any game that tells whether it's over:
+The demo works with any game that has an engine:
 
 ```typescript
 export interface DemoGame {
-  readonly isOver: boolean;
+  readonly engine: Engine;
 }
 ```
+
+Why the engine? The demo is the world outside of the game, and the game tells the outside world about important things
+with [messages](/guide/messages). When the game is over, the system, that has noticed it, dispatches `GameOver`:
+
+<<< @/../examples/shared/GameOver.ts
+
+The demo subscribes to it, and shows the message. The game logic doesn't need the message at all: it's only for those,
+who watch the game from outside.
 
 And with an autopilot, that sets controls of the game before every update:
 
@@ -35,11 +43,12 @@ Let's go through it:
 
 - `mount` creates the pixi.js application in the element, and adds layers to the stage: the background, the world with
   views of entities, overlays, and the status line on top.
-- `restart` destroys views of the previous game, and creates a new game with its autopilot.
+- `restart` destroys views of the previous game, creates a new game with its autopilot, and subscribes to `GameOver`.
 - Every frame, `onTick` limits the time of the frame, so the game doesn't jump after the tab was in background, advances
   the game, and updates the status line.
 - `control` gives control to the player while the game is focused, and to the autopilot otherwise.
-- When the autopilot loses, the game restarts by itself. When the player loses, R restarts it.
+- When the game is over, the demo shows it. The game played by the autopilot restarts by itself, the game played by
+  the player is restarted with R.
 
 ## What a game describes
 
@@ -61,8 +70,8 @@ Here is the whole demo of Asteroids:
 `mountAsteroids` starts the demo in an element of a page, and returns a function that stops it. Pages of the examples
 and the documentation start games with such functions.
 
-> 💡 The demo doesn't know anything about ECS. The game is still an engine with systems, and the demo only runs it in
-> a page.
+> 💡 The demo knows almost nothing about ECS. The game is an engine with systems, and the demo only runs it in a page,
+> and listens to its messages.
 
 ## The keyboard
 

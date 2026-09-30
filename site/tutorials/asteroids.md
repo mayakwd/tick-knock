@@ -191,7 +191,7 @@ Systems are updated in the order they are added, so the constructor reads the sa
 7. Destroyed asteroids split.
 
 The game is over when the ship is destroyed and removed: the game has a query of the ship, and checks whether it's
-empty.
+empty. The ship collision system also dispatches `GameOver`, so the page shows the end of the game, as in Snake.
 
 > 💡 Movement is a closure, it uses the size of the screen. Nothing needs to be passed to it.
 

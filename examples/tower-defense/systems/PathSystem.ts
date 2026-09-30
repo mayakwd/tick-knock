@@ -1,5 +1,6 @@
 import {Entity, IterativeSystem} from 'tick-knock';
 import {DESTROYED} from '../../shared/DestroySystem';
+import {GameOver} from '../../shared/GameOver';
 import {moveTowards} from '../../shared/geometry';
 import {Cell, Creep, PathFollower, Position, Slow} from '../components';
 import {Economy} from '../Economy';
@@ -7,7 +8,8 @@ import {cellAt, isSameCell, PATH} from '../map';
 
 /**
  * Moves creeps along the path. A creep that crosses into another cell gets a new `Cell`, so spatial indexes follow it.
- * A creep that has reached the exit escapes: it's destroyed, and the player loses a life.
+ * A creep that has reached the exit escapes: it's destroyed, and the player loses a life. The game is over, when the last
+ * life is lost.
  */
 export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell, Creep) {
   public constructor(private readonly economy: Economy) {
@@ -31,11 +33,15 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell,
     const next = cellAt(position);
     if (!isSameCell(next, cell)) entity.add(next);
 
-    // The creep has escaped
-    if (follower.waypoint === PATH.length) {
-      this.economy.lives = Math.max(0, this.economy.lives - 1);
-      entity.add(DESTROYED);
-    }
+    // The creep is still on the path
+    if (follower.waypoint < PATH.length) return;
+
+    // The creep has escaped, and takes a life, if there are lives left
+    entity.add(DESTROYED);
+    if (this.economy.lives === 0) return;
+
+    this.economy.lives--;
+    if (this.economy.lives === 0) this.dispatch(new GameOver());
   }
 }
 
