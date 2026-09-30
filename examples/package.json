@@ -5,9 +5,9 @@
   "description": "Example games built with tick-knock",
   "license": "MIT",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
     "snake": "tsx snake/terminal.ts",
-    "asteroids": "vite asteroids",
-    "build": "vite build asteroids",
     "typecheck": "tsc --noEmit",
     "test": "tsx tests/smoke.ts"
   },
@@ -16,5 +16,8 @@
     "tsx": "^4.23.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0"
+  },
+  "dependencies": {
+    "pixi.js": "8.21.0"
   }
 }

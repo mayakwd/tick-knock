@@ -1,5 +1,8 @@
 import {QueryBuilder} from 'tick-knock';
-import {Direction, FOOD, HEAD, Heading, Lifetime, Position, SEGMENT, SnakeGame} from './game';
+import {Heading, Lifetime, Position} from '../components';
+import {Direction} from '../Controls';
+import {SnakeGame} from '../game';
+import {FOOD, HEAD, SEGMENT} from '../tags';
 
 const MOVES: Array<[Direction, number, number]> = [['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0]];
 

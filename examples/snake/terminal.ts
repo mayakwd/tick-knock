@@ -6,8 +6,10 @@
  *   pnpm snake --demo   - watch the autopilot play
  */
 import * as readline from 'node:readline';
-import {createAutopilot} from './autopilot';
-import {createSnakeGame, Direction, renderSnakeGame} from './game';
+import {Direction} from './Controls';
+import {createSnakeGame} from './game';
+import {createAutopilot} from './input/autopilot';
+import {renderSnakeGame} from './render/text';
 
 const KEYS: Record<string, Direction> = {
   up: 'up', down: 'down', left: 'left', right: 'right',
