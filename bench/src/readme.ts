@@ -9,11 +9,17 @@
  * Usage: node dist/readme.js <results.json> [README.md]
  */
 import * as fs from 'fs';
+import * as path from 'path';
 import {BencherMetricFormat, MEMORY, THROUGHPUT} from './BencherMetricFormat';
 import {otherLibraries} from './libraries';
 import {Measurement} from './Measure';
 import {Report} from './Report';
 import {scenarios} from './Scenario';
+
+/**
+ * Hardware of the Bencher bare metal runner, the `intel-v1` spec
+ */
+const RUNNER = 'Intel, 4 cores';
 
 const START = '<!-- benchmarks:start -->';
 const END = '<!-- benchmarks:end -->';
@@ -77,13 +83,24 @@ function toMeasurement(results: BencherMetricFormat, name: string): Measurement 
   return {value: metric.value, deviation, samples: 0};
 }
 
+/**
+ * Gets the major version of Node.js the benchmark image runs on, from the last stage of its Dockerfile.
+ * Results are measured in the image, not on the machine that generates the table.
+ */
+function getBenchmarkNodeVersion(): string {
+  const dockerfile = fs.readFileSync(path.join(__dirname, '..', 'Dockerfile'), 'utf8');
+  const versions = Array.from(dockerfile.matchAll(/^FROM node:(\d+)/gm), (match) => match[1]);
+  if (versions.length === 0) throw new Error('Node.js version is not found in the Dockerfile of the benchmark');
+  return versions[versions.length - 1];
+}
+
 function main(): void {
   const [resultsPath, readmePath] = process.argv.slice(2);
   if (resultsPath === undefined) throw new Error('Usage: node dist/readme.js <results.json> [README.md]');
   const {results, date} = readResults(resultsPath);
   const columns = getColumns(results);
-  const environment = `Measured on [Bencher](https://bencher.dev/perf/tick-knock) bare metal runner (Intel, 4 cores), ` +
-    `Node ${process.versions.node.split('.')[0]}${date !== undefined ? `, ${date}` : ''}.`;
+  const environment = `Measured on [Bencher](https://bencher.dev/perf/tick-knock) bare metal runner (${RUNNER}), ` +
+    `Node ${getBenchmarkNodeVersion()}${date !== undefined ? `, ${date}` : ''}.`;
   const report = new Report(columns, environment);
   const lines = [report.header];
   for (const scenario of scenarios) {

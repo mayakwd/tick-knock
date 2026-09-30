@@ -46,7 +46,7 @@ export function createLibrary(descriptor: LibraryDescriptor): Library {
  * Returns a value indicating whether the identifier belongs to one of other libraries
  */
 export function isOtherLibraryId(id: string): id is OtherLibraryId {
-  return id in otherLibraries;
+  return Object.prototype.hasOwnProperty.call(otherLibraries, id);
 }
 
 export * from './Library';

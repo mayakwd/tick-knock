@@ -45,13 +45,15 @@ The result is printed as a markdown table, the best result in every scenario is 
   and after. Array buffers are counted, because libraries with typed array storage allocate memory outside of the heap.
 - Libraries that update queries lazily (Ape-ECS, bitecs) are asked to update them at the end of every operation,
   so every library does the same amount of work.
-- Scenarios can verify their result after the first run, for example that every change was reported to a reactive
-  system. The benchmark fails if the result is wrong, so a library can't win by doing less work.
+- Scenarios can verify their result after the first run: the reactive system scenario checks that every change was
+  reported to the system, and the benchmark fails if the result is wrong. Other scenarios don't verify their results
+  automatically, so adapters must be written with care: for example, becsy updates queries between frames, so adding and
+  removing a component in one frame would never change them, and churn scenarios of becsy use two frames.
 
 # Continuous benchmarking
 
 Results on a developer machine are noisy and can't be compared between machines, so benchmarks also run in CI
-on every push to `develop` and every pull request. [Bencher](https://bencher.dev) runs the whole benchmark, including
+on every push to `develop` and every pull request to `develop` from branches of the repository. [Bencher](https://bencher.dev) runs the whole benchmark, including
 other libraries and the baseline, on a dedicated bare metal machine. The benchmark is packed into an image by
 [Dockerfile](Dockerfile): dependencies and the baseline are installed when the image is built, because the machine
 has no network access. The image runs [bencher.ts](src/bencher.ts), which writes results in
@@ -113,7 +115,7 @@ tick-knock builds that support `IterativeSystem.of` use it in iteration scenario
 | [geotic](https://github.com/ddmills/geotic) | objects | query events are dispatched after removal, so reactions only count removals |
 | [koota](https://github.com/pmndrs/koota) | objects | traits are created with callbacks to store objects, iteration uses `useStores`; query events are dispatched after removal, so reactions only count removals |
 | [miniplex](https://github.com/hmans/miniplex) | objects | entities are plain objects |
-| [sim-ecs](https://github.com/NSSTC/sim-ecs) | objects | entities are created before the run, so churn scenarios are not implemented; every step of the world has noticeable overhead |
+| [sim-ecs](https://github.com/NSSTC/sim-ecs) | objects | entities are created before the run, so churn, spawn/despawn and reactive system scenarios are not implemented; every step of the world has noticeable overhead |
 
 # Adding a scenario
 

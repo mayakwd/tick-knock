@@ -59,6 +59,9 @@ function parseOptions(args: ReadonlyArray<string>): Options {
         break;
       case 'time':
         options.time = Number(value);
+        if (!Number.isFinite(options.time) || options.time <= 0) {
+          throw new Error(`Option --time requires a positive number of milliseconds, got "${value}"`);
+        }
         break;
       case 'format':
         if (value !== 'markdown' && value !== 'json') throw new Error(`Unknown format "${value}", use markdown or json`);

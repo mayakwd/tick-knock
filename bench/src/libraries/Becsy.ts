@@ -253,9 +253,13 @@ async function churn(component: ComponentType): Promise<Benchmark> {
     }
   });
   return {
-    run() {
-      return perform(() => {
+    // Queries are updated between frames, so adding and removing are separate frames:
+    // in one frame the entity would never enter or leave queries
+    async run() {
+      await perform(() => {
         for (const entity of changed) entity.add(component);
+      });
+      await perform(() => {
         for (const entity of changed) entity.remove(component);
       });
     },

@@ -51,7 +51,8 @@ const timer = setTimeout(() => {
   process.exit(1);
 }, deadline * 1000);
 
-child.on('exit', (code, signal) => {
+// 'close' is emitted after the output of the benchmark has been read completely, unlike 'exit'
+child.on('close', (code, signal) => {
   clearTimeout(timer);
   if (code !== 0) {
     process.stderr.write(`${elapsed()} Benchmark failed with ${signal ?? `code ${code}`}\n`);

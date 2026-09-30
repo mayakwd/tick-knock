@@ -1,12 +1,11 @@
 name: Publish to NPM
 
+# Publishes a release to npm when a version tag is pushed, for example v5.0.0
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
       - v*
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -51,14 +50,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME doesn't match version $version in package.json"
+            exit 1
+          fi
+
       - name: Build
         run: pnpm build
 
       - name: Run tests
         run: pnpm test-ci
-
-      - name: Pack
-        run: pnpm pack
 
       - name: Publish to NPM
         # Tags are checked out in detached HEAD state, so git checks are skipped

@@ -12,14 +12,17 @@ on:
   pull_request:
     branches: [ develop ]
 
+# Runs of pull requests are replaced by newer ones, runs of the default branch are kept, so its history has no gaps
 concurrency:
   group: bencher-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   benchmark:
-    # Secrets are not available to pull requests from forks
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Secrets are not available to pull requests from forks and from Dependabot
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,8 +35,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The version is pinned, options of `bencher run` below are checked against it
       - name: Install Bencher CLI
-        uses: bencherdev/bencher@main
+        uses: bencherdev/bencher@f80847436d7157936b40525db4c2a1064124f04a # v0.6.13
+        with:
+          version: 0.6.13
 
       - name: Build benchmark image
         run: docker build -f bench/Dockerfile -t "registry.bencher.dev/$IMAGE" .

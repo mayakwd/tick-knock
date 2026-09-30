@@ -1058,8 +1058,8 @@ pnpm bench --baseline 4.3.0         # also benchmark a published tick-knock vers
 pnpm bench --filter iterate         # run only matching scenarios
 ```
 
-Benchmarks also run in CI on dedicated hardware with [Bencher](https://bencher.dev), so every pull request shows how
-it affects performance. Results of the latest measurement:
+Benchmarks also run in CI on dedicated hardware with [Bencher](https://bencher.dev), so every pull request to `develop`
+shows how it affects performance. Results of the latest measurement:
 
 <!-- benchmarks:start -->
 

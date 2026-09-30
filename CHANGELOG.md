@@ -91,13 +91,15 @@ Fixes:
 
 Tooling:
 
-- Continuous benchmarking: Bencher runs the benchmark on bare metal on every push and pull request.
+- Continuous benchmarking: Bencher runs the benchmark on bare metal on every push to `develop` and pull request to it.
   `pnpm bench` gained `--format json` (Bencher Metric Format) and `--prepare` options.
 - Migrated from yarn to pnpm. The repository is a pnpm workspace with the library, benchmarks and examples.
 - Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
 - Compilation target is ES2017, which the library already required at runtime (`Object.values`).
 - CI runs on Node.js 22 and 24. Stale Travis CI configuration is removed.
+- The package is published to npm only when a version tag is pushed, and the tag must match the version in
+  `package.json`.
 - Development dependencies are updated: Jest 30, types of Node.js 22. The yarn lockfile, which had vulnerable
   development dependencies, is replaced by the pnpm one.
 
