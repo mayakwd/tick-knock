@@ -2,9 +2,9 @@
 
 **Short answer:**
 
-- Logic for every entity with some components, without state or dependencies — a functional system,
-  `engine.iterative`.
-- The same, but with dependencies or state — `IterativeSystem.of(...)`.
+- Small logic for every entity with some components — a functional system, `engine.iterative`, written right where
+  it's added to the engine.
+- Bigger logic, or logic with its own state — `IterativeSystem.of(...)` in its own file.
 - Logic that runs when entities appear or disappear — `engine.reactive` or `ReactionSystem.of(...)`.
 - Logic that works with several queries at once, or with no entities at all — `System`.
 
@@ -19,12 +19,18 @@ engine.iterative([Lifetime], (entity, dt, lifetime) => {
 });
 ```
 
-A functional system can live in its own file as a function returning `IterativeUpdate`, and receive what it needs as
-arguments, like `movement(width, height)` in [Asteroids](/tutorials/asteroids).
+That's what the builder is for: a system of a few lines is written in place, next to the other systems of the game,
+and the whole game loop is seen at once. A functional system is a closure, so it uses anything in scope without
+passing it around: the engine, the size of the screen, a query of the player, like the aimed pattern in the
+[Bullet hell](/tutorials/bullet-hell).
+
+> 💡 Don't move a small system into its own file just to make the game file shorter. When a system grows, or gets its
+> own state, make it a class.
 
 ## Class-based iterative systems
 
-When a system has dependencies, like controls or a random number generator, or its own state, it's a class:
+When a system is bigger, or has its own state, it's a class in its own file. Its dependencies, like controls, are
+passed to the constructor:
 
 ```typescript
 class ShipControlSystem extends IterativeSystem.of(Ship, Position, Velocity, Rotation) {
@@ -38,8 +44,7 @@ class ShipControlSystem extends IterativeSystem.of(Ship, Position, Velocity, Rot
 }
 ```
 
-A class is also needed when the system has additional queries: they are added to the engine in `onAddedToEngine`,
-like the query of the player in the emitter system of the [Bullet hell](/tutorials/bullet-hell).
+When a class needs additional queries, it adds them to the engine in `onAddedToEngine`.
 
 ## Reaction systems
 

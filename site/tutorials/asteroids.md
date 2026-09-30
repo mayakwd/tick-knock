@@ -81,19 +81,21 @@ visit entities added during its own iteration: they are updated starting from th
 Now the delta time matters. `engine.update(dt)` passes the time since the previous frame to every system, and systems
 move things by `velocity * dt`, so the game runs at the same speed on any frame rate.
 
-<<< @/../examples/asteroids/systems/movement.ts
+Movement is written in place, together with the other systems of the game:
 
-These are three functional systems:
+<<< @/../examples/asteroids/game.ts#systems
+
+There are three functional systems:
 
 - `movement` works for every entity with `Position` and `Velocity`: the ship, asteroids and bullets. One system,
   three kinds of entities, because they share the same components.
 - `spin` is registered with `[Rotation, Velocity, Asteroid]`. The ship has a rotation and a velocity too, but only
   asteroids spin, so the `Asteroid` component is added to the query. It's passed to the function as the third
   component, the function just doesn't declare a parameter for it, but it still filters entities.
-- `expiration` removes entities when their lifetime is over.
+- `lifetime` removes entities when their lifetime is over.
 
-> 💡 A functional system can be written in its own file as a function returning `IterativeUpdate`. Then the game file
-> only registers it: `engine.iterative([Position, Velocity], movement(width, height))`.
+> 💡 Functional systems are closures: `movement` uses the size of the screen and `lifetime` uses the engine, and
+> nothing is passed to them. Keep them in place while they are small, and make a class when a system grows.
 
 ## Collisions and safe removal
 
@@ -165,7 +167,7 @@ doesn't care who plays it.
 ## What we've learned
 
 - Systems move things by `velocity * dt`, so the game doesn't depend on the frame rate.
-- Functional systems can live in their own files, and be registered in one line.
+- Small functional systems are written in place, and use what they need from the scope.
 - Queries filter by components the system doesn't read: `spin` only rotates asteroids.
 - Removed entities stay in queries until the end of the update. To take an entity out of queries immediately, remove
   the component they depend on.

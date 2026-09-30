@@ -69,15 +69,17 @@ entities reads like a description of the game:
 
 Now the logic. Every tick the head leaves a segment behind and moves one cell forward. It's a small piece of logic
 without any state, so it doesn't need a class: a [functional system](/guide/built-in-systems#functional-systems) is
-enough.
+enough. Such systems are written right where they are added to the engine, together with the other systems of the
+game:
 
-<<< @/../examples/snake/systems/movement.ts
+<<< @/../examples/snake/game.ts#systems
 
-`movement` returns an `IterativeUpdate<[Position, Heading, Body]>`, a function that receives an entity, the delta time
-and components of the entity. It's called for every entity that has all three components, which is only the head.
-The engine is passed to the function, because it adds and removes entities.
+`engine.iterative([Position, Heading, Body], ...)` adds a system with a function, that receives an entity, the delta
+time and components of the entity. It's called for every entity that has all three components, which is only the
+head. The function is a closure, so it uses the engine to add segments without passing it anywhere.
 
-`aging` counts down the lifetime of segments, and removes a segment when its time is over.
+`aging` counts down the lifetime of segments, and removes a segment when its time is over. The other systems are
+explained below.
 
 > ❗ Segments are removed while the engine is being updated. Tick-Knock doesn't remove them immediately: entities
 > removed during the update are removed after all systems have been updated. That's why the collision system below

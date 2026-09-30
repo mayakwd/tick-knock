@@ -2,9 +2,9 @@ import {Engine, QueryBuilder} from 'tick-knock';
 import {Random} from '../shared/random';
 import {Body, Heading, Lifetime, Position} from './components';
 import {Controls} from './Controls';
-import {createFood, createHead} from './entities';
+import {createFood, createHead, createSegment} from './entities';
 import {FoodEaten, GameOver} from './messages';
-import {aging, CollisionSystem, movement, SteeringSystem} from './systems';
+import {CollisionSystem, SteeringSystem} from './systems';
 import {FOOD} from './tags';
 
 export interface SnakeGameOptions {
@@ -72,13 +72,23 @@ export function createSnakeGame({width, height, random = Math.random, setup}: Sn
     engine.addEntity(createFood(x, y));
   };
 
+  // #region systems
   engine
     .addSystem(new SteeringSystem(controls), {priority: Priority.Steering, id: 'steering'})
-    .iterative([Position, Heading, Body], movement(engine), {priority: Priority.Movement, id: 'movement'})
-    .iterative([Lifetime], aging(engine), {priority: Priority.Aging, id: 'aging'})
+    // The head leaves a segment behind, which lives as many ticks as long the snake is, and moves one cell forward
+    .iterative([Position, Heading, Body], (head, dt, position, heading, body) => {
+      engine.addEntity(createSegment(position.x, position.y, body.length));
+      position.x += heading.dx;
+      position.y += heading.dy;
+    }, {priority: Priority.Movement, id: 'movement'})
+    // Segments disappear when their lifetime is over
+    .iterative([Lifetime], (segment, dt, lifetime) => {
+      if (--lifetime.ticks <= 0) engine.removeEntity(segment);
+    }, {priority: Priority.Aging, id: 'aging'})
     .addSystem(new CollisionSystem(width, height), {priority: Priority.Collisions, id: 'collisions'})
     // Every time food is eaten, a new one appears
     .reactive([Position, FOOD], {removed: spawnFood}, {id: 'food-spawner'});
+  // #endregion systems
 
   engine.subscribe(FoodEaten, () => score++);
   engine.subscribe(GameOver, () => {

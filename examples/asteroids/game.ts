@@ -5,7 +5,7 @@ import {ASTEROID_POINTS} from './config';
 import {Controls} from './Controls';
 import {createAsteroid, createShip} from './entities';
 import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {CollisionSystem, expiration, movement, ShipControlSystem, spin, WaveSystem} from './systems';
+import {CollisionSystem, ShipControlSystem, WaveSystem} from './systems';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -77,13 +77,26 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
     }
   };
 
+  // #region systems
   engine
     .addSystem(new ShipControlSystem(controls), {priority: Priority.Control, id: 'ship-control'})
-    .iterative([Position, Velocity], movement(width, height), {priority: Priority.Movement, id: 'movement'})
-    .iterative([Rotation, Velocity, Asteroid], spin, {priority: Priority.Movement, id: 'spin'})
-    .iterative([Lifetime], expiration(engine), {priority: Priority.Lifetime, id: 'lifetime'})
+    // Everything that has a velocity moves, and wraps around the edges of the screen
+    .iterative([Position, Velocity], (entity, dt, position, velocity) => {
+      position.x = wrap(position.x + velocity.x * dt, width);
+      position.y = wrap(position.y + velocity.y * dt, height);
+    }, {priority: Priority.Movement, id: 'movement'})
+    // Asteroids slowly spin in the direction they fly
+    .iterative([Rotation, Velocity, Asteroid], (entity, dt, rotation, velocity) => {
+      rotation.angle += Math.sign(velocity.x) * dt;
+    }, {priority: Priority.Movement, id: 'spin'})
+    // Bullets disappear when their lifetime is over
+    .iterative([Lifetime], (entity, dt, lifetime) => {
+      lifetime.seconds -= dt;
+      if (lifetime.seconds <= 0) engine.removeEntity(entity);
+    }, {priority: Priority.Lifetime, id: 'lifetime'})
     .addSystem(new CollisionSystem(split), {priority: Priority.Collisions, id: 'collisions'})
     .addSystem(new WaveSystem(spawnWave, () => isOver), {id: 'waves'});
+  // #endregion systems
 
   engine.subscribe(AsteroidDestroyed, ({size}) => {
     score += ASTEROID_POINTS[size];
@@ -114,4 +127,8 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
       engine.update(dt);
     },
   };
+}
+
+function wrap(value: number, size: number): number {
+  return ((value % size) + size) % size;
 }
