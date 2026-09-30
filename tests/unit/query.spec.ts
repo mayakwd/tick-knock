@@ -705,7 +705,7 @@ describe('Query indexing', () => {
   });
 });
 
-describe('Query columns', () => {
+describe('Query forEach', () => {
   class Health {
     public constructor(public value: number = 0) {}
   }
@@ -718,66 +718,93 @@ describe('Query columns', () => {
 
   function setup() {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().contains(Position, 'tag', Health).build();
     engine.addQuery(query);
-    const entities = [0, 1, 2].map((i) => new Entity().add(new Position(i, i)));
+    const entities = [0, 1, 2].map((i) => new Entity().add(new Position(i, i)).add(new Health(i)).add('tag'));
     entities.forEach((entity) => engine.addEntity(entity));
     return {engine, query, entities};
   }
 
-  it('Column is aligned with entities', () => {
+  function collect<C extends unknown[]>(query: Query<C>): Array<[Entity, ...C]> {
+    const result: Array<[Entity, ...C]> = [];
+    query.forEach((entity, ...components) => result.push([entity, ...components]));
+    return result;
+  }
+
+  it('Passes entity and its components in the order they were specified, skipping tags', () => {
     const {query, entities} = setup();
-    const positions = query.column(Position);
-    expect(positions.length).toBe(3);
-    query.entities.forEach((entity, i) => expect(positions[i]).toBe(entity.get(Position)));
-    entities[1].remove(Position);
-    const updated = query.column(Position);
-    expect(updated).toEqual([entities[0].get(Position), entities[2].get(Position)]);
+    expect(collect(query)).toEqual(entities.map((entity) => [entity, entity.get(Position), entity.get(Health)]));
   });
 
-  it('Column contains undefined for entities without the component', () => {
+  it('Keeps order of entities after removal', () => {
+    const {query, entities} = setup();
+    entities[1].remove(Health);
+    expect(collect(query).map(([entity]) => entity)).toEqual([entities[0], entities[2]]);
+    expect(query.entities).toEqual([entities[0], entities[2]]);
+    entities[1].add(new Health());
+    expect(query.entities).toEqual([entities[0], entities[2], entities[1]]);
+  });
+
+  it('Passes replaced component', () => {
     const {query, entities} = setup();
     const health = new Health(10);
-    entities[1].add(health);
-    expect(query.column(Health)).toEqual([undefined, health, undefined]);
+    entities[0].add(health);
+    expect(collect(query).find(([entity]) => entity === entities[0])![2]).toBe(health);
   });
 
-  it('Column is updated when component is replaced without changing query membership', () => {
-    const {query, entities} = setup();
-    entities[0].add(new Health(1));
-    expect(query.column(Health)[0]!.value).toBe(1);
-    const replacement = new Health(2);
-    entities[0].add(replacement);
-    expect(query.column(Health)[0]).toBe(replacement);
-    const position = new Position(5, 5);
-    entities[2].add(position);
-    expect(query.column(Position)[2]).toBe(position);
+  it('Passes the head of linked components', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Buff).build();
+    engine.addQuery(query);
+    const entity = new Entity().append(new Buff(1)).append(new Buff(2));
+    engine.addEntity(entity);
+    expect(collect(query)[0][1]).toBe(entity.get(Buff));
+    entity.pick(entity.get(Buff)!);
+    expect(collect(query)[0][1]).toBe(entity.get(Buff));
   });
 
-  it('Column of linked components contains the head of the list', () => {
-    const {query, entities} = setup();
-    const first = new Buff(1);
-    const second = new Buff(2);
-    entities[0].append(first).append(second);
-    expect(query.column(Buff)[0]).toBe(entities[0].get(Buff));
-    entities[0].pick(entities[0].get(Buff)!);
-    expect(query.column(Buff)[0]).toBe(entities[0].get(Buff));
+  it('Skips entities removed during iteration and visits added ones in the next call', () => {
+    const {engine, query, entities} = setup();
+    const added = new Entity().add(new Position()).add(new Health()).add('tag');
+    const visited: Entity[] = [];
+    query.forEach((entity) => {
+      visited.push(entity);
+      if (entity === entities[0]) {
+        engine.removeEntity(entities[1]);
+        engine.addEntity(added);
+      }
+    });
+    expect(visited).toEqual([entities[0], entities[2]]);
+    expect(collect(query).map(([entity]) => entity)).toEqual([entities[0], entities[2], added]);
   });
 
-  it('Column is a snapshot and is reused while nothing changes', () => {
-    const {query, entities} = setup();
-    const positions = query.column(Position);
-    expect(query.column(Position)).toBe(positions);
-    entities[0].remove(Position);
-    expect(positions.length).toBe(3);
-    expect(query.column(Position).length).toBe(2);
+  it('Predicate query passes only entities', () => {
+    const {engine, entities} = setup();
+    const query = new Query((entity) => entity.has(Position));
+    engine.addQuery(query);
+    const visited: unknown[][] = [];
+    query.forEach((...args) => visited.push(args));
+    expect(visited).toEqual(entities.map((entity) => [entity]));
   });
 
-  it('Column is empty after query is cleared', () => {
+  it('Infers types of components', () => {
+    const query = new QueryBuilder().contains(Position).contains('tag', Health).build();
+    query.forEach((entity: Entity, position: Position, health: Health) => {
+      position.x = health.value;
+    });
+    // @ts-expect-error components are passed in the specified order
+    query.forEach((entity: Entity, health: Health, position: Position) => undefined);
+    // Typed query can be used where a query with unknown components is expected
+    const untyped: Query = query;
+    expect(untyped).toBe(query);
+  });
+
+  it('Is empty after query is cleared', () => {
     const {engine, query} = setup();
-    expect(query.column(Position).length).toBe(3);
     engine.removeQuery(query);
-    expect(query.column(Position).length).toBe(0);
+    expect(collect(query)).toEqual([]);
+    expect(query.length).toBe(0);
+    expect(query.first).toBeUndefined();
   });
 });
 

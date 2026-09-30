@@ -1,4 +1,4 @@
-import {getComponentId, getComponentVersion} from './ComponentId';
+import {getComponentId} from './ComponentId';
 import {Entity, EntitySnapshot} from './Entity';
 import {isTag, Tag} from './Tag';
 import {Signal} from '../utils/Signal';
@@ -12,10 +12,38 @@ import {Class} from '../utils/Class';
 export type QueryPredicate = (entity: Entity) => boolean;
 
 /**
+ * Any class, including abstract ones, that can be used as a component type.
+ */
+export type ComponentType<T = unknown> = abstract new (...args: any[]) => T;
+
+/**
+ * Converts a list of component classes and tags to the tuple of component types. Tags are skipped.
+ * @example
+ * ```ts
+ * type Components = ComponentsOf<[typeof Position, 'hero', typeof Velocity]>; // [Position, Velocity]
+ * ```
+ */
+export type ComponentsOf<T extends ReadonlyArray<unknown>> =
+  T extends readonly [infer Head, ...infer Tail]
+    ? Head extends ComponentType<infer Instance> ? [Instance, ...ComponentsOf<Tail>] : ComponentsOf<Tail>
+    : [];
+
+/**
+ * Callback that receives an entity of the query and its components.
+ */
+export type QueryCallback<C extends unknown[]> = (entity: Entity, ...components: C) => void;
+
+/**
  * Query represents list of entities that matches query request.
+ *
+ * Queries built by {@link QueryBuilder} know component types they contain, so they store components of their
+ * entities next to each other in memory and pass them to {@link forEach} and {@link IterativeSystem} callbacks.
+ *
+ * @typeParam C Types of components passed to {@link forEach}, inferred by {@link QueryBuilder}.
+ *  `Query` without type arguments means a query with unknown components, any typed query can be assigned to it.
  * @see QueryBuilder
  */
-export class Query {
+export class Query<C extends unknown[] = any[]> {
   /**
    * Signal dispatches if new matched entity were added
    */
@@ -24,13 +52,6 @@ export class Query {
    * Signal dispatches if entity stops matching query
    */
   public onEntityRemoved: Signal<(snapshot: EntitySnapshot) => void> = new Signal();
-
-  private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
-  private readonly _predicate: QueryPredicate;
-  private readonly _entities: Set<Entity> = new Set();
-  private _entitiesCache: Entity[] | undefined;
-  private _version: number = 0;
-  private readonly _columns: Map<number, QueryColumn> = new Map();
 
   /**
    * @internal
@@ -43,6 +64,18 @@ export class Query {
    * Tags this query depends on. Defined only for queries built by {@link QueryBuilder}.
    */
   public tags?: ReadonlyArray<Tag>;
+
+  private readonly _snapshot: EntitySnapshot = new EntitySnapshot();
+  private readonly _predicate: QueryPredicate;
+  // Entities in the order they were added. Removed entities leave holes, which are compacted when it's safe.
+  private _dense: Array<Entity | undefined> = [];
+  // Components of the entities, aligned with the dense list, one array per component type of the query
+  private _columns: unknown[][] = [];
+  private _columnIds: ReadonlyArray<number> = [];
+  private readonly _slots: Map<Entity, number> = new Map();
+  private _holes: number = 0;
+  private _iterations: number = 0;
+  private _entitiesCache: Entity[] | undefined;
 
   /**
    * Initializes Query instance
@@ -58,58 +91,9 @@ export class Query {
    */
   public get entities(): ReadonlyArray<Entity> {
     if (this._entitiesCache === undefined) {
-      this._entitiesCache = Array.from(this._entities);
+      this._entitiesCache = this._dense.filter(isEntity);
     }
     return this._entitiesCache;
-  }
-
-  /**
-   * Returns components of the specified class for every entity of the query.
-   * The result is aligned with {@link entities}: `column(Position)[i]` is the component of `entities[i]`.
-   * For linked components it contains the first component of the list.
-   * If an entity has no such component, the corresponding value is `undefined`.
-   *
-   * Iterating over columns is much faster than calling `entity.get` for every entity,
-   * because component references are stored contiguously in memory.
-   * The same as {@link entities}, the column is a snapshot, rebuilt lazily after the query or
-   * components of the class have been changed.
-   *
-   * @example
-   * ```ts
-   * const positions = query.column(Position);
-   * const velocities = query.column(Velocity);
-   * for (let i = 0; i < positions.length; i++) {
-   *   positions[i].x += velocities[i].x;
-   * }
-   * ```
-   */
-  public column<T>(componentClass: Class<T>): ReadonlyArray<T> {
-    const id = getComponentId(componentClass, true)!;
-    const componentVersion = getComponentVersion(id);
-    let column = this._columns.get(id);
-    if (column === undefined) {
-      column = {queryVersion: -1, componentVersion: -1, components: []};
-      this._columns.set(id, column);
-    }
-    if (column.queryVersion !== this._version || column.componentVersion !== componentVersion) {
-      const entities = this.entities;
-      const components = new Array(entities.length);
-      for (let i = 0; i < entities.length; i++) {
-        components[i] = entities[i].components[id];
-      }
-      column.components = components;
-      column.queryVersion = this._version;
-      column.componentVersion = componentVersion;
-    }
-    return column.components as T[];
-  }
-
-  /**
-   * @internal
-   * Value that changes every time the list of entities is changed.
-   */
-  public get version(): number {
-    return this._version;
   }
 
   /**
@@ -117,8 +101,11 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get first(): Entity | undefined {
-    if (this._entities.size === 0) return undefined;
-    return this._entities.values().next().value;
+    const dense = this._dense;
+    for (let i = 0; i < dense.length; i++) {
+      if (dense[i] !== undefined) return dense[i];
+    }
+    return undefined;
   }
 
   /**
@@ -126,9 +113,11 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get last(): Entity | undefined {
-    if (this._entities.size === 0) return undefined;
-    const entities = this.entities;
-    return entities[entities.length - 1];
+    const dense = this._dense;
+    for (let i = dense.length - 1; i >= 0; i--) {
+      if (dense[i] !== undefined) return dense[i];
+    }
+    return undefined;
   }
 
   /**
@@ -136,7 +125,78 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public get length(): number {
-    return this._entities.size;
+    return this._slots.size;
+  }
+
+  /**
+   * Gets a value indicating that query is empty
+   */
+  public get isEmpty(): boolean {
+    return this._slots.size === 0;
+  }
+
+  /**
+   * Invokes the callback for every entity of the query, passing the entity and its components.
+   * Components are passed in the order they were specified in {@link QueryBuilder.contains}, tags are skipped.
+   *
+   * It's safe to add or remove entities and components during iteration: removed entities are skipped,
+   * entities added to the query during iteration are visited in the next call.
+   *
+   * @example
+   * ```ts
+   * const query = new QueryBuilder().contains(Position, Velocity).build();
+   * query.forEach((entity, position, velocity) => {
+   *   position.x += velocity.x;
+   * });
+   * ```
+   */
+  public forEach(callback: QueryCallback<C>): void {
+    // Components are stored untyped, their types are guaranteed by QueryBuilder
+    const call = callback as unknown as (entity: Entity, ...components: unknown[]) => void;
+    const dense = this.beginIteration();
+    const columns = this._columns;
+    const length = dense.length;
+    try {
+      switch (columns.length) {
+        case 0:
+          for (let i = 0; i < length; i++) {
+            const entity = dense[i];
+            if (entity !== undefined) call(entity);
+          }
+          break;
+        case 1: {
+          const [a] = columns;
+          for (let i = 0; i < length; i++) {
+            const entity = dense[i];
+            if (entity !== undefined) call(entity, a[i]);
+          }
+          break;
+        }
+        case 2: {
+          const [a, b] = columns;
+          for (let i = 0; i < length; i++) {
+            const entity = dense[i];
+            if (entity !== undefined) call(entity, a[i], b[i]);
+          }
+          break;
+        }
+        case 3: {
+          const [a, b, c] = columns;
+          for (let i = 0; i < length; i++) {
+            const entity = dense[i];
+            if (entity !== undefined) call(entity, a[i], b[i], c[i]);
+          }
+          break;
+        }
+        default:
+          for (let i = 0; i < length; i++) {
+            const entity = dense[i];
+            if (entity !== undefined) call(entity, ...columns.map((column) => column[i]));
+          }
+      }
+    } finally {
+      this.endIteration();
+    }
   }
 
   /**
@@ -146,8 +206,8 @@ export class Query {
    */
   public countBy(predicate: QueryPredicate): number {
     let result = 0;
-    for (const entity of this._entities) {
-      if (predicate(entity)) result++;
+    for (const entity of this._dense) {
+      if (entity !== undefined && predicate(entity)) result++;
     }
     return result;
   }
@@ -159,8 +219,8 @@ export class Query {
    * @returns {Entity | undefined}
    */
   public find(predicate: QueryPredicate): Entity | undefined {
-    for (const entity of this._entities) {
-      if (predicate(entity)) return entity;
+    for (const entity of this._dense) {
+      if (entity !== undefined && predicate(entity)) return entity;
     }
     return undefined;
   }
@@ -173,8 +233,8 @@ export class Query {
    */
   public filter(predicate: QueryPredicate): Entity[] {
     const result: Entity[] = [];
-    for (const entity of this._entities) {
-      if (predicate(entity)) result.push(entity);
+    for (const entity of this._dense) {
+      if (entity !== undefined && predicate(entity)) result.push(entity);
     }
     return result;
   }
@@ -185,7 +245,7 @@ export class Query {
    * @returns {boolean}
    */
   public has(entity: Entity): boolean {
-    return this._entities.has(entity);
+    return this._slots.has(entity);
   }
 
   /**
@@ -201,20 +261,52 @@ export class Query {
   }
 
   /**
-   * Gets a value indicating that query is empty
-   */
-  public get isEmpty(): boolean {
-    return this._entities.size === 0;
-  }
-
-  /**
    * Clears the list of entities of the query
    */
   public clear(): void {
-    this._entities.clear();
+    this._dense = [];
+    this._columns = this._columnIds.map(() => []);
+    this._slots.clear();
+    this._holes = 0;
     this._entitiesCache = undefined;
-    this._columns.clear();
-    this._version++;
+  }
+
+  /**
+   * @internal
+   * Sets component types, which components are stored by the query and passed to callbacks
+   */
+  public setColumns(componentIds: ReadonlyArray<number>): void {
+    this._columnIds = componentIds;
+    this._columns = componentIds.map((id) => this._dense.map((entity) => entity?.components[id]));
+  }
+
+  /**
+   * @internal
+   * Starts iteration over the dense list of entities. Holes are not compacted until the iteration ends,
+   * so indices of the dense list and columns stay valid.
+   * @returns Dense list of entities, that can contain holes
+   */
+  public beginIteration(): ReadonlyArray<Entity | undefined> {
+    if (this._iterations === 0 && this._holes > 0) {
+      this.compact();
+    }
+    this._iterations++;
+    return this._dense;
+  }
+
+  /**
+   * @internal
+   */
+  public endIteration(): void {
+    this._iterations--;
+  }
+
+  /**
+   * @internal
+   * Components of entities, aligned with the dense list returned by {@link beginIteration}
+   */
+  public get columns(): ReadonlyArray<ReadonlyArray<unknown>> {
+    return this._columns;
   }
 
   /**
@@ -228,7 +320,7 @@ export class Query {
    * @internal
    */
   public entityAdded = (entity: Entity) => {
-    if (!this._entities.has(entity) && this._predicate(entity)) {
+    if (!this._slots.has(entity) && this._predicate(entity)) {
       this.add(entity);
     }
   };
@@ -237,7 +329,7 @@ export class Query {
    * @internal
    */
   public entityRemoved = (entity: Entity) => {
-    if (this._entities.has(entity)) {
+    if (this._slots.has(entity)) {
       this.delete(entity);
     }
   };
@@ -260,19 +352,27 @@ export class Query {
   private readonly emitRemoved = (snapshot: EntitySnapshot) => this.onEntityRemoved.emit(snapshot);
 
   private revalidate<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
-    const isMember = this._entities.has(entity);
+    const slot = this._slots.get(entity);
     const isMatch = this._predicate(entity);
-    if (!isMember && isMatch) {
-      this.add(entity, changed, changedClass);
-    } else if (isMember && !isMatch) {
+    if (slot === undefined) {
+      if (isMatch) this.add(entity, changed, changedClass);
+    } else if (!isMatch) {
       this.delete(entity, changed, changedClass);
+    } else {
+      // Entity stays in the query, but its components could be replaced, for example the head of linked components
+      this.updateColumns(entity, slot);
     }
   }
 
   private add<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
-    this._entities.add(entity);
+    const slot = this._dense.length;
+    this._dense.push(entity);
+    const columns = this._columns;
+    for (let i = 0; i < columns.length; i++) {
+      columns[i].push(entity.components[this._columnIds[i]]);
+    }
+    this._slots.set(entity, slot);
     this._entitiesCache = undefined;
-    this._version++;
     if (this.onEntityAdded.hasHandlers) {
       entity.takeSnapshot(this._snapshot, changed, changedClass);
       this._snapshot.dispatch(this.emitAdded);
@@ -280,20 +380,61 @@ export class Query {
   }
 
   private delete<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
-    this._entities.delete(entity);
+    const slot = this._slots.get(entity)!;
+    this._dense[slot] = undefined;
+    const columns = this._columns;
+    for (let i = 0; i < columns.length; i++) {
+      columns[i][slot] = undefined;
+    }
+    this._slots.delete(entity);
+    this._holes++;
     this._entitiesCache = undefined;
-    this._version++;
+    // Keep memory bounded if the query is changed much more often than iterated
+    if (this._iterations === 0 && this._holes > this._dense.length / 2) {
+      this.compact();
+    }
     if (this.onEntityRemoved.hasHandlers) {
       entity.takeSnapshot(this._snapshot, changed, changedClass);
       this._snapshot.dispatch(this.emitRemoved);
     }
   }
+
+  private updateColumns(entity: Entity, slot: number): void {
+    const columns = this._columns;
+    for (let i = 0; i < columns.length; i++) {
+      columns[i][slot] = entity.components[this._columnIds[i]];
+    }
+  }
+
+  /**
+   * Removes holes from the dense list and columns, keeping the order of entities
+   */
+  private compact(): void {
+    const dense = this._dense;
+    const columns = this._columns;
+    let target = 0;
+    for (let source = 0; source < dense.length; source++) {
+      const entity = dense[source];
+      if (entity === undefined) continue;
+      if (target !== source) {
+        dense[target] = entity;
+        for (let i = 0; i < columns.length; i++) {
+          columns[i][target] = columns[i][source];
+        }
+        this._slots.set(entity, target);
+      }
+      target++;
+    }
+    dense.length = target;
+    for (let i = 0; i < columns.length; i++) {
+      columns[i].length = target;
+    }
+    this._holes = 0;
+  }
 }
 
-interface QueryColumn {
-  queryVersion: number;
-  componentVersion: number;
-  components: unknown[];
+function isEntity(entity: Entity | undefined): entity is Entity {
+  return entity !== undefined;
 }
 
 function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: ReadonlyArray<Tag>): boolean {
@@ -308,47 +449,51 @@ function hasAll(entity: Entity, components: ReadonlyArray<number>, tags: Readonl
 }
 
 /**
- * Query builder, helps to create queries
+ * Query builder, helps to create queries.
+ * Types of components are inferred, so they are passed to {@link Query.forEach} and {@link IterativeSystem}
+ * with correct types.
+ *
  * @example
+ * ```ts
  * const query = new QueryBuilder()
- *  .contains(Position)
- *  .contains(Acceleration)
- *  .contains(TorqueForce)
- *  .build();
+ *  .contains(Position, Velocity)
+ *  .contains(HERO)
+ *  .build(); // Query<[Position, Velocity]>
+ * ```
  */
-export class QueryBuilder {
+export class QueryBuilder<C extends unknown[] = []> {
   private readonly _components: Set<number> = new Set();
   private readonly _tags: Set<Tag> = new Set();
+  private readonly _columns: number[] = [];
 
   /**
-   * Specifies components that must be added to entity to be matched
-   * @param componentsOrTags
+   * Specifies components and tags that must be added to entity to be matched
+   * @param componentsOrTags Component classes and tags
    */
-  public contains(...componentsOrTags: Array<any>): QueryBuilder {
+  public contains<T extends Array<ComponentType | Tag>>(...componentsOrTags: T): QueryBuilder<[...C, ...ComponentsOf<T>]> {
     for (const componentOrTag of componentsOrTags) {
       if (isTag(componentOrTag)) {
-        if (!this._tags.has(componentOrTag)) {
-          this._tags.add(componentOrTag);
-        }
+        this._tags.add(componentOrTag);
       } else {
-        const componentId = getComponentId(componentOrTag, true)!;
-        if (!this._components.has(componentId)) {
-          this._components.add(componentId);
-        }
+        const componentId = getComponentId(componentOrTag as Class<unknown>, true)!;
+        this._components.add(componentId);
+        // Every specified component is passed to callbacks, even if it's specified twice
+        this._columns.push(componentId);
       }
     }
-    return this;
+    return this as unknown as QueryBuilder<[...C, ...ComponentsOf<T>]>;
   }
 
   /**
    * Build query
    */
-  public build(): Query {
+  public build(): Query<C> {
     const components = Array.from(this._components);
     const tags = Array.from(this._tags);
-    const query = new Query((entity: Entity) => hasAll(entity, components, tags));
+    const query = new Query<C>((entity: Entity) => hasAll(entity, components, tags));
     query.componentIds = components;
     query.tags = tags;
+    query.setColumns(this._columns.slice());
     return query;
   }
 
@@ -377,6 +522,6 @@ export function isQueryPredicate(item: unknown): item is QueryPredicate {
 /**
  * @internal
  */
-export function isQueryBuilder(item: unknown): item is QueryBuilder {
+export function isQueryBuilder(item: unknown): item is QueryBuilder<any> {
   return item instanceof QueryBuilder;
 }

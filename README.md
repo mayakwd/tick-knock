@@ -22,7 +22,7 @@
         - [System]
         - [Query]
             - [QueryBuilder]
-            - [Query columns]
+            - [Typed queries]
             - [Queries and Systems]
             - [Built-in query-based systems]
                 - [ReactionSystem]
@@ -351,39 +351,31 @@ const query: Query = new QueryBuilder()
 > adding or removing unrelated components doesn't touch them at all. Queries with predicates are checked on every
 > change of every entity.
 
-### Query columns
+### Typed queries
 
-`query.column(ComponentClass)` returns components of the specified class for every entity in the query. The result is
-aligned with `query.entities`: `query.column(Position)[i]` belongs to `query.entities[i]`.
-
-Iterating over columns is much faster than calling `entity.get` for every entity, especially for big queries, because
-component references are stored next to each other in memory, and there is no need to look up the component in
-every entity.
+`QueryBuilder` infers types of components it contains, so the query can pass them to you together with the entity.
+Components are passed in the order they were specified, tags are only used for matching.
 
 ```typescript
-class MovementSystem extends System {
-  private query = new QueryBuilder().contains(Position, Velocity).build();
+const movable = new QueryBuilder()
+  .contains(Position, Velocity)
+  .contains(FROZEN)
+  .build(); // Query<[Position, Velocity]>
 
-  public onAddedToEngine() {
-    this.engine.addQuery(this.query);
-  }
-
-  public update(dt: number) {
-    const positions = this.query.column(Position);
-    const velocities = this.query.column(Velocity);
-    for (let i = 0; i < positions.length; i++) {
-      positions[i].x += velocities[i].x * dt;
-      positions[i].y += velocities[i].y * dt;
-    }
-  }
-}
+movable.forEach((entity, position, velocity) => {
+  position.x += velocity.x;
+  position.y += velocity.y;
+});
 ```
 
-Columns, as well as `query.entities`, are snapshots: they are rebuilt lazily only when the query or components of the
-class have been changed, so it's safe to add or remove components and entities while iterating over them.
+It's not only convenient, but also fast: the query stores components of its entities next to each other in memory, so it
+doesn't need to look up components in every entity. Iterating with `forEach` is several times faster than
+calling `entity.get` for every entity of `query.entities`.
 
-- If an entity doesn't have the component, its value in the column is `undefined`.
-- For linked components the column contains the first component in the list.
+It's safe to add and remove entities and components during iteration: entities removed from the query are skipped, and
+entities added to the query are visited in the next iteration.
+
+> 💡 `Query` without type arguments means a query with unknown components, any typed query can be assigned to it.
 
 ### Queries and Systems
 
@@ -558,6 +550,35 @@ class ViewSystem extends IterativeSystem {
   }
 }
 ```
+
+**Typed iterative system**
+
+The easiest way to write an iterative system is `IterativeSystem.of`. It builds the query from the specified components
+and tags, and passes components to `updateEntity` right after the entity and delta time, with inferred types. It's also
+the fastest way to iterate, see [Typed queries].
+
+```typescript
+class MovementSystem extends IterativeSystem.of(Position, Velocity) {
+  protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity) {
+    position.x += velocity.x * dt;
+    position.y += velocity.y * dt;
+  }
+}
+
+class ViewSystem extends IterativeSystem.of(View, Position, VISIBLE) {
+  public constructor(private readonly container: Container) {
+    super();
+  }
+
+  protected updateEntity(entity: Entity, dt: number, {view}: View, {x, y}: Position) {
+    view.x = x;
+    view.y = y;
+  }
+}
+```
+
+Entities removed from the query during the update are skipped, entities added to the query are updated in the next
+update.
 
 #### Remove the system as it's done
 
@@ -883,7 +904,7 @@ This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/L
 
 [Performance]: #performance
 
-[Query columns]: #query-columns
+[Typed queries]: #typed-queries
 
 [Shared Config]: #shared-config
 

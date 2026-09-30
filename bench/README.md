@@ -51,7 +51,6 @@ scenarios that don't fit the library are not implemented and are shown as "–" 
 | insert | create 1000 entities with 4 components in a world with 11 queries |
 | iterate small | one update of a system, that adds Velocity to Position of 1000 entities with 4 components |
 | iterate large | one update of 3 systems, that swap component values of 50k entities (ecs_bench_suite "schedule") |
-| iterate large (columns) | the same as "iterate large", but using `Query.column` (tick-knock only) |
 | component churn | add and remove a component, that changes query membership, on 1000 of 10000 entities |
 | unrelated churn | add and remove a component, that no query depends on, on 1000 of 10000 entities |
 | tag churn | add and remove a tag, that changes query membership (tick-knock only) |
@@ -62,6 +61,7 @@ scenarios that don't fit the library are not implemented and are shown as "–" 
 | memory per entity | heap size per entity with 2 components, for 50000 entities in a world with 3 queries |
 
 Iteration scenarios are based on [ecs_bench_suite](https://github.com/rust-gamedev/ecs_bench_suite).
+tick-knock builds that support `IterativeSystem.of` use it in iteration scenarios, older builds use `entity.get`.
 
 # Libraries
 

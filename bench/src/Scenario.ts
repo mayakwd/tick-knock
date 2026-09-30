@@ -5,7 +5,6 @@ export enum ScenarioId {
   Insert = 'insert',
   IterateSmall = 'iterate-small',
   IterateLarge = 'iterate-large',
-  IterateLargeColumns = 'iterate-large-columns',
   ComponentChurn = 'component-churn',
   UnrelatedChurn = 'unrelated-churn',
   TagChurn = 'tag-churn',
@@ -79,12 +78,6 @@ export const scenarios: ReadonlyArray<Scenario> = [
     kind: 'speed',
     description: `one update of 3 systems, that swap component values of ${Sizes.iterateLargeGroup * 5 / 1000}k entities ` +
       '(ecs_bench_suite "schedule")',
-  },
-  {
-    id: ScenarioId.IterateLargeColumns,
-    name: 'iterate large (columns)',
-    kind: 'speed',
-    description: 'the same as "iterate large", but using `Query.column`',
   },
   {
     id: ScenarioId.ComponentChurn,

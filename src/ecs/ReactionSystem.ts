@@ -28,15 +28,15 @@ import {System} from './System';
  * }
  * ```
  */
-export abstract class ReactionSystem extends System {
-  protected readonly query: Query;
+export abstract class ReactionSystem<C extends unknown[] = any[]> extends System {
+  protected readonly query: Query<C>;
 
-  protected constructor(query: Query | QueryBuilder | QueryPredicate) {
+  protected constructor(query: Query<C> | QueryBuilder<C> | QueryPredicate) {
     super();
     if (isQueryBuilder(query)) {
       this.query = query.build();
     } else if (isQueryPredicate(query)) {
-      this.query = new Query(query);
+      this.query = new Query<C>(query);
     } else {
       this.query = query;
     }

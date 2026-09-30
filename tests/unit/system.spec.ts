@@ -180,6 +180,87 @@ describe('Iterative system', () => {
   });
 });
 
+describe('Typed iterative system', () => {
+  class Velocity {
+    public constructor(public x: number = 1, public y: number = 1) {}
+  }
+
+  const FROZEN = 'frozen';
+
+  class TypedMovementSystem extends IterativeSystem.of(Position, Velocity) {
+    public updated: Entity[] = [];
+
+    public constructor(private readonly speed: number) {
+      super();
+    }
+
+    protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity): void {
+      this.updated.push(entity);
+      position.x += velocity.x * dt * this.speed;
+      position.y += velocity.y * dt * this.speed;
+    }
+  }
+
+  it('Passes components of the entity to updateEntity', () => {
+    const engine = new Engine();
+    const system = new TypedMovementSystem(2);
+    engine.addSystem(system);
+    const entity = new Entity().add(new Position()).add(new Velocity(1, 3));
+    engine.addEntity(entity).addEntity(new Entity().add(new Position()));
+    engine.update(1);
+    expect(system.updated).toEqual([entity]);
+    expect(entity.get(Position)).toEqual(new Position(2, 6));
+  });
+
+  it('Skips tags and uses them for matching', () => {
+    class FrozenSystem extends IterativeSystem.of(FROZEN, Position) {
+      public positions: Position[] = [];
+
+      protected updateEntity(entity: Entity, dt: number, position: Position): void {
+        this.positions.push(position);
+      }
+    }
+
+    const engine = new Engine();
+    const system = new FrozenSystem();
+    engine.addSystem(system);
+    const frozen = new Entity().add(new Position(1)).add(FROZEN);
+    engine.addEntity(frozen).addEntity(new Entity().add(new Position(2)));
+    engine.update(1);
+    expect(system.positions).toEqual([frozen.get(Position)]);
+  });
+
+  it('Checks types of components', () => {
+    class Health {
+      public value: number = 100;
+    }
+
+    class WrongOrderSystem extends IterativeSystem.of(Position, Health) {
+      // @ts-expect-error components are passed in the order they were specified
+      protected updateEntity(entity: Entity, dt: number, health: Health, position: Position): void {}
+    }
+
+    expect(WrongOrderSystem).toBeDefined();
+  });
+
+  it('Stops updating entities if the system is removed during update', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+
+    class RemovingSystem extends IterativeSystem.of(Position) {
+      protected updateEntity(entity: Entity): void {
+        updated.push(entity);
+        this.engine.removeSystem(this);
+      }
+    }
+
+    engine.addSystem(new RemovingSystem());
+    engine.addEntity(new Entity().add(new Position())).addEntity(new Entity().add(new Position()));
+    engine.update(1);
+    expect(updated.length).toBe(1);
+  });
+});
+
 describe('Failure on accessing engine if not attached to it', () => {
   it(`Expected that engine can't be accessed if system is not attached to it`, () => {
     class Message {

@@ -1,4 +1,4 @@
-import {getComponentClass, getComponentId, touchComponent} from './ComponentId';
+import {getComponentClass, getComponentId} from './ComponentId';
 import {Class} from '../utils/Class';
 import {Signal} from '../utils/Signal';
 import {isTag, Tag} from './Tag';
@@ -1016,7 +1016,6 @@ export class Entity implements ReadonlyEntity {
   }
 
   private dispatchOnComponentAdded<T>(component: NonNullable<T>, componentClass?: Class<any>): void {
-    if (componentClass !== undefined) touchComponent(componentClass);
     const signal = this._onComponentAdded;
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, component, componentClass);
@@ -1028,7 +1027,6 @@ export class Entity implements ReadonlyEntity {
   }
 
   private dispatchOnComponentRemoved<T>(value: NonNullable<T>, componentClass?: Class<any>): void {
-    if (componentClass !== undefined) touchComponent(componentClass);
     const signal = this._onComponentRemoved;
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, value, componentClass);

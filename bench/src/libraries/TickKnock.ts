@@ -32,10 +32,6 @@ export function createTickKnockLibrary(name: string, modulePath: string): Librar
     [ScenarioId.Messages]: () => messages(tk),
     [ScenarioId.Memory]: () => memory(tk),
   };
-  // Columns are available since 5.0.0
-  if (typeof tk.Query.prototype.column === 'function') {
-    scenarios[ScenarioId.IterateLargeColumns] = () => iterateLargeColumns(tk);
-  }
   return {name, version: readVersion(modulePath), scenarios};
 }
 
@@ -90,19 +86,7 @@ function insert(tk: TickKnock): Benchmark {
 }
 
 function iterateSmall(tk: TickKnock): Benchmark {
-  class MovementSystem extends tk.IterativeSystem {
-    public constructor() {
-      super(new tk.QueryBuilder().contains(Position, Velocity));
-    }
-
-    protected updateEntity(entity: Entity): void {
-      const position = entity.get(Position)!;
-      const velocity = entity.get(Velocity)!;
-      position.x += velocity.x;
-      position.y += velocity.y;
-    }
-  }
-
+  const MovementSystem = hasTypedSystems(tk) ? typedMovementSystem(tk) : untypedMovementSystem(tk);
   const engine = new tk.Engine().addSystem(new MovementSystem());
   addEntities(engine, Sizes.iterateSmall, () => new tk.Entity()
     .add(new Transform())
@@ -136,6 +120,58 @@ function createScheduleEngine(tk: TickKnock, createSystem: (x: ValueClass, y: Va
 }
 
 function iterateLarge(tk: TickKnock): Benchmark {
+  const createSystem = hasTypedSystems(tk) ? typedSwapSystem(tk) : untypedSwapSystem(tk);
+  const engine = createScheduleEngine(tk, createSystem);
+  return {
+    run() {
+      engine.update(1);
+    },
+  };
+}
+
+/**
+ * Returns a value indicating whether the build supports systems with typed components, which is the idiomatic way
+ * to iterate since 5.0.0. Older builds get components by `entity.get`.
+ */
+function hasTypedSystems(tk: TickKnock): boolean {
+  return typeof tk.IterativeSystem.of === 'function';
+}
+
+function typedMovementSystem(tk: TickKnock): new () => TickKnockModule.System {
+  return class MovementSystem extends tk.IterativeSystem.of(Position, Velocity) {
+    protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity): void {
+      position.x += velocity.x;
+      position.y += velocity.y;
+    }
+  };
+}
+
+function untypedMovementSystem(tk: TickKnock): new () => TickKnockModule.System {
+  return class MovementSystem extends tk.IterativeSystem {
+    public constructor() {
+      super(new tk.QueryBuilder().contains(Position, Velocity));
+    }
+
+    protected updateEntity(entity: Entity): void {
+      const position = entity.get(Position)!;
+      const velocity = entity.get(Velocity)!;
+      position.x += velocity.x;
+      position.y += velocity.y;
+    }
+  };
+}
+
+function typedSwapSystem(tk: TickKnock): (x: ValueClass, y: ValueClass) => TickKnockModule.System {
+  return (x, y) => new (class extends tk.IterativeSystem.of(x, y) {
+    protected updateEntity(entity: Entity, dt: number, first: A, second: A): void {
+      const value = first.value;
+      first.value = second.value;
+      second.value = value;
+    }
+  })();
+}
+
+function untypedSwapSystem(tk: TickKnock): (x: ValueClass, y: ValueClass) => TickKnockModule.System {
   class SwapSystem extends tk.IterativeSystem {
     public constructor(private readonly x: ValueClass, private readonly y: ValueClass) {
       super(new tk.QueryBuilder().contains(x, y));
@@ -150,46 +186,7 @@ function iterateLarge(tk: TickKnock): Benchmark {
     }
   }
 
-  const engine = createScheduleEngine(tk, (x, y) => new SwapSystem(x, y));
-  return {
-    run() {
-      engine.update(1);
-    },
-  };
-}
-
-function iterateLargeColumns(tk: TickKnock): Benchmark {
-  class SwapSystem extends tk.System {
-    private readonly query: TickKnockModule.Query;
-
-    public constructor(private readonly x: ValueClass, private readonly y: ValueClass) {
-      super();
-      this.query = new tk.QueryBuilder().contains(x, y).build();
-    }
-
-    public onAddedToEngine(): void {
-      this.engine.addQuery(this.query);
-    }
-
-    public update(): void {
-      const xs = this.query.column(this.x);
-      const ys = this.query.column(this.y);
-      for (let i = 0; i < xs.length; i++) {
-        const x = xs[i];
-        const y = ys[i];
-        const value = x.value;
-        x.value = y.value;
-        y.value = value;
-      }
-    }
-  }
-
-  const engine = createScheduleEngine(tk, (x, y) => new SwapSystem(x, y));
-  return {
-    run() {
-      engine.update(1);
-    },
-  };
+  return (x, y) => new SwapSystem(x, y);
 }
 
 /**

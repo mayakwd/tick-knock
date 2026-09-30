@@ -2,15 +2,18 @@
 
 Features:
 
-- `Query.column(ComponentClass)` returns components of the class aligned with `Query.entities`.
-  Iterating over columns is up to ~10x faster than calling `entity.get` for every entity of a big query.
+- Typed queries: `QueryBuilder` infers types of components, `Query.forEach((entity, position, velocity) => ...)`
+  passes components of every entity in the order they were specified.
+- `IterativeSystem.of(Position, Velocity)` creates a base class of the system, which `updateEntity` receives components
+  of the entity with inferred types. It's several times faster than `entity.get` for every entity.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, bitecs, ecsy,
   miniplex, sim-ecs): `yarn bench [--baseline <version>]`, see `bench` folder.
 
 Performance (existing API is unchanged):
 
-- Queries store entities in an insertion-ordered `Set`: membership checks, adding and removing entities
-  are O(1) instead of O(n). `Query.entities` is rebuilt lazily, only after the query has changed.
+- Queries store entities and their components in dense arrays: membership checks, adding and removing entities
+  are O(1) instead of O(n), removed entities are compacted lazily keeping the order.
+  `Query.entities` is rebuilt lazily, only after the query has changed.
 - Engine indexes queries built by `QueryBuilder` by their components and tags, so a component change validates
   only the queries depending on it. Predicate queries are still validated on every change.
 - Engine removes entities in O(1).

@@ -27,22 +27,6 @@ export function getComponentId<T>(
 
 /**
  * @internal
- * Returns a value that changes every time a component of the class is added to or removed from any entity.
- */
-export function getComponentVersion(id: number): number {
-  return componentVersions[id] ?? 0;
-}
-
-/**
- * @internal
- */
-export function touchComponent(componentClass: Class<unknown>): void {
-  const id = getComponentId(componentClass, true)!;
-  componentVersions[id] = (componentVersions[id] ?? 0) + 1;
-}
-
-/**
- * @internal
  */
 export function getComponentClass<T extends K, K>(component: NonNullable<T>, resolveClass?: Class<K>) {
   let componentClass = Object.getPrototypeOf(component).constructor as Class<T>;
@@ -58,7 +42,6 @@ export function getComponentClass<T extends K, K>(component: NonNullable<T>, res
 const COMPONENT_CLASS_ID: unique symbol = Symbol('componentClassId');
 const COMPONENT_CLASS_OWNER: unique symbol = Symbol('componentClassOwner');
 let componentClassId: number = 1;
-const componentVersions: number[] = [];
 
 type ComponentClass<T> = Class<T> & {
   [COMPONENT_CLASS_ID]?: number;
