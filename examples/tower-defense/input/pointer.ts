@@ -5,7 +5,8 @@ import {Cell, cellCenter} from '../map';
 import {TowerKind, TOWERS} from '../towers';
 
 /**
- * Builds towers where the player clicks, and shows where the selected tower would be built and its range
+ * Builds a tower where the player clicks an empty cell, and upgrades a tower the player clicks.
+ * The preview shows the cell and the range the tower would have.
  */
 export class TowerPlacement {
   public kind: TowerKind = 'arrow';
@@ -30,16 +31,38 @@ export class TowerPlacement {
   }
 
   /**
-   * Redraws the preview, the possibility to build changes every frame together with gold
+   * Describes what a click does in the cell under the pointer, or returns undefined if the pointer is out of the map
+   */
+  public get action(): string | undefined {
+    if (this.cell === undefined) return undefined;
+    const game = this.game();
+    const tower = game.towerAt(this.cell);
+    if (tower === undefined) return `Build ${TOWERS[this.kind].name}: ${TOWERS[this.kind].levels[0].cost}`;
+    const cost = game.upgradeCost(this.cell);
+    const name = `${TOWERS[tower.kind].name} ${tower.level + 1}`;
+    return cost === undefined ? `${name}: the last level` : `Upgrade ${name}: ${cost}`;
+  }
+
+  /**
+   * Redraws the preview, the possibility to build or upgrade changes every frame together with gold
    */
   public update(): void {
     this.preview.clear();
     if (this.cell === undefined) return;
+    const game = this.game();
     const {x, y} = cellCenter(this.cell);
-    const allowed = this.game().canBuild(this.kind, this.cell);
+    const tower = game.towerAt(this.cell);
+    const cost = game.upgradeCost(this.cell);
+    // A tower shows the range of its next level, an empty cell shows the range of the selected tower
+    const range = tower !== undefined
+      ? TOWERS[tower.kind].levels[Math.min(tower.level + 1, TOWERS[tower.kind].levels.length - 1)].range
+      : TOWERS[this.kind].levels[0].range;
+    const allowed = tower !== undefined
+      ? cost !== undefined && game.economy.gold >= cost && !game.isOver
+      : game.canBuild(this.kind, this.cell);
     const color = allowed ? 0x3fb950 : 0xf85149;
     this.preview
-      .circle(x, y, TOWERS[this.kind].range)
+      .circle(x, y, range)
       .fill({color, alpha: 0.08})
       .stroke({width: 1, color, alpha: 0.5})
       .rect(x - CELL / 2, y - CELL / 2, CELL, CELL)
@@ -59,8 +82,13 @@ export class TowerPlacement {
   private readonly onDown = (event: FederatedPointerEvent) => {
     this.onMove(event);
     // The click that takes control from the autopilot only focuses the game
-    if (!this.isPlaying()) return;
-    if (this.cell !== undefined) this.game().build(this.kind, this.cell);
+    if (!this.isPlaying() || this.cell === undefined) return;
+    const game = this.game();
+    if (game.towerAt(this.cell) !== undefined) {
+      game.upgrade(this.cell);
+    } else {
+      game.build(this.kind, this.cell);
+    }
   };
 
   private readonly onLeave = () => {

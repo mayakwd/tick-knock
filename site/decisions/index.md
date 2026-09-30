@@ -8,6 +8,7 @@ that appear in every project. Every answer has a short version, the reasoning, a
 - [Which system?](/decisions/which-system)
 - [Message or component?](/decisions/message-or-component)
 - [Where to keep game state?](/decisions/game-state)
+- [Data or components?](/decisions/data-or-components)
 - [Remove the entity or the component?](/decisions/removing)
 - [Linked components or an array?](/decisions/linked-components)
 - [Keeping rendering apart](/decisions/rendering)

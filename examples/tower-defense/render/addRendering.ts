@@ -13,7 +13,8 @@ import {drawProjectile, drawTower} from './graphics';
 export function addRendering(engine: Engine, layer: Container): void {
   engine
     .addSystem(new ViewSystem(layer), {id: 'views'})
-    .reactive([Tower], {added: ({current}, {kind}) => current.add(new View(drawTower(kind)))}, {id: 'tower-view'})
+    // An upgrade replaces the Tower component, so the tower is drawn again with its new level
+    .reactive([Tower], {added: ({current}, {kind, level}) => current.add(new View(drawTower(kind, level)))}, {id: 'tower-view'})
     .reactive([Creep], {added: ({current}) => current.add(new View(new CreepView()))}, {id: 'creep-view'})
     .reactive([Projectile], {added: ({current}, {kind}) => current.add(new View(drawProjectile(kind)))}, {id: 'projectile-view'})
     // A new view is placed right away, and follows its entity after all game systems have been updated

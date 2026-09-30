@@ -7,10 +7,11 @@
 import {testAsteroids} from './asteroids';
 import {testBulletHell} from './bulletHell';
 import {testSnake} from './snake';
-import {testTowerDefense} from './towerDefense';
+import {testTowerDefense, testTowerUpgrades} from './towerDefense';
 
 testSnake();
 testAsteroids();
 testBulletHell();
 testTowerDefense();
+testTowerUpgrades();
 console.log('Examples work');

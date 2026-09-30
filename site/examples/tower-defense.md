@@ -1,11 +1,13 @@
 # Tower defense
 
-Keys 1-4 select a tower, a click builds it, R to restart.
+Keys 1-4 select a tower, a click builds it or upgrades the tower in the cell, R to restart.
 
 <GameDemo game="tower-defense" />
 
 What it shows:
 
+- Kinds of towers are data, but every tower owns its characteristics as components, so it can be upgraded.
+- Behaviour composed from optional components: splash, slow and poison.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
 - Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
   report kills and escapes.

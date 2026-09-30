@@ -58,9 +58,10 @@ export const mountTowerDefense: MountGame = async (element) => {
     placement.update();
 
     const {gold, lives} = game.economy;
-    const tower = TOWERS[placement.kind];
-    hud.setStatus(`Gold: ${gold}   Lives: ${lives}   Wave: ${game.wave}   Tower: ${tower.name} (${tower.cost})`);
-    hud.setHint(playing ? '1 Arrow   2 Cannon   3 Frost   4 Poison   click to build' : 'Autopilot is playing, click to take control');
+    hud.setStatus(`Gold: ${gold}   Lives: ${lives}   Wave: ${game.wave}   ${placement.action ?? `Tower: ${TOWERS[placement.kind].name}`}`);
+    hud.setHint(playing
+      ? '1 Arrow   2 Cannon   3 Frost   4 Poison   click a cell to build, click a tower to upgrade'
+      : 'Autopilot is playing, click to take control');
     if (game.isOver) {
       overTime += dt;
       if (!playing && overTime > DEMO_RESTART_DELAY) start();

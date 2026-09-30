@@ -81,6 +81,7 @@ export default defineConfig({
             {text: 'Which system?', link: '/decisions/which-system'},
             {text: 'Message or component?', link: '/decisions/message-or-component'},
             {text: 'Where to keep game state?', link: '/decisions/game-state'},
+            {text: 'Data or components?', link: '/decisions/data-or-components'},
             {text: 'Remove the entity or the component?', link: '/decisions/removing'},
             {text: 'Linked components or an array?', link: '/decisions/linked-components'},
             {text: 'Keeping rendering apart', link: '/decisions/rendering'},

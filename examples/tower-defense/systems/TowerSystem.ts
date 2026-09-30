@@ -1,12 +1,12 @@
 import {Entity, IterativeSystem, QueryBuilder} from 'tick-knock';
-import {Creep, Health, PathFollower, Position, Tower} from '../components';
+import {Creep, Health, PathFollower, Position, Weapon} from '../components';
 import {createProjectile} from '../entities';
-import {TOWERS} from '../towers';
 
 /**
- * Towers fire at the creep in range, that is the closest to the exit
+ * Weapons fire at the creep in range, that is the closest to the exit. The system reads characteristics from the
+ * weapon of every tower, so upgraded towers fire differently without any changes here.
  */
-export class TowerSystem extends IterativeSystem.of(Position, Tower) {
+export class TowerSystem extends IterativeSystem.of(Position, Weapon) {
   private readonly creeps = new QueryBuilder().contains(Position, PathFollower, Health, Creep).build();
 
   public onAddedToEngine(): void {
@@ -19,11 +19,11 @@ export class TowerSystem extends IterativeSystem.of(Position, Tower) {
     this.engine.removeQuery(this.creeps);
   }
 
-  protected updateEntity(entity: Entity, dt: number, position: Position, tower: Tower): void {
-    tower.cooldown = Math.max(0, tower.cooldown - dt);
-    if (tower.cooldown > 0) return;
+  protected updateEntity(tower: Entity, dt: number, position: Position, weapon: Weapon): void {
+    weapon.cooldown = Math.max(0, weapon.cooldown - dt);
+    if (weapon.cooldown > 0) return;
 
-    const {range, interval} = TOWERS[tower.kind];
+    const {range} = weapon;
     let target: Entity | undefined;
     let furthest = -1;
     this.creeps.forEach((creep, creepPosition, follower) => {
@@ -34,7 +34,7 @@ export class TowerSystem extends IterativeSystem.of(Position, Tower) {
     });
     if (target === undefined) return;
 
-    tower.cooldown = interval;
-    this.engine.addEntity(createProjectile(tower.kind, position.x, position.y, target));
+    weapon.cooldown = weapon.interval;
+    this.engine.addEntity(createProjectile(tower, target));
   }
 }

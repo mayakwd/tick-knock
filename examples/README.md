@@ -88,10 +88,13 @@ What it shows:
 
 # Tower defense
 
-Build towers along the path and don't let creeps through: 1-4 to select a tower, click to build it.
+Build towers along the path and don't let creeps through: 1-4 to select a tower, click to build it, click a tower to
+upgrade it.
 
 What it shows:
 
+- Kinds of towers are data, but every tower owns its characteristics as components, so it can be upgraded.
+- Behaviour composed from optional components: splash, slow and poison.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
 - Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
   report kills and escapes.
