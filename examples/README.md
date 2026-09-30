@@ -33,20 +33,20 @@ All games have the same structure:
 ```
 game/
   components/   data of entities, one class per file
-  entities/     factories, that create entities from components
+  entities/     factories, that create entities with their components and views
   systems/      systems with their own queries or state, small systems are written in place in game.ts
-  render/       pixi.js views and systems, that attach them to entities
+  render/       pixi.js drawing of views
   input/        keyboard, pointer and the autopilot
   tags.ts       tags of entities, if the game uses them
   messages.ts   messages dispatched by systems
   config.ts     numbers that tune the game
-  game.ts       the engine with all systems, without rendering and input
-  mount.ts      starts the game in a page
+  game.ts       the game: the engine with all systems, without input
+  mount.ts      the demo, that starts the game in a page
 ```
 
-Rendering is added to the game by the host through the `setup` option: reaction systems attach views to entities when
-they appear, and destroy them when entities are removed. The game itself never creates views, so tests play it
-without a browser. [shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons,
+A view is a component, that factories create together with entities, and the game adds views to the layer it
+receives. pixi.js creates display objects without a renderer, so tests play the games without a browser.
+[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons,
 keyboard input, views and the demo loop, that lets the autopilot play until the player takes control.
 
 # Snake
@@ -103,7 +103,7 @@ What it shows:
 - A spatial index of creeps, maintained by reaction systems on the `Cell` component: towers find targets in it,
   and keep them while they are in range. Rules of targeting are tags.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
-- Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
+- Game state that doesn't belong to entities: gold and lives are kept by the game, that changes them when systems
   report kills and escapes.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
 - Static data outside of the engine: the map is a picture and a list of turns of the path, not entities.

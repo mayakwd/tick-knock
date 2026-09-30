@@ -36,13 +36,16 @@ export class CollisionSystem extends System {
         // The asteroid could have been destroyed by another bullet of this update
         if (!this.asteroids.has(asteroid)) return;
         if (!this.collide(asteroidPosition, bulletPosition, asteroidCollider.radius + bulletCollider.radius)) return;
+
         this.destroy(bullet);
         this.destroy(asteroid);
         this.dispatch(new AsteroidDestroyed(asteroid));
       });
+
       this.ships.forEach((ship, shipPosition, shipCollider) => {
         if (!this.asteroids.has(asteroid)) return;
         if (!this.collide(asteroidPosition, shipPosition, asteroidCollider.radius + shipCollider.radius)) return;
+
         this.destroy(ship);
         this.dispatch(new ShipDestroyed());
       });

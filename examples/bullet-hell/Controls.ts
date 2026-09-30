@@ -1,14 +1,15 @@
 /**
- * Controls shared between the input source and the player control system
+ * Controls shared between the input source and the player control system, so any input source can control
+ * the player: keyboard, autopilot or a test
  */
-export interface Controls {
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
+export class Controls {
+  public left = false;
+  public right = false;
+  public up = false;
+  public down = false;
   /**
    * Slow movement for precise dodging
    */
-  focus: boolean;
-  fire: boolean;
+  public focus = false;
+  public fire = false;
 }

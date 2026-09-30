@@ -29,6 +29,7 @@ export class CollisionSystem extends System {
     this.enemies.forEach((enemy, enemyPosition, enemyCollider) => {
       this.playerBullets.forEach((bullet, bulletPosition, bulletCollider) => {
         if (!isWithin(enemyPosition, bulletPosition, enemyCollider.radius + bulletCollider.radius)) return;
+
         destroy(this.engine, bullet);
         enemy.append(new Hit());
       });
@@ -37,8 +38,11 @@ export class CollisionSystem extends System {
     this.players.forEach((player, playerPosition, playerCollider) => {
       // Bullets fly through the invulnerable player
       if (player.has(Invulnerable)) return;
+
+      // Enemy bullets are destroyed by the hit, enemies are not
       const hit = (other: Entity, position: Position, collider: Collider) => {
         if (!isWithin(playerPosition, position, playerCollider.radius + collider.radius)) return;
+
         if (other.has(ENEMY_BULLET)) destroy(this.engine, other);
         player.append(new Hit());
       };

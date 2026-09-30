@@ -20,19 +20,19 @@ All games have the same structure:
 ```
 game/
   components/   data of entities, one class per file
-  entities/     factories, that create entities from components
-  systems/      the game logic
-  render/       pixi.js views and systems, that attach them to entities
+  entities/     factories, that create entities with their components and views
+  systems/      systems, that are bigger than a few lines
+  render/       pixi.js drawing of views
   input/        keyboard, pointer and the autopilot
   tags.ts       tags of entities, if the game uses them
   messages.ts   messages dispatched by systems
-  game.ts       the engine with all systems, without rendering and input
-  mount.ts      starts the game in a page
+  game.ts       the game: the engine with all systems, without input
+  mount.ts      the demo, that starts the game in a page
 ```
 
-Rendering uses [pixi.js](https://pixijs.com). It's added to the game by the host: reaction systems attach views to
-entities when they appear, and destroy them when entities are removed. The game itself never creates views, so tests
-play it without a browser. See [Keeping rendering apart](/decisions/rendering) for details.
+Rendering uses [pixi.js](https://pixijs.com). A view is a component, that factories create together with entities,
+and the game adds views to the layer it receives. pixi.js creates display objects without a renderer, so tests play
+the games without a browser. See [Where do views come from?](/decisions/rendering) for details.
 
 ## Running locally
 

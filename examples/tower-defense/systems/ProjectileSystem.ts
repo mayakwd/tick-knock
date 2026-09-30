@@ -27,14 +27,18 @@ export class ProjectileSystem extends IterativeSystem.of(Position, Projectile, P
       this.engine.removeEntity(projectile);
       return;
     }
+
+    // The projectile flies until it reaches the target
     const targetPosition = target.get(Position)!;
     if (moveTowards(position, targetPosition, speed * dt) === undefined) return;
 
+    // A bullet hits only the target
     this.engine.removeEntity(projectile);
     if (payload.splash === 0) {
       deliver(target, payload);
       return;
     }
+
     // An explosion hits every creep around the target, the spatial index gives only creeps in nearby cells
     this.creeps.forEachWithin(targetPosition, payload.splash, (creep) => deliver(creep, payload));
   }

@@ -1,8 +1,7 @@
-import {Container, FederatedPointerEvent, Graphics} from 'pixi.js';
-import {Demo} from '../../shared/demo';
+import {Container, FederatedPointerEvent, Graphics, Rectangle} from 'pixi.js';
+import {Cell} from '../components';
 import {CELL} from '../config';
 import {TowerDefenseGame} from '../game';
-import {Cell} from '../components';
 import {cellAt, cellCenter} from '../map';
 import {TowerKind, TOWERS} from '../towers';
 
@@ -14,18 +13,23 @@ const FORBIDDEN_COLOR = 0xf85149;
  * The preview shows the cell and the range the tower would have.
  */
 export class TowerPlacement {
+  /**
+   * Kind of towers the player builds
+   */
   public kind: TowerKind = 'arrow';
   private readonly preview = new Graphics();
   private cell?: Cell;
+  private game?: TowerDefenseGame;
+  private isEnabled = false;
 
   /**
-   * @param demo The running demo: its stage receives pointer events, and its game changes when the game restarts
+   * @param stage Stage that receives pointer events
+   * @param screen Area of the stage
    * @param layer Layer the preview is drawn in
    */
-  public constructor(private readonly demo: Demo<TowerDefenseGame>, layer: Container) {
-    const {stage} = demo.app;
+  public constructor(private readonly stage: Container, screen: Rectangle, layer: Container) {
     stage.eventMode = 'static';
-    stage.hitArea = demo.app.screen;
+    stage.hitArea = screen;
     stage.on('pointermove', this.onMove);
     stage.on('pointerdown', this.onDown);
     stage.on('pointerleave', this.onLeave);
@@ -36,30 +40,38 @@ export class TowerPlacement {
    * Describes what a click does in the cell under the pointer, or returns undefined if the pointer is out of the map
    */
   public get action(): string | undefined {
-    if (this.cell === undefined) return undefined;
-    const {game} = this.demo;
-    const tower = game.towerAt(this.cell);
+    const {cell, game} = this;
+    if (cell === undefined || game === undefined) return undefined;
+
+    const tower = game.towerAt(cell);
     if (tower === undefined) return `Build ${TOWERS[this.kind].name}: ${TOWERS[this.kind].levels[0].cost}`;
-    const next = game.nextLevel(this.cell);
+
+    const next = game.nextLevel(cell);
     const name = `${TOWERS[tower.kind].name} ${tower.level + 1}`;
     return next === undefined ? `${name}: the last level` : `Upgrade ${name}: ${next.cost}`;
   }
 
   /**
-   * Redraws the preview, the possibility to build or upgrade changes every frame together with gold
+   * Redraws the preview: the possibility to build or upgrade changes every frame together with gold
+   * @param game The current game, it changes when the game restarts
+   * @param isEnabled Clicks build and upgrade towers only while the player controls the game
    */
-  public update(): void {
+  public update(game: TowerDefenseGame, isEnabled: boolean): void {
+    this.game = game;
+    this.isEnabled = isEnabled;
     this.preview.clear();
-    if (this.cell === undefined) return;
-    const {game} = this.demo;
-    const {x, y} = cellCenter(this.cell);
-    const tower = game.towerAt(this.cell);
+    const {cell} = this;
+    if (cell === undefined) return;
+
     // A tower shows the range of its next level, an empty cell shows the range of the selected tower
+    const tower = game.towerAt(cell);
     const level = tower !== undefined
-      ? game.nextLevel(this.cell) ?? TOWERS[tower.kind].levels[tower.level]
+      ? game.nextLevel(cell) ?? TOWERS[tower.kind].levels[tower.level]
       : TOWERS[this.kind].levels[0];
-    const allowed = tower !== undefined ? game.canUpgrade(this.cell) : game.canBuild(this.kind, this.cell);
-    const color = allowed ? ALLOWED_COLOR : FORBIDDEN_COLOR;
+    const isAllowed = tower !== undefined ? game.canUpgrade(cell) : game.canBuild(this.kind, cell);
+    const color = isAllowed ? ALLOWED_COLOR : FORBIDDEN_COLOR;
+
+    const {x, y} = cellCenter(cell);
     this.preview
       .circle(x, y, level.range)
       .fill({color, alpha: 0.08})
@@ -69,10 +81,9 @@ export class TowerPlacement {
   }
 
   public destroy(): void {
-    const {stage} = this.demo.app;
-    stage.off('pointermove', this.onMove);
-    stage.off('pointerdown', this.onDown);
-    stage.off('pointerleave', this.onLeave);
+    this.stage.off('pointermove', this.onMove);
+    this.stage.off('pointerdown', this.onDown);
+    this.stage.off('pointerleave', this.onLeave);
   }
 
   private readonly onMove = (event: FederatedPointerEvent) => {
@@ -81,13 +92,15 @@ export class TowerPlacement {
 
   private readonly onDown = (event: FederatedPointerEvent) => {
     this.onMove(event);
+
     // The click that takes control from the autopilot only focuses the game
-    if (!this.demo.isPlaying || this.cell === undefined) return;
-    const {game} = this.demo;
-    if (game.towerAt(this.cell) !== undefined) {
-      game.upgrade(this.cell);
+    const {cell, game} = this;
+    if (!this.isEnabled || cell === undefined || game === undefined) return;
+
+    if (game.towerAt(cell) !== undefined) {
+      game.upgrade(cell);
     } else {
-      game.build(this.kind, this.cell);
+      game.build(this.kind, cell);
     }
   };
 

@@ -58,10 +58,22 @@ what [tags](/guide/tag) are for:
 A segment and food both have a `Cell`. Tags let queries tell them apart: a query of segments contains `Cell` and
 `SEGMENT`, a query of food contains `Cell` and `FOOD`.
 
+## Views
+
+Every entity on the grid is drawn. What it looks like is a component too, a **view**, that keeps a pixi.js display
+object:
+
+<<< @/../examples/shared/render/View.ts
+
+Views are drawn by functions, one for every kind of entity:
+
+<<< @/../examples/snake/render/graphics.ts
+
 ## Entities
 
 It's convenient to have a function for every kind of entity. Then nobody forgets a component, and the code that creates
-entities reads like a description of the game:
+entities reads like a description of the game. The view is created together with the entity: it's just one more
+component, and the entity is complete from the start.
 
 <<< @/../examples/snake/entities/createHead.ts
 
@@ -72,7 +84,7 @@ entities reads like a description of the game:
 ## The grid
 
 The head must know what is in the next cell: a segment, food or nothing. Searching all segments and food every tick
-would work, but the game is a grid, so let's use one. The grid keeps the entity of every cell in an array, and a cell
+would work, but the game is a grid, so let's use one. The grid keeps entities of every cell in an array, and a cell
 is an index of the array, so a lookup is instant:
 
 <<< @/../examples/snake/Grid.ts
@@ -89,98 +101,96 @@ Nobody can forget to update the grid, and no system has to know about it except 
 ## Controls
 
 The player turns the snake. The input can come from the keyboard, an autopilot or a test, so the game doesn't read the
-keyboard itself. Instead, it has **controls**, a plain object that any input source can change:
+keyboard itself. Instead, it has **controls**, that any input source can use to turn the snake. The game takes the
+direction once per tick:
 
 <<< @/../examples/snake/Controls.ts
 
 ## Systems
 
-Now the logic. Every tick the snake turns, its tail shortens, and the head moves one cell forward. These are small
-pieces of logic, so [functional systems](/guide/built-in-systems#functional-systems) are enough. Such systems are
-written right where they are added to the engine, together with the other systems of the game:
+Now the logic. Every tick the snake turns, the tail frees its cell, the head checks where it goes, moves, and eats.
+Systems are updated in the order they are added to the engine, so the code reads as the tick goes:
 
 <<< @/../examples/snake/game.ts#systems
 
-- `steering` turns the head in the direction of the controls. It's called for entities with the `Heading` component
-  and the `HEAD` tag. Components are passed to the function, tags are only used for matching. The function is
-  a closure, so it reads the controls of the game without any constructor or parameter.
-- `aging` counts down the lifetime of segments. An expired segment is removed from the engine after the update, but it
-  loses its `Cell` right away, so the grid frees the cell, and the head can move there in the same tick.
-- `movement` looks into the next cell with the grid. A wall or a segment ends the game, food makes the snake longer.
-  Then the head gets its new cell and leaves a segment behind.
-- The food spawner is a reaction system: every time food loses its cell, that is, it's eaten, new food appears in a
-  random free cell of the grid. When there are no free cells, the snake has filled the board, and the game is won.
+Turning and aging are a few lines each, so they are [functional systems](/guide/built-in-systems#functional-systems),
+written right where they are added. `engine.iterative([Heading, HEAD], ...)` is called for entities with the `Heading`
+component and the `HEAD` tag. Components are passed to the function, tags are only used for matching.
 
 > ❗ Entities removed during the update are removed after all systems have been updated, and until then they stay in
-> queries. Removing the component, that queries and indexes depend on, is the way to make an entity stop taking part in
-> the game immediately: here it's `Cell` of expired segments and eaten food.
+> queries. That's why an expired segment also loses its `Cell`: it leaves the grid right away, and the head can move to
+> its cell in the same tick. Removing the component, that queries and indexes depend on, is the way to make an entity
+> stop taking part in the game immediately.
+
+Collisions, movement and eating are separate systems. Each of them does one thing, and has a name, so they are classes.
+
+The collision system looks into the cell the head is about to move to. A crashed snake loses its heading, so the
+movement system doesn't move it anymore:
+
+<<< @/../examples/snake/systems/CollisionSystem.ts
+
+The movement system moves the head, and leaves a segment behind. The cell is immutable, so the head gets a new one:
+
+<<< @/../examples/snake/systems/MovementSystem.ts
+
+The eating system looks for food in the new cell of the head. For a moment the head and food share a cell, so the grid
+keeps a list of entities in every cell:
+
+<<< @/../examples/snake/systems/EatingSystem.ts
+
+The last system is a reaction system: every time food loses its cell, that is, it's eaten, new food appears in a random
+free cell of the grid. When there are no free cells, the snake has filled the grid, and the game is won.
 
 ## Messages
 
-When something important happens, the movement system doesn't change the score or stop the game itself. It
-**dispatches a message**, and whoever is interested subscribes to it:
+When something important happens, systems don't change the score or stop the game themselves. They **dispatch
+a message**, and whoever is interested subscribes to it:
 
 <<< @/../examples/snake/messages.ts
 
-This way the movement system only knows about movement. Counting the score and stopping the game are somebody
-else's responsibility.
+This way the collision system only knows about collisions, and the eating system only knows about eating. Counting
+the score and stopping the game are somebody else's responsibility.
 
 ## Putting it all together
+
+The game is a class, that owns the engine, the controls and the grid, adds systems, subscribes to messages and creates
+the first entities:
 
 <<< @/../examples/snake/game.ts
 
 A few things to notice:
 
-- **Priorities.** Systems are updated in order of their priority, from the lowest to the highest. The snake turns,
-  the tail frees its cell, and then the head moves. Priorities are named in one place, so the order of systems is easy
-  to read and change.
-- **Identifiers.** Every system has an `id`, so it can be found with `engine.getSystemById` or removed with
-  `engine.removeSystem`.
+- **Order of systems.** Systems are updated in the order they are added. The snake turns, the tail frees its cell, and
+  then the head moves. Systems also accept a priority and an identifier, but the game doesn't need them.
+- **Views.** `addViews` is added after all game systems. It adds views to the layer, and moves them to cells of their
+  entities after the game systems have moved the entities.
 - **Messages.** `engine.subscribe` counts the score and stops the game.
-- **The `setup` option.** It lets the host of the game add its own systems, rendering for example. We'll need it in a
-  moment.
-
-The game has no rendering and no input yet, but it already works. It can be played in a test:
-
-```typescript
-const game = createSnakeGame({width: 20, height: 10});
-game.controls.direction = 'up';
-game.tick();
-```
-
-## Rendering
-
-The game logic doesn't know how it's displayed, and it's worth keeping it this way: the same game is rendered with
-pixi.js in the browser, as text in the terminal, and not rendered at all in tests.
-
-Rendering is added by the host through `setup`. The idea is simple: when an entity appears, a reaction system attaches
-a **view** to it. The view is a component too:
-
-<<< @/../examples/shared/render/View.ts
-
-`ViewSystem` adds views to the stage, and destroys them when entities are removed:
-
-<<< @/../examples/shared/render/ViewSystem.ts
-
-Every game places views the same way: a new view is placed right away, and views follow their entities after all game
-systems have been updated. It's shared by all examples:
 
 <<< @/../examples/shared/render/addViews.ts
 
-And here is the rendering of Snake. Reaction systems attach views to entities by their tags, and cells are scaled to
-pixels:
+The game doesn't read input and doesn't know where its layer is displayed. It can be played in a test with a layer
+that is never rendered:
 
-<<< @/../examples/snake/render/addRendering.ts
+```typescript
+const game = new SnakeGame({width: 20, height: 10, layer: new Container()});
+game.controls.turn('up');
+game.tick();
+```
 
-> 💡 Why is `setup` called before the first entities are created? Reaction systems are notified only about entities
-> added after them. If the head were created before rendering was added, it would never get a view.
+`ViewSystem` adds views to the layer, and destroys them when entities are removed:
+
+<<< @/../examples/shared/render/ViewSystem.ts
 
 ## Input and the game loop
 
 The last part starts the game in a page. All examples do the same: create a pixi.js application, connect the keyboard,
-let the autopilot play until the player clicks the game, and restart the game when it's over. That's in the shared
-`mountDemo`, and every game only describes itself. Snake works in ticks, so the time of frames is accumulated, and the
-game is advanced by whole ticks:
+let the autopilot play until the player clicks the game, and restart the game when it's over. That's the shared `Demo`
+class:
+
+<<< @/../examples/shared/Demo.ts
+
+Every game extends it, and describes how it's created, controlled and shown. Snake works in ticks, so the time of
+frames is accumulated, and the game is advanced by whole ticks:
 
 <<< @/../examples/snake/mount.ts
 
@@ -191,22 +201,23 @@ its own queries, and looks into cells with the grid.
 
 ## Testing without a browser
 
-Since the game logic doesn't depend on rendering, it's easy to test. The examples are played by autopilots in tests,
-and rendering is checked too: pixi.js creates display objects without a renderer, so the test checks that every entity
-has its view.
+The game runs without a browser, so it's easy to test. The examples are played by autopilots in tests, and rendering
+is checked too: pixi.js creates display objects without a renderer, so the test checks that every entity has its view.
 
 <<< @/../examples/tests/snake.ts
+
+The same game is played in the terminal: its views are created, but never displayed, and the grid is printed as text.
 
 ## What we've learned
 
 - Components are plain data, tags are labels without data.
-- Entity factories keep creation of entities in one place.
-- Small logic is a functional system written in place.
+- Entity factories keep creation of entities in one place, the view included.
+- Small logic is a functional system written in place, a system that does something bigger is a class with a name.
+- Systems are updated in the order they are added.
 - An index, like the grid, is maintained by a reaction system on the component it indexes, and an immutable component
   replaced on every change keeps it up to date.
 - Removing a component, that queries and indexes depend on, makes an entity stop taking part in the game immediately.
 - Systems dispatch messages instead of changing things they are not responsible for.
 - Reaction systems react to changes of queries: new food appears when the old one is eaten.
-- Rendering is attached to entities from outside, so the game runs anywhere.
 
 Next, in [Asteroids](/tutorials/asteroids), the world stops being a grid: things fly, collide and break apart.

@@ -16,11 +16,11 @@ const PAUSE = 1.5;
 /**
  * Progress of waves, shared with the game, which shows the number of the wave
  */
-export interface WaveState {
+export class WaveState {
   /**
    * Number of the current wave, starting from 1
    */
-  number: number;
+  public number = 1;
 }
 
 /**
@@ -47,11 +47,15 @@ export class SpawnSystem extends System {
 
   public update(dt: number): void {
     this.time += dt;
+
+    // Enemies of the wave appear at their time
     const strength = 1 + Math.floor((this.state.number - 1) / WAVES.length) * STRENGTH_GROWTH;
     while (this.pending.length > 0 && this.pending[0].time <= this.time) {
       const {kind, x} = this.pending.shift()!;
       this.engine.addEntity(createEnemy(kind, x * WIDTH, strength));
     }
+
+    // The next wave starts when all enemies have appeared, and are gone
     if (this.pending.length === 0 && this.enemies.isEmpty) {
       this.state.number++;
       this.startWave();

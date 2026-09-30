@@ -1,25 +1,43 @@
-import {mountDemo} from '../shared/demo';
-import {MountGame} from '../shared/mount';
+import {Container} from 'pixi.js';
+import {Autopilot, Demo, MountGame} from '../shared/Demo';
 import {HEIGHT, WIDTH} from './config';
-import {createBulletHellGame} from './game';
-import {createAutopilot} from './input/autopilot';
+import {BulletHellGame} from './game';
+import {BulletHellAutopilot} from './input/autopilot';
 import {KEY_CODES, readKeyboard} from './input/keyboardControls';
-import {addRendering} from './render/addRendering';
 
 /**
- * Starts the bullet hell in the element
+ * The bullet hell in a page
  */
-export const mountBulletHell: MountGame = (element) => mountDemo(element, {
-  width: WIDTH,
-  height: HEIGHT,
-  background: 0x0a0c14,
-  keys: KEY_CODES,
-  create: (layer) => createBulletHellGame({setup: (engine) => addRendering(engine, layer)}),
-  createAutopilot,
-  advance(game, dt, input) {
-    input();
-    game.update(dt);
-  },
-  readInput: (keyboard, game) => readKeyboard(keyboard, game.controls),
-  status: ({score, wave, lives, enemyBullets}) => `Score: ${score}   Wave: ${wave}   Lives: ${lives}   Bullets: ${enemyBullets}`,
-});
+class BulletHellDemo extends Demo<BulletHellGame> {
+  public constructor() {
+    super({width: WIDTH, height: HEIGHT, background: 0x0a0c14, keys: KEY_CODES});
+  }
+
+  protected get status(): string {
+    const {score, wave, lives, bullets} = this.game;
+    return `Score: ${score}   Wave: ${wave}   Lives: ${lives}   Bullets: ${bullets}`;
+  }
+
+  protected createGame(layer: Container): BulletHellGame {
+    return new BulletHellGame({layer});
+  }
+
+  protected createAutopilot(game: BulletHellGame): Autopilot {
+    return new BulletHellAutopilot(game);
+  }
+
+  protected readInput(): void {
+    readKeyboard(this.keyboard, this.game.controls);
+  }
+
+  protected advance(dt: number): void {
+    this.control();
+    this.game.update(dt);
+  }
+}
+
+export const mountBulletHell: MountGame = async (element) => {
+  const demo = new BulletHellDemo();
+  await demo.mount(element);
+  return () => demo.destroy();
+};

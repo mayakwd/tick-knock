@@ -1,3 +1,4 @@
+import {Autopilot} from '../../shared/Demo';
 import {Cell} from '../components';
 import {TowerDefenseGame} from '../game';
 import {TowerKind} from '../towers';
@@ -35,14 +36,18 @@ const PLAN: ReadonlyArray<Step> = [
 ];
 
 /**
- * Creates an autopilot for the demo mode and tests: it builds and upgrades towers by the plan
+ * Autopilot for the demo mode and tests: it builds and upgrades towers by the plan, as soon as it has enough gold
  */
-export function createAutopilot(game: TowerDefenseGame): () => void {
-  let next = 0;
-  return () => {
-    if (next >= PLAN.length) return;
-    const step = PLAN[next];
-    const done = step[0] === 'build' ? game.build(step[1], step[2]) : game.upgrade(step[1]);
-    if (done) next++;
-  };
+export class TowerDefenseAutopilot implements Autopilot {
+  private next = 0;
+
+  public constructor(private readonly game: TowerDefenseGame) {}
+
+  public update(): void {
+    if (this.next >= PLAN.length) return;
+
+    const step = PLAN[this.next];
+    const done = step[0] === 'build' ? this.game.build(step[1], step[2]) : this.game.upgrade(step[1]);
+    if (done) this.next++;
+  }
 }

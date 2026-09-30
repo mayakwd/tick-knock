@@ -1,18 +1,11 @@
-# Keeping rendering apart
+# Where do views come from?
 
-**Short answer:** the game logic never creates views. Rendering systems attach views to entities from outside, when
-entities appear.
+**Short answer:** a view is a component, and factories create entities with their views. Systems of the game move
+entities, and one system after them moves views to their entities.
 
-## Why
+## A view is a component
 
-- The game runs without a browser, so it's easy to test.
-- The same game can be rendered differently: [Snake](/tutorials/snake) is rendered with pixi.js in the browser, and as
-  text in the terminal.
-- Rendering can be replaced or removed without touching the game logic.
-
-## How
-
-A view is a component that holds a display object:
+A view holds a display object of pixi.js:
 
 ```typescript
 class View {
@@ -20,27 +13,36 @@ class View {
 }
 ```
 
-Reaction systems attach views to entities when they appear:
+It's created by the factory, together with the other components of the entity:
 
 ```typescript
-engine.reactive([Asteroid], {
-  added: ({current}, asteroid) => current.add(new View(drawAsteroid(asteroid))),
-});
+export function createFood(x: number, y: number): Entity {
+  return new Entity()
+    .add(new Cell(x, y))
+    .add(new View(drawFood()))
+    .add(FOOD);
+}
 ```
 
-A reaction system of `View` adds views to the stage, and destroys them when entities are removed. An iterative system
-of `[View, Position]` moves views after all game systems have been updated.
+The entity is complete from the start. There is no second place, where views are attached to entities by their kinds,
+and no way to forget a view of a new kind of entity.
 
-## The setup option
+When a view depends on the state of an entity, it's replaced together with the state. A tower of the
+[Tower defense](/tutorials/tower-defense) gets a new view, when an upgrade gives it components of the next level.
 
-Reaction systems are notified only about entities added after them. So rendering must be added before the first
-entities of the game are created. The games accept a `setup` option, that is called right before that:
+## Views follow entities
+
+A reaction system of `View` adds views to the layer, and destroys them when entities are removed or lose their views.
+An iterative system of `[View, Position]` moves views to their entities. It's added after all game systems, so views
+show entities where the systems have moved them. All examples share this code:
 
 ```typescript
-const game = createAsteroidsGame({width, height, setup: (engine) => addRendering(engine, layer)});
+addViews(engine, layer, {position: Position});
 ```
 
-## Testing rendering
+## Running without a screen
 
-pixi.js creates display objects without a renderer, so rendering can be tested without a browser too. The tests of the
-examples check that every visible entity has a view, and every view is on the stage.
+pixi.js creates display objects without a renderer, so the game runs without a browser: tests pass it a layer that is
+never displayed, and check that every visible entity has a view, and every view is on the layer.
+[Snake](/tutorials/snake) is played in the terminal the same way: its views are created, but the grid is printed as
+text.

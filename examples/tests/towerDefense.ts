@@ -1,23 +1,22 @@
 import * as assert from 'node:assert/strict';
 import {Container} from 'pixi.js';
 import {Creep, Payload, Position, Projectile, Target, Tower, Weapon} from '../tower-defense/components';
-import {createTowerDefenseGame} from '../tower-defense/game';
-import {createAutopilot} from '../tower-defense/input/autopilot';
-import {addRendering} from '../tower-defense/render/addRendering';
+import {TowerDefenseGame} from '../tower-defense/game';
+import {TowerDefenseAutopilot} from '../tower-defense/input/autopilot';
 import {TOWERS} from '../tower-defense/towers';
 import {View} from '../shared/render/View';
 import {assertViews} from './rendering';
 
 export function testTowerDefense(): void {
   const layer = new Container();
-  const game = createTowerDefenseGame({setup: (engine) => addRendering(engine, layer)});
-  const autopilot = createAutopilot(game);
+  const game = new TowerDefenseGame({layer});
+  const autopilot = new TowerDefenseAutopilot(game);
   assert.equal(game.build('arrow', {column: 0, row: 3}), false, 'towers can\'t be built on the path');
 
   const dt = 1 / 60;
   let seconds = 0;
   for (; seconds < 240 && !game.isOver; seconds += dt) {
-    autopilot();
+    autopilot.update();
     game.update(dt);
     if (Math.round(seconds / dt) % 30 === 0) assertViews(game.engine, layer, 'tower defense', [Position], (entity) => entity.get(Position));
   }
@@ -44,9 +43,9 @@ export function testTowerDefense(): void {
  */
 export function testTowerUpgrades(): void {
   const layer = new Container();
-  const game = createTowerDefenseGame({setup: (engine) => addRendering(engine, layer)});
+  const game = new TowerDefenseGame({layer});
   const cell = {column: 5, row: 7};
-  (game.economy as {gold: number}).gold = 1000;
+  game.economy.gold = 1000;
   assert.ok(game.build('frost', cell), 'a tower is built');
   const tower = game.engine.entities.find((entity) => entity.has(Tower))!;
   const firstView = tower.get(View)!.display;

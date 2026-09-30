@@ -1,10 +1,17 @@
 /**
- * Controls shared between the input source and the ship control system. It's a plain object, so any input source
- * can change it: keyboard, autopilot or a test.
+ * Controls shared between the input source and the ship control system, so any input source can control the ship:
+ * keyboard, autopilot or a test
  */
-export interface Controls {
-  left: boolean;
-  right: boolean;
-  thrust: boolean;
-  fire: boolean;
+export class Controls {
+  public left = false;
+  public right = false;
+  public thrust = false;
+  public fire = false;
+
+  /**
+   * Releases all controls
+   */
+  public release(): void {
+    this.left = this.right = this.thrust = this.fire = false;
+  }
 }

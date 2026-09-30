@@ -1,6 +1,8 @@
 import {Entity} from 'tick-knock';
+import {View} from '../../shared/render/View';
 import {AimedPattern, Collider, Enemy, Health, Position, Reward, RingPattern, SpiralPattern, Sway, Velocity} from '../components';
 import {ENEMIES, EnemyKind} from '../enemies';
+import {drawEnemy} from '../render/graphics';
 import {REMOVED_OFFSCREEN} from '../tags';
 
 /**
@@ -9,8 +11,8 @@ import {REMOVED_OFFSCREEN} from '../tags';
 const FIRST_SHOT_DELAY = 0.5;
 
 /**
- * Creates an enemy from the description of its kind above the top edge of the screen. Optional behaviour is an optional component: an enemy sways only
- * if it has `Sway`, and fires with the patterns it has.
+ * Creates an enemy from the description of its kind above the top edge of the screen. Optional behaviour is
+ * an optional component: an enemy sways only if it has `Sway`, and fires with the patterns it has.
  *
  * @param strength Multiplier of health, it grows every time waves repeat
  */
@@ -23,7 +25,9 @@ export function createEnemy(kind: EnemyKind, x: number, strength: number): Entit
     .add(new Collider(radius))
     .add(new Health(Math.round(health * strength)))
     .add(new Reward(reward))
+    .add(new View(drawEnemy(kind, radius)))
     .add(REMOVED_OFFSCREEN);
+
   if (sway !== undefined) entity.add(new Sway(sway.amplitude, sway.frequency));
   if (ring !== undefined) entity.add(new RingPattern(ring.interval, ring.count, ring.speed, FIRST_SHOT_DELAY));
   if (spiral !== undefined) {
@@ -32,5 +36,6 @@ export function createEnemy(kind: EnemyKind, x: number, strength: number): Entit
   if (aimed !== undefined) {
     entity.add(new AimedPattern(aimed.interval, aimed.count, aimed.speed, aimed.spread, FIRST_SHOT_DELAY));
   }
+
   return entity;
 }

@@ -84,7 +84,7 @@ export default defineConfig({
             {text: 'Data or components?', link: '/decisions/data-or-components'},
             {text: 'Remove the entity or the component?', link: '/decisions/removing'},
             {text: 'Linked components or an array?', link: '/decisions/linked-components'},
-            {text: 'Keeping rendering apart', link: '/decisions/rendering'},
+            {text: 'Where do views come from?', link: '/decisions/rendering'},
             {text: 'Performance', link: '/decisions/performance'},
           ],
         },

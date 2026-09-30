@@ -74,7 +74,7 @@ A new tower is an entity with its cell, position, target and the `Tower` compone
 
 <<< @/../examples/tower-defense/entities/createTower.ts
 
-Its weapon and payload come from the level, and a reaction system of `Tower` adds them. It's called when a tower
+Its weapon, payload and view come from the level, and a reaction system of `Tower` adds them. It's called when a tower
 appears, and when an upgrade replaces its `Tower` with the next level, so building and upgrading are the same thing
 for it:
 
@@ -132,11 +132,13 @@ index of targets right away. Towers are indexed the same way, so the game finds 
 
 <<< @/../examples/tower-defense/game.ts#indexes
 
-The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system,
-so a new rule is a new tag and a new system, and the others don't change. Both rules look through creeps in range,
-which the index gives, and choose the one with the best score: the distance passed or the health.
+The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system:
+the same class with the tag of the rule and a score of creeps, the distance passed or the health. A new rule is a new
+tag and a new system, and the others don't change.
 
-<<< @/../examples/tower-defense/game.ts#targeting
+<<< @/../examples/tower-defense/systems/TargetingSystem.ts
+
+The query of the system is built in the constructor with the tag of the rule, so one class serves all rules.
 
 Distances are checked with `isWithin`, that compares squares of distances, so the check reads as what it means, and
 doesn't calculate square roots:
@@ -192,7 +194,7 @@ the payload is created from a level.
 Linked components are added with `append` instead of `add`, as the projectile system does on hit. They are processed
 with `iterate`, which visits every linked component of the class. Expired ones are removed with `pick`, which removes
 one particular component and keeps the others. Every effect has its own small system, written right where it's added
-to the engine:
+to the engine among the other systems of the game. Systems are updated in the order they are added:
 
 <<< @/../examples/tower-defense/game.ts#systems
 
@@ -211,8 +213,8 @@ runs after all damage, removes creeps without health. You can see it at the end 
 ## Game state outside of entities
 
 Gold and lives belong to the player. They could be components of a "player" entity, but nothing would ever query it:
-there is only one player, and systems don't even read gold and lives, they only report what has happened. A plain
-object kept by the game is simpler:
+there is only one player, and systems don't even read gold and lives, they only report what has happened. A small
+class kept by the game is simpler:
 
 <<< @/../examples/tower-defense/Economy.ts
 
@@ -230,21 +232,21 @@ The whole game:
 
 <<< @/../examples/tower-defense/game.ts
 
-## Rendering and input
+## Views and input
 
-A creep view has a health bar, and is tinted when the creep is slowed or poisoned. The view is kept in a typed
-component besides `View`, so the status system updates it without casting:
+A creep view has a health bar, and is tinted when the creep is slowed or poisoned. The factory of creeps adds the view,
+and a typed component besides `View`, so a system updates the health bar without casting:
 
 <<< @/../examples/tower-defense/render/CreepView.ts
 
 <<< @/../examples/tower-defense/render/CreepViewRef.ts
 
-A tower is drawn by its kind and level. An upgrade replaces the `Tower` component: replacing a component removes the
-entity from queries of the component and adds it again, so the reaction system attaches a new view, and the view system
-destroys the previous one. Rendering reacts to upgrades without knowing about them. A projectile is drawn by its
-payload.
+<<< @/../examples/tower-defense/entities/createCreep.ts
 
-<<< @/../examples/tower-defense/render/addRendering.ts
+<<< @/../examples/tower-defense/game.ts#views
+
+A tower is drawn by its kind and level, so its view comes from the level, together with the weapon. An upgrade replaces
+the view, and the view system destroys the previous one. A projectile is drawn by its payload.
 
 Towers are built and upgraded with the pointer. The placement shows the cell and the range the tower would have, and
 builds a tower in an empty cell or upgrades the tower on click. It asks the game what's possible, so the rules are in
@@ -252,7 +254,7 @@ one place:
 
 <<< @/../examples/tower-defense/input/pointer.ts
 
-The page adds the map under the world and the pointer to the shared `mountDemo`:
+The page extends the shared `Demo`: it draws the map under the world once, and updates the placement every frame:
 
 <<< @/../examples/tower-defense/mount.ts
 
@@ -268,7 +270,7 @@ The page adds the map under the world and the pointer to the shared `mountDemo`:
 - An index is maintained by reaction systems on the component it indexes: an entity that moves gets a new `Cell`,
   and indexes follow it.
 - Linked components store several components of the same class, `iterate` visits them, and `pick` removes one of them.
-- Game state, that doesn't belong to entities, can be a plain object kept by the game.
+- Game state, that doesn't belong to entities, is kept by the game outside of entities.
 - References to entities are checked with queries before use.
 - Damage from different systems is resolved by one system that runs after all of them.
 

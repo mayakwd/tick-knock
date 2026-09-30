@@ -16,7 +16,7 @@ export const KEY_CODES = Object.keys(KEYS);
 export function bindKeyboard(keyboard: Keyboard, controls: () => Controls): void {
   for (const [code, direction] of Object.entries(KEYS)) {
     keyboard.onPress(code, () => {
-      controls().direction = direction;
+      controls().turn(direction);
     });
   }
 }

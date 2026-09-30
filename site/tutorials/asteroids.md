@@ -60,7 +60,16 @@ Numbers that tune the game are kept in one place:
 
 <<< @/../examples/asteroids/config.ts
 
+## Views
+
+All bullets look the same, so they share geometry. Creating a view of a bullet doesn't build its geometry again, which
+matters when bullets appear several times per second:
+
+<<< @/../examples/asteroids/render/graphics.ts
+
 ## Entities
+
+Factories create entities with their views, as in Snake:
 
 <<< @/../examples/asteroids/entities/createShip.ts
 
@@ -76,28 +85,33 @@ generator and get the same game every time.
 Now the delta time matters. `engine.update(dt)` passes the time since the previous frame to every system, and systems
 move things by `velocity * dt`, so the game runs at the same speed on any frame rate.
 
-The systems are written in place, together with the collision system and waves, which are explained below:
+Systems are updated in the order they are added, so they read as the update goes:
 
 <<< @/../examples/asteroids/game.ts#systems
 
-- `ship-control` turns and accelerates the ship, and fires, according to the controls. The system is a closure, so it
-  reads the controls of the game, like the steering system of Snake. `[Position, Velocity, Rotation, Gun, SHIP]`
-  passes four components to the function, all with their types, and the tag only filters entities.
+The ship is controlled first. The ship control system is bigger than a few lines, so it's a class. It receives the
+controls of the game in the constructor, and `IterativeSystem.of(Position, Velocity, Rotation, Gun, SHIP)` passes four
+components to `updateEntity`, all with their types, while the tag only filters entities:
+
+<<< @/../examples/asteroids/systems/ShipControlSystem.ts
+
 - The drag uses `Math.exp(-DRAG * dt)`: the ship loses the same share of its speed every second, whatever the frame
   rate is. Subtracting `velocity * DRAG * dt` would slow the ship differently at different frame rates.
 - Firing is just adding a new entity to the engine. The new bullet is picked up by queries right away, so systems
   updated after this one, like movement, see it in the same update. Only the system that is iterating right now
   doesn't visit entities added during its own iteration: they are updated starting from the next update.
-- `movement` works for every entity with `Position` and `Velocity`: the ship, asteroids and bullets. One system,
+
+The next systems are a few lines each, so they are written in place:
+
+- Movement works for every entity with `Position` and `Velocity`: the ship, asteroids and bullets. One system,
   three kinds of entities, because they share the same components. Positions wrap around the edges with `wrap` from
   the shared geometry helpers.
-- `spin` works for every entity with `Rotation` and `AngularVelocity`. Only asteroids have an angular velocity, so
+- Spinning works for every entity with `Rotation` and `AngularVelocity`. Only asteroids have an angular velocity, so
   only they spin, and the system doesn't need to know about asteroids.
-- `lifetime` removes entities when their lifetime is over.
+- Lifetime removes bullets when their lifetime is over.
 
-> 💡 Functional systems are closures: `movement` uses the size of the screen and `lifetime` uses the engine, and
-> nothing is passed to them. Keep them in place while they are small, and make a class when a system has its own
-> queries or state, like the collision system.
+> 💡 Functional systems are closures: movement uses the size of the screen and lifetime uses the engine, and nothing
+> is passed to them. Keep them in place while they are small, and make a class when a system does something bigger.
 
 ## Collisions and safe removal
 
@@ -136,35 +150,30 @@ The asteroid is removed after the update, so the subscriber can still read its s
 
 When the last asteroid is destroyed, a new wave begins. How do we know that it was the last one?
 
-A reaction system of asteroids, `waves` among the systems above, counts asteroids: it's notified when an asteroid
+A reaction system of asteroids, the last of the systems above, counts asteroids: it's notified when an asteroid
 appears and when it's removed. When the last one is removed, the next wave begins. Nobody has to check asteroids
 every frame: the game reacts to the change when it happens.
+
+## Views follow entities
+
+Views follow positions of entities with the shared `addViews`, as in Snake, and rotations with two more systems:
+
+<<< @/../examples/asteroids/game.ts#views
+
+`[View, Rotation]` rotates views of entities that have a rotation. Bullets don't have one, and they are not rotated.
+Instead of one system with `if`s, the behaviour is composed from components.
 
 ## Putting it all together
 
 <<< @/../examples/asteroids/game.ts
-
-## Rendering
-
-Rendering works as in Snake: views are attached to entities when they appear.
-
-<<< @/../examples/asteroids/render/addRendering.ts
-
-Positions of views are handled by the shared `addViews`, and rotations by the last two systems: `[View, Rotation]`
-rotates views of entities that have a rotation. Bullets don't have one, and they are not rotated. Instead of one system
-with `if`s, the behaviour is composed from components.
-
-All bullets look the same, so they share geometry. Creating a view of a bullet doesn't build its geometry again, which
-matters when bullets appear several times per second:
-
-<<< @/../examples/asteroids/render/graphics.ts
 
 ## Input
 
 <<< @/../examples/asteroids/input/keyboardControls.ts
 
 The keyboard is read every frame and written to the controls. The autopilot writes to the same controls, so the game
-doesn't care who plays it. The page is started by the shared `mountDemo`, as in Snake:
+doesn't care who plays it. The page extends the shared `Demo`, as in Snake, and reads the keyboard while the player
+plays:
 
 <<< @/../examples/asteroids/mount.ts
 
@@ -172,12 +181,12 @@ doesn't care who plays it. The page is started by the shared `mountDemo`, as in 
 
 - Systems move things by `velocity * dt`, and timers keep the time passed after they are over, so the game doesn't
   depend on the frame rate.
-- Small functional systems are written in place, and use what they need from the scope.
+- Small functional systems are written in place, bigger systems are classes.
 - Behaviour follows data: only entities with an angular velocity spin.
 - Systems report what has happened with messages, and the game decides what it means.
 - Removed entities stay in queries until the end of the update. To take an entity out of queries immediately, remove
   the component they depend on.
 - Reaction systems notice when things appear and disappear, like the last asteroid of a wave.
-- Rendering behaviour is composed from components too.
+- Rendering behaviour is composed from components too: only entities with a rotation are rotated.
 
 Next, in the [Bullet hell](/tutorials/bullet-hell), there will be hundreds of entities on the screen at once.

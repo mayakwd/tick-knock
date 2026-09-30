@@ -1,7 +1,7 @@
 # Where to keep game state?
 
 **Short answer:** state of things is kept in components. State of the game, that doesn't belong to any entity, is kept
-in plain objects owned by the game or passed to systems, or in systems themselves.
+in small classes owned by the game or passed to systems, or in systems themselves.
 
 ## Not everything must be an entity
 
@@ -9,12 +9,12 @@ It's tempting to make everything an entity: the score, the settings, the current
 systems query it. If there is always exactly one of something, and only a couple of places need it, an entity adds
 nothing but lookups.
 
-In the [Tower defense](/tutorials/tower-defense), gold and lives are a plain object:
+In the [Tower defense](/tutorials/tower-defense), gold and lives are kept by the game:
 
 ```typescript
-interface Economy {
-  gold: number;
-  lives: number;
+class Economy {
+  public gold = START_GOLD;
+  public lives = START_LIVES;
 }
 ```
 
@@ -26,13 +26,12 @@ When a system needs such state, it gets it explicitly, as described below.
 Functional systems read shared data from the closure, class-based systems receive it in their constructors:
 
 ```typescript
-const controls: Controls = {left: false, right: false, thrust: false, fire: false};
-engine.iterative([Position, Velocity, Rotation, Gun, SHIP], (ship, dt, position, velocity, rotation, gun) => {
-  if (controls.fire) {
-    // ...
-  }
-});
-engine.addSystem(new SpawnSystem(waves));
+engine
+  .addSystem(new ShipControlSystem(this.controls))
+  .iterative([Position, Velocity], (entity, dt, position, velocity) => {
+    position.x = wrap(position.x + velocity.x * dt, width);
+    position.y = wrap(position.y + velocity.y * dt, height);
+  });
 ```
 
 It's explicit: looking at the closure or at the constructor, you see everything the system depends on.

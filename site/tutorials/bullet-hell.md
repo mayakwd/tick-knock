@@ -82,32 +82,36 @@ component, and only enemies that sway have it:
 A system processes entities that have `Sway`, and doesn't know about the others. Adding swaying to any entity, even to
 a bullet, is adding one component.
 
-## Small systems in place
+## Systems
 
-Most systems of the game are a few lines long. They are written right where they are added to the engine, with
-`engine.iterative`:
+Systems are updated in the order they are added, so they read as the update goes: the player moves and fires, enemies
+appear, everything moves, enemies fire, collisions are checked and hits are resolved, and the screen is cleaned up.
 
 <<< @/../examples/bullet-hell/game.ts#systems
 
-- `player-control` moves the player and fires its gun according to the controls. `clamp` from the shared geometry
-  helpers keeps the player on the screen.
-- `movement` moves everything that has a velocity: enemies and bullets.
-- `swaying` adds only the change of the swing to the horizontal position, so it works together with `movement`: an
-  enemy descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
-- Every pattern has its own system. Patterns fire with the same function, so each system describes only
+Most systems are a few lines long, so they are written right where they are added to the engine:
+
+- Movement moves everything that has a velocity: enemies and bullets.
+- Swaying adds only the change of the swing to the horizontal position, so it works together with movement: an enemy
+  descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
+- Every pattern has its own system. Patterns fire with the same method of the game, so each system describes only
   the directions of bullets. `cooldown.repeat` fires as many times as the cooldown is over in this update: a spiral
   fires every 0.05 seconds, and on a slow frame it fires twice instead of losing a shot.
 - The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
   player, that the game has created.
-- `enemy-hits` and `player-hits` decide what a hit does, see [Collisions](#collisions) below.
-- `invulnerability` counts down the invulnerability and removes the component when the time is over.
-- `leaving-screen` removes entities with the `REMOVED_OFFSCREEN` tag that have left the screen: bullets and enemies.
-  The rule is explicit: the player doesn't have the tag, and is never removed by this system.
+- Invulnerability is counted down, and the component is removed when the time is over.
+- Entities with the `REMOVED_OFFSCREEN` tag, bullets and enemies, are removed when they leave the screen. The rule is
+  explicit: the player doesn't have the tag, and is never removed by this system.
 
 <<< @/../examples/bullet-hell/tags.ts
 
-Collisions and waves have their own queries and state, so they are classes in their own files.
-See [Which system?](/decisions/which-system) for more about this choice.
+Bigger systems are classes with names. The player control moves the player and fires its gun according to the
+controls, and `clamp` from the shared geometry helpers keeps the player on the screen:
+
+<<< @/../examples/bullet-hell/systems/PlayerControlSystem.ts
+
+Collisions, hits and waves are explained below. See [Which system?](/decisions/which-system) for more about the choice
+between a function and a class.
 
 ## Temporary state is a component
 
@@ -116,8 +120,9 @@ component, that exists while the state lasts:
 
 <<< @/../examples/bullet-hell/components/Invulnerable.ts
 
-The collision system just checks `player.has(Invulnerable)`: bullets fly through the invulnerable player. Rendering makes the invulnerable player blink with a
-system for `[View, Invulnerable]`, and restores it when the component is removed. Nobody checks timers and flags
+The collision system just checks `player.has(Invulnerable)`: bullets fly through the invulnerable player. The view of
+the invulnerable player blinks with a system for `[View, Invulnerable]`, and becomes solid when the component is
+removed. Nobody checks timers and flags
 everywhere: the presence of the component is the state.
 
 ## Collisions
@@ -133,9 +138,15 @@ component, because an entity can be hit several times in one update:
 
 <<< @/../examples/bullet-hell/components/Hit.ts
 
-What a hit does is decided by systems of the hit entities, `enemy-hits` and `player-hits` above. An enemy loses a point
-of health for every hit. The player loses one life, even if a bullet and an enemy have hit it at once, and becomes
-invulnerable. The collision system doesn't know about health, lives or the score: they can change without touching it.
+What a hit does is decided by systems of the hit entities. An enemy loses a point of health for every hit:
+
+<<< @/../examples/bullet-hell/systems/EnemyHitSystem.ts
+
+The player loses one life, even if a bullet and an enemy have hit it at once, and becomes invulnerable:
+
+<<< @/../examples/bullet-hell/systems/PlayerHitSystem.ts
+
+The collision system doesn't know about health, lives or the score: they can change without touching it.
 
 Destroyed entities use the same trick as in [Asteroids](/tutorials/asteroids): they lose their colliders immediately,
 so they can't hit anything else in the same update.
@@ -147,7 +158,7 @@ so they can't hit anything else in the same update.
 <<< @/../examples/bullet-hell/systems/SpawnSystem.ts
 
 The spawn system keeps the progress of the current wave in its own fields. It's the state of the system, not of
-any entity, so it doesn't need to be a component. The number of the wave is shared with the game through a plain
+any entity, so it doesn't need to be a component. The number of the wave is shared with the game through a small
 object passed to the constructor, so the game can show it.
 
 ## Putting it all together
@@ -160,19 +171,19 @@ the status is shown.
 
 ## Rendering hundreds of bullets
 
-Bullets look the same, so they share geometry. Creating a `Graphics` from a shared `GraphicsContext` doesn't build the
-geometry again:
+Factories create entities with their views. Bullets look the same, so they share geometry: creating a `Graphics` from
+a shared `GraphicsContext` doesn't build the geometry again, which matters when hundreds of bullets appear every second:
 
 <<< @/../examples/bullet-hell/render/graphics.ts
 
-<<< @/../examples/bullet-hell/render/addRendering.ts
+<<< @/../examples/bullet-hell/entities/createBullet.ts
 
 ## What we've learned
 
 - Kinds of things are data, that is turned into components when an entity is created.
 - Variants of behaviour are separate components, so an entity can combine them.
 - Optional behaviour is an optional component.
-- Small systems are written in place with `engine.iterative`.
+- Small systems are written in place with `engine.iterative`, bigger ones are classes.
 - Temporary state is a component, that exists while the state lasts.
 - Systems can keep their own state, when it doesn't belong to any entity.
 - Collisions report hits, and systems of hit entities decide what a hit does.

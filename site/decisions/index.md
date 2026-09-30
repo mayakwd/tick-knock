@@ -11,5 +11,5 @@ that appear in every project. Every answer has a short version, the reasoning, a
 - [Data or components?](/decisions/data-or-components)
 - [Remove the entity or the component?](/decisions/removing)
 - [Linked components or an array?](/decisions/linked-components)
-- [Keeping rendering apart](/decisions/rendering)
+- [Where do views come from?](/decisions/rendering)
 - [Performance](/decisions/performance)

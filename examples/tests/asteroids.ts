@@ -1,20 +1,19 @@
 import * as assert from 'node:assert/strict';
 import {Container} from 'pixi.js';
 import {Lifetime, Position} from '../asteroids/components';
-import {createAsteroidsGame} from '../asteroids/game';
-import {createAutopilot} from '../asteroids/input/autopilot';
-import {addRendering} from '../asteroids/render/addRendering';
+import {AsteroidsGame} from '../asteroids/game';
+import {AsteroidsAutopilot} from '../asteroids/input/autopilot';
 import {seededRandom} from '../shared/random';
 import {assertViews} from './rendering';
 
 export function testAsteroids(): void {
   const layer = new Container();
-  const game = createAsteroidsGame({width: 800, height: 600, random: seededRandom(7), setup: (engine) => addRendering(engine, layer)});
-  const autopilot = createAutopilot(game);
+  const game = new AsteroidsGame({width: 800, height: 600, layer, random: seededRandom(7)});
+  const autopilot = new AsteroidsAutopilot(game);
   const dt = 1 / 60;
   let seconds = 0;
   for (; seconds < 120 && !game.isOver; seconds += dt) {
-    autopilot();
+    autopilot.update();
     game.update(dt);
     assertViews(game.engine, layer, 'asteroids', [Position], (entity) => entity.get(Position));
     for (const entity of game.engine.entities) {

@@ -1,6 +1,7 @@
 import {QueryBuilder} from 'tick-knock';
-import {Enemy, Position, Velocity} from '../components';
+import {Autopilot} from '../../shared/Demo';
 import {distance} from '../../shared/geometry';
+import {Enemy, Position, Velocity} from '../components';
 import {HEIGHT} from '../config';
 import {BulletHellGame} from '../game';
 import {ENEMY_BULLET, PLAYER} from '../tags';
@@ -32,47 +33,61 @@ const DEAD_ZONE = 0.2;
 const VERTICAL_WEIGHT = 0.2;
 
 /**
- * Creates an autopilot for the demo mode and tests: it keeps under the nearest enemy, fires all the time,
- * and is pushed away by bullets flying to it.
+ * Autopilot for the demo mode and tests: it keeps under the nearest enemy, fires all the time, and is pushed away by
+ * bullets flying to it.
  */
-export function createAutopilot(game: BulletHellGame): () => void {
-  const player = new QueryBuilder().contains(Position, PLAYER).build();
-  const enemies = new QueryBuilder().contains(Position, Enemy).build();
-  const bullets = new QueryBuilder().contains(Position, Velocity, ENEMY_BULLET).build();
-  game.engine.addQuery(player).addQuery(enemies).addQuery(bullets);
+export class BulletHellAutopilot implements Autopilot {
+  private readonly players = new QueryBuilder().contains(Position, PLAYER).build();
+  private readonly enemies = new QueryBuilder().contains(Position, Enemy).build();
+  private readonly bullets = new QueryBuilder().contains(Position, Velocity, ENEMY_BULLET).build();
 
-  return () => {
-    const {controls} = game;
-    const ship = player.first?.get(Position);
+  public constructor(private readonly game: BulletHellGame) {
+    game.engine.addQuery(this.players).addQuery(this.enemies).addQuery(this.bullets);
+  }
+
+  public update(): void {
+    const {controls} = this.game;
     controls.fire = true;
+    controls.focus = false;
+
+    const ship = this.players.first?.get(Position);
     if (ship === undefined) return;
 
-    let targetX = ship.x;
-    let nearest = Infinity;
-    // The nearest enemy horizontally is preferred, enemies far above count less
-    enemies.forEach((enemy, {x, y}) => {
-      const cost = Math.abs(x - ship.x) + (ship.y - y) * VERTICAL_WEIGHT;
-      if (y < ship.y && cost < nearest) {
-        nearest = cost;
-        targetX = x;
-      }
-    });
-    let pushX = (targetX - ship.x) * PULL;
-    let pushY = (HEIGHT - BOTTOM_DISTANCE - ship.y) * PULL;
-
-    bullets.forEach((bullet, position, velocity) => {
+    // The ship is pulled to its place under the enemy, and bullets push it away
+    const push = {
+      x: (this.targetX(ship) - ship.x) * PULL,
+      y: (HEIGHT - BOTTOM_DISTANCE - ship.y) * PULL,
+    };
+    this.bullets.forEach((bullet, position, velocity) => {
       const ahead = {x: position.x + velocity.x * LOOKAHEAD, y: position.y + velocity.y * LOOKAHEAD};
       const length = distance(ahead, ship);
       if (length > DANGER_DISTANCE || length === 0) return;
+
       const force = ((DANGER_DISTANCE - length) / DANGER_DISTANCE) * PUSH;
-      pushX += ((ship.x - ahead.x) / length) * force;
-      pushY += ((ship.y - ahead.y) / length) * force;
+      push.x += ((ship.x - ahead.x) / length) * force;
+      push.y += ((ship.y - ahead.y) / length) * force;
     });
 
-    controls.left = pushX < -DEAD_ZONE;
-    controls.right = pushX > DEAD_ZONE;
-    controls.up = pushY < -DEAD_ZONE;
-    controls.down = pushY > DEAD_ZONE;
-    controls.focus = false;
-  };
+    controls.left = push.x < -DEAD_ZONE;
+    controls.right = push.x > DEAD_ZONE;
+    controls.up = push.y < -DEAD_ZONE;
+    controls.down = push.y > DEAD_ZONE;
+  }
+
+  /**
+   * Returns the horizontal position of the enemy to keep under. The nearest enemy horizontally is preferred,
+   * enemies far above count less.
+   */
+  private targetX(ship: Position): number {
+    let targetX = ship.x;
+    let nearest = Infinity;
+    this.enemies.forEach((enemy, {x, y}) => {
+      const cost = Math.abs(x - ship.x) + (ship.y - y) * VERTICAL_WEIGHT;
+      if (y >= ship.y || cost >= nearest) return;
+
+      nearest = cost;
+      targetX = x;
+    });
+    return targetX;
+  }
 }

@@ -6,8 +6,11 @@ import {creepOfWave, SPAWN_INTERVAL, WAVE_PAUSE, waveSize} from '../waves';
 /**
  * Progress of waves, shared with the game, which shows the number of the wave
  */
-export interface WaveState {
-  number: number;
+export class WaveState {
+  /**
+   * Number of the current wave, starting from 1
+   */
+  public number = 1;
 }
 
 /**
@@ -32,12 +35,16 @@ export class SpawnSystem extends System {
   }
 
   public update(dt: number): void {
-    const size = waveSize(this.state.number);
     this.time += dt;
+
+    // Creeps of the wave appear one after another
+    const size = waveSize(this.state.number);
     while (this.spawned < size && this.time >= this.spawned * SPAWN_INTERVAL) {
       this.engine.addEntity(createCreep(creepOfWave(this.state.number)));
       this.spawned++;
     }
+
+    // The next wave starts after a pause, when all creeps have appeared, and are gone
     if (this.spawned === size && this.creeps.isEmpty) {
       this.state.number++;
       this.time = -WAVE_PAUSE;

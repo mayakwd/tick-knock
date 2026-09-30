@@ -1,25 +1,42 @@
-import {mountDemo} from '../shared/demo';
-import {MountGame} from '../shared/mount';
+import {Container} from 'pixi.js';
+import {Autopilot, Demo, MountGame} from '../shared/Demo';
 import {HEIGHT, WIDTH} from './config';
-import {createAsteroidsGame} from './game';
-import {createAutopilot} from './input/autopilot';
+import {AsteroidsGame} from './game';
+import {AsteroidsAutopilot} from './input/autopilot';
 import {KEY_CODES, readKeyboard} from './input/keyboardControls';
-import {addRendering} from './render/addRendering';
 
 /**
- * Starts Asteroids in the element
+ * Asteroids in a page
  */
-export const mountAsteroids: MountGame = (element) => mountDemo(element, {
-  width: WIDTH,
-  height: HEIGHT,
-  background: 0x05060a,
-  keys: KEY_CODES,
-  create: (layer) => createAsteroidsGame({width: WIDTH, height: HEIGHT, setup: (engine) => addRendering(engine, layer)}),
-  createAutopilot,
-  advance(game, dt, input) {
-    input();
-    game.update(dt);
-  },
-  readInput: (keyboard, game) => readKeyboard(keyboard, game.controls),
-  status: (game) => `Score: ${game.score}   Wave: ${game.wave}`,
-});
+class AsteroidsDemo extends Demo<AsteroidsGame> {
+  public constructor() {
+    super({width: WIDTH, height: HEIGHT, background: 0x05060a, keys: KEY_CODES});
+  }
+
+  protected get status(): string {
+    return `Score: ${this.game.score}   Wave: ${this.game.wave}`;
+  }
+
+  protected createGame(layer: Container): AsteroidsGame {
+    return new AsteroidsGame({width: WIDTH, height: HEIGHT, layer});
+  }
+
+  protected createAutopilot(game: AsteroidsGame): Autopilot {
+    return new AsteroidsAutopilot(game);
+  }
+
+  protected readInput(): void {
+    readKeyboard(this.keyboard, this.game.controls);
+  }
+
+  protected advance(dt: number): void {
+    this.control();
+    this.game.update(dt);
+  }
+}
+
+export const mountAsteroids: MountGame = async (element) => {
+  const demo = new AsteroidsDemo();
+  await demo.mount(element);
+  return () => demo.destroy();
+};

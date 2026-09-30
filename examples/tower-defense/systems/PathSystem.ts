@@ -10,21 +10,25 @@ import {CreepEscaped} from '../messages';
  */
 export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell, Creep) {
   protected updateEntity(entity: Entity, dt: number, position: Position, follower: PathFollower, cell: Cell): void {
+    // The creep moves to the next turn of the path. When the turn is reached, the rest of the step is made towards
+    // the next one.
     let step = follower.speed * slowFactor(entity) * dt;
     while (follower.waypoint < PATH.length) {
       const left = moveTowards(position, PATH[follower.waypoint], step);
       follower.distance += step - (left ?? 0);
       if (left === undefined) break;
-      // The turn is reached, the rest of the step is made towards the next one
+
       follower.waypoint++;
       step = left;
     }
+
+    // A creep crossing into another cell gets a new one, and spatial indexes follow it
     const next = cellAt(position);
     if (!isSameCell(next, cell)) entity.add(next);
 
+    // The creep is removed after the update, but it loses its health right away, so it's not a target anymore,
+    // and can't be killed after it has escaped
     if (follower.waypoint === PATH.length) {
-      // The creep is removed after the update, but it leaves queries of towers, projectiles and death right now,
-      // so it can't be killed after it has escaped
       entity.remove(Health);
       this.engine.removeEntity(entity);
       this.dispatch(new CreepEscaped());
