@@ -36,14 +36,26 @@ The player has lives and a gun:
 
 <<< @/../examples/bullet-hell/components/Gun.ts
 
-Enemies are more interesting. The `Enemy` component keeps the kind of the enemy, and `Emitter` describes how it fires:
+Enemies are more interesting. The `Enemy` component keeps the kind of the enemy, which is used only to draw it:
 
 <<< @/../examples/bullet-hell/components/Enemy.ts
 
-<<< @/../examples/bullet-hell/components/Emitter.ts
+## Patterns are components
 
-`Emitter` has no methods, only parameters: the pattern, the interval, the amount and the speed of bullets. One system
-will read these parameters and fire all patterns.
+Enemies fire bullets in patterns. It's tempting to make one `Emitter` component with the kind of the pattern, and one
+system with a `switch` over kinds. But then an enemy can fire only one pattern, and every new pattern changes the
+system and the component, that gets fields used only by some of the patterns.
+
+Instead, every pattern is a component with its own parameters:
+
+<<< @/../examples/bullet-hell/components/RingPattern.ts
+
+<<< @/../examples/bullet-hell/components/SpiralPattern.ts
+
+<<< @/../examples/bullet-hell/components/AimedPattern.ts
+
+An enemy fires with every pattern it has. A boss that fires a spiral and aimed fans at the same time is an entity with
+two components, and it needs no new code.
 
 ## Enemies are data
 
@@ -53,7 +65,8 @@ Kinds of enemies are described in one table, and waves are a list of enemies wit
 
 To add a new enemy, you add a description. To change the difficulty, you change numbers. Nothing in systems changes.
 
-The factory turns a description into an entity:
+The factory turns a description into an entity. The description is used only here: from this moment the enemy owns
+its parameters.
 
 <<< @/../examples/bullet-hell/entities/createEnemy.ts
 
@@ -67,16 +80,26 @@ component, and only enemies that sway have it:
 A system processes entities that have `Sway`, and doesn't know about the others. Adding swaying to any entity, even to
 a bullet, is adding one component.
 
-## Motion
+## Small systems in place
 
-<<< @/../examples/bullet-hell/systems/motion.ts
+Most systems of the game are a few lines long. They are written right where they are added to the engine, with
+`engine.iterative`:
+
+<<< @/../examples/bullet-hell/game.ts#systems
 
 - `movement` moves everything that has a velocity: enemies and bullets.
 - `swaying` adds only the change of the swing to the horizontal position, so it works together with `movement`: an
   enemy descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
-- `leavingScreen` removes bullets and enemies that have left the screen. The player has no velocity, so it's never
-  removed by this system.
+- Every pattern has its own system. Patterns count down their cooldowns with the same helper, and fire with the same
+  function, so each system describes only the directions of bullets.
+- The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
+  player, that the game has created.
 - `invulnerability` counts down the invulnerability and removes the component when the time is over.
+- `leaving-screen` removes bullets and enemies that have left the screen. The player has no velocity, so it's never
+  removed by this system.
+
+The player control, collisions and waves are bigger and have their own state, so they are classes in their own files.
+See [Which system?](/decisions/which-system) for more about this choice.
 
 ## Temporary state is a component
 
@@ -88,15 +111,6 @@ component, that exists while the state lasts:
 The collision system just checks `player.has(Invulnerable)`. Rendering makes the invulnerable player blink with a
 system for `[View, Invulnerable]`, and restores it when the component is removed. Nobody checks timers and flags
 everywhere: the presence of the component is the state.
-
-## One system, all patterns
-
-The emitter system fires bullets of all enemies. It reads the pattern from the emitter, and fires a ring, a spiral or
-an aimed fan:
-
-<<< @/../examples/bullet-hell/systems/EmitterSystem.ts
-
-Aimed patterns need the position of the player, so the system has an additional query of the player.
 
 ## The player
 
@@ -139,8 +153,10 @@ geometry again:
 
 ## What we've learned
 
-- Kinds of things are data. One system handles all of them by reading their parameters.
+- Kinds of things are data, that is turned into components when an entity is created.
+- Variants of behaviour are separate components, so an entity can combine them.
 - Optional behaviour is an optional component.
+- Small systems are written in place with `engine.iterative`.
 - Temporary state is a component, that exists while the state lasts.
 - Systems can keep their own state, when it doesn't belong to any entity.
 - Hundreds of entities are processed by typed iterative systems and `forEach` without any tricks.

@@ -1,5 +1,5 @@
+export * from './AimedPattern';
 export * from './Collider';
-export * from './Emitter';
 export * from './Enemy';
 export * from './Gun';
 export * from './Health';
@@ -7,5 +7,7 @@ export * from './Invulnerable';
 export * from './Lives';
 export * from './Position';
 export * from './Reward';
+export * from './RingPattern';
+export * from './SpiralPattern';
 export * from './Sway';
 export * from './Velocity';

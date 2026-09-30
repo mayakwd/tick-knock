@@ -1,9 +1,8 @@
-import {Pattern} from './components';
-
-export type EnemyKind = 'drone' | 'spinner' | 'turret';
+export type EnemyKind = 'drone' | 'spinner' | 'turret' | 'warden';
 
 /**
- * Description of an enemy kind. Enemies are data: a new kind needs a new description, not a new system.
+ * Description of an enemy kind. It's a template: the factory turns it into components of the enemy, and systems work
+ * with the components. An enemy fires with every pattern it has, so kinds of enemies are combinations of patterns.
  */
 export interface EnemyDescription {
   readonly health: number;
@@ -13,28 +12,33 @@ export interface EnemyDescription {
    */
   readonly speed: number;
   readonly reward: number;
-  readonly pattern: Pattern;
-  readonly interval: number;
-  readonly count: number;
-  readonly bulletSpeed: number;
-  readonly sway: { amplitude: number; frequency: number };
+  readonly sway?: { amplitude: number; frequency: number };
+  readonly ring?: { interval: number; count: number; speed: number };
+  readonly spiral?: { interval: number; count: number; speed: number; step: number };
+  readonly aimed?: { interval: number; count: number; speed: number; spread: number };
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDescription> = {
   drone: {
     health: 3, radius: 12, speed: 70, reward: 100,
-    pattern: 'aimed', interval: 1.2, count: 3, bulletSpeed: 170,
     sway: {amplitude: 60, frequency: 0.5},
+    aimed: {interval: 1.2, count: 3, speed: 170, spread: 0.5},
   },
   spinner: {
     health: 12, radius: 16, speed: 35, reward: 300,
-    pattern: 'spiral', interval: 0.05, count: 4, bulletSpeed: 110,
     sway: {amplitude: 30, frequency: 0.2},
+    spiral: {interval: 0.05, count: 4, speed: 110, step: 0.35},
   },
   turret: {
     health: 25, radius: 22, speed: 20, reward: 500,
-    pattern: 'ring', interval: 0.9, count: 36, bulletSpeed: 90,
-    sway: {amplitude: 0, frequency: 0},
+    ring: {interval: 0.9, count: 36, speed: 90},
+  },
+  // The warden combines two patterns: a slow spiral and fans aimed at the player
+  warden: {
+    health: 40, radius: 26, speed: 15, reward: 1000,
+    sway: {amplitude: 80, frequency: 0.1},
+    spiral: {interval: 0.12, count: 3, speed: 100, step: 0.25},
+    aimed: {interval: 1.5, count: 5, speed: 180, spread: 0.7},
   },
 };
 
@@ -82,10 +86,14 @@ export const WAVES: ReadonlyArray<ReadonlyArray<Spawn>> = [
     {time: 4, kind: 'drone', x: 0.7},
   ],
   [
+    {time: 0, kind: 'warden', x: 0.5},
+    {time: 4, kind: 'drone', x: 0.2},
+    {time: 4, kind: 'drone', x: 0.8},
+  ],
+  [
     {time: 0, kind: 'turret', x: 0.2},
     {time: 0, kind: 'turret', x: 0.8},
     {time: 1, kind: 'spinner', x: 0.5},
-    {time: 3, kind: 'spinner', x: 0.3},
-    {time: 3, kind: 'spinner', x: 0.7},
+    {time: 3, kind: 'warden', x: 0.5},
   ],
 ];

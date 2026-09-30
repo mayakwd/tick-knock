@@ -1,16 +1,7 @@
 /**
- * How an enemy fires:
- * - `ring` fires bullets in all directions at once,
- * - `spiral` fires a few bullets in a rotating direction,
- * - `aimed` fires a fan of bullets at the player.
+ * Fires a few bullets in a direction, that rotates after every shot
  */
-export type Pattern = 'ring' | 'spiral' | 'aimed';
-
-/**
- * Bullet emitter of an enemy. All patterns are handled by one system, which reads the parameters of the emitter,
- * so a new enemy is new data, not new code.
- */
-export class Emitter {
+export class SpiralPattern {
   /**
    * Time in seconds until the next shot
    */
@@ -21,13 +12,12 @@ export class Emitter {
   public angle: number = Math.PI / 2;
 
   public constructor(
-    public readonly pattern: Pattern,
     /**
      * Time in seconds between shots
      */
     public readonly interval: number,
     /**
-     * Amount of bullets in one shot
+     * Amount of bullets in one shot, spread evenly around the circle
      */
     public readonly count: number,
     /**
@@ -35,9 +25,13 @@ export class Emitter {
      */
     public readonly speed: number,
     /**
+     * Rotation of the direction after every shot in radians
+     */
+    public readonly step: number,
+    /**
      * Delay before the first shot, so enemies don't fire right at the edge of the screen
      */
-    delay: number = 0.5,
+    delay: number,
   ) {
     this.cooldown = delay;
   }

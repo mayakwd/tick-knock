@@ -1,6 +1,6 @@
 import {Graphics, GraphicsContext} from 'pixi.js';
 import {ENEMY_BULLET_RADIUS, PLAYER_RADIUS} from '../config';
-import {ENEMIES, EnemyKind} from '../enemies';
+import {EnemyKind} from '../enemies';
 
 const PLAYER_COLOR = 0x58a6ff;
 const PLAYER_BULLET_COLOR = 0x79c0ff;
@@ -9,6 +9,13 @@ const ENEMY_COLORS: Record<EnemyKind, number> = {
   drone: 0xffa657,
   spinner: 0xd2a8ff,
   turret: 0xf778ba,
+  warden: 0x7ee787,
+};
+const ENEMY_SIDES: Record<EnemyKind, number> = {
+  drone: 4,
+  spinner: 6,
+  turret: 8,
+  warden: 5,
 };
 
 /**
@@ -26,10 +33,12 @@ export function drawPlayer(): Graphics {
     .fill(0xffffff);
 }
 
-export function drawEnemy(kind: EnemyKind): Graphics {
-  const {radius} = ENEMIES[kind];
+/**
+ * Draws an enemy of the kind. The size is taken from the collider, so the enemy looks exactly as big as bullets see it.
+ */
+export function drawEnemy(kind: EnemyKind, radius: number): Graphics {
   const color = ENEMY_COLORS[kind];
-  const sides = kind === 'drone' ? 4 : kind === 'spinner' ? 6 : 8;
+  const sides = ENEMY_SIDES[kind];
   const points = Array.from({length: sides}, (_, i) => {
     const angle = (i / sides) * Math.PI * 2 + Math.PI / 2;
     return [Math.cos(angle) * radius, Math.sin(angle) * radius];

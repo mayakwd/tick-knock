@@ -1,23 +1,34 @@
 import {Entity} from 'tick-knock';
-import {Collider, Emitter, Enemy, Health, Position, Reward, Sway, Velocity} from '../components';
+import {AimedPattern, Collider, Enemy, Health, Position, Reward, RingPattern, SpiralPattern, Sway, Velocity} from '../components';
 import {ENEMIES, EnemyKind} from '../enemies';
 
 /**
- * Creates an enemy from its description
+ * Delay in seconds before the first shot, so enemies don't fire right at the edge of the screen
+ */
+const FIRST_SHOT_DELAY = 0.5;
+
+/**
+ * Creates an enemy from the description of its kind. Optional behaviour is an optional component: an enemy sways only
+ * if it has `Sway`, and fires with the patterns it has.
+ *
  * @param strength Multiplier of health, it grows every time waves repeat
  */
 export function createEnemy(kind: EnemyKind, x: number, y: number, strength: number): Entity {
-  const description = ENEMIES[kind];
-  const {amplitude, frequency} = description.sway;
+  const {health, radius, speed, reward, sway, ring, spiral, aimed} = ENEMIES[kind];
   const entity = new Entity()
     .add(new Enemy(kind))
     .add(new Position(x, y))
-    .add(new Velocity(0, description.speed))
-    .add(new Collider(description.radius))
-    .add(new Health(Math.round(description.health * strength)))
-    .add(new Reward(description.reward))
-    .add(new Emitter(description.pattern, description.interval, description.count, description.bulletSpeed));
-  // Optional behaviour is an optional component: enemies without it don't sway
-  if (amplitude > 0) entity.add(new Sway(amplitude, frequency));
+    .add(new Velocity(0, speed))
+    .add(new Collider(radius))
+    .add(new Health(Math.round(health * strength)))
+    .add(new Reward(reward));
+  if (sway !== undefined) entity.add(new Sway(sway.amplitude, sway.frequency));
+  if (ring !== undefined) entity.add(new RingPattern(ring.interval, ring.count, ring.speed, FIRST_SHOT_DELAY));
+  if (spiral !== undefined) {
+    entity.add(new SpiralPattern(spiral.interval, spiral.count, spiral.speed, spiral.step, FIRST_SHOT_DELAY));
+  }
+  if (aimed !== undefined) {
+    entity.add(new AimedPattern(aimed.interval, aimed.count, aimed.speed, aimed.spread, FIRST_SHOT_DELAY));
+  }
   return entity;
 }
