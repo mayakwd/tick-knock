@@ -1,17 +1,26 @@
-import {Engine} from 'tick-knock';
+import {Engine, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {CooldownSystem} from '../shared/CooldownSystem';
+import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
 import {wrap} from '../shared/geometry';
 import {Random} from '../shared/random';
+import {Score} from '../shared/Score';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
 import {AsteroidTree} from './AsteroidTree';
-import {AngularVelocity, Asteroid, Lifetime, Position, Rotation, Velocity} from './components';
-import {ASTEROIDS, AsteroidSize} from './config';
+import {AngularVelocity, Collider, Lifetime, Position, Rotation, Velocity} from './components';
 import {Controls} from './Controls';
-import {createAsteroid, createShip} from './entities';
-import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {AsteroidTreeSystem, BulletCollisionSystem, ShipCollisionSystem, ShipControlSystem} from './systems';
+import {createShip} from './entities';
+import {
+  AsteroidTreeSystem,
+  BulletCollisionSystem,
+  ShipCollisionSystem,
+  ShipControlSystem,
+  SpawnSystem,
+  SplitSystem,
+  WaveState,
+} from './systems';
+import {SHIP} from './tags';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -31,23 +40,27 @@ export class AsteroidsGame {
   public readonly controls = new Controls();
   public readonly width: number;
   public readonly height: number;
-  private readonly random: Random;
-  /**
-   * Asteroids at their positions, collisions look for asteroids near bullets and the ship in it
-   */
-  private readonly asteroids: AsteroidTree;
-  private _score = 0;
-  private _wave = 0;
-  private _isOver = false;
-  private asteroidsLeft = 0;
+  private readonly _score = new Score();
+  private readonly waves = new WaveState();
+  private readonly ships = new QueryBuilder().contains(SHIP).build();
 
   public constructor({width, height, layer, random = Math.random}: AsteroidsGameOptions) {
     this.width = width;
     this.height = height;
-    this.random = random;
-    this.asteroids = new AsteroidTree({width, height});
+    this.engine.addQuery(this.ships);
+
+    // Asteroids at their positions, collisions look for asteroids near bullets and the ship in it
+    const asteroids = new AsteroidTree({width, height});
+
+    // A destroyed entity stops colliding right away, and is removed from the engine after the update
+    this.engine
+      .reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Collider)})
+      .addSystem(new DestroySystem());
 
     this.engine
+      // The next wave starts when the last asteroid is gone
+      .addSystem(new SpawnSystem(this.waves, {width, height}, random))
+
       // Cooldowns are counted down, and the ship is controlled, so it moves and fires in the same update
       .addSystem(new CooldownSystem())
       .addSystem(new ShipControlSystem(this.controls))
@@ -63,25 +76,20 @@ export class AsteroidsGame {
         rotation.angle += angularVelocity.value * dt;
       })
 
-      // Bullets disappear when their lifetime is over
+      // Bullets are destroyed when their lifetime is over
       .iterative([Lifetime], (entity, dt, lifetime) => {
         lifetime.seconds -= dt;
-        if (lifetime.seconds <= 0) this.engine.removeEntity(entity);
+        if (lifetime.seconds <= 0) entity.add(DESTROYED);
       })
 
       // Collisions are checked after everything has moved: asteroids are moved in the tree, and bullets and the ship
       // look for asteroids near them
-      .addSystem(new AsteroidTreeSystem(this.asteroids))
-      .addSystem(new BulletCollisionSystem(this.asteroids))
-      .addSystem(new ShipCollisionSystem(this.asteroids))
+      .addSystem(new AsteroidTreeSystem(asteroids))
+      .addSystem(new BulletCollisionSystem(asteroids, this._score))
+      .addSystem(new ShipCollisionSystem(asteroids))
 
-      // The next wave starts when the last asteroid is gone
-      .reactive([Asteroid], {
-        added: () => this.asteroidsLeft++,
-        removed: () => {
-          if (--this.asteroidsLeft === 0 && !this._isOver) this.spawnWave();
-        },
-      });
+      // Destroyed asteroids split into smaller ones
+      .addSystem(new SplitSystem(random));
 
     // Views follow positions and rotations of entities after all game systems
     addViews(this.engine, layer, {position: Position});
@@ -92,36 +100,22 @@ export class AsteroidsGame {
       .reactive([View, Rotation], {added: (snapshot, view, rotation) => rotate(view, rotation)})
       .iterative([View, Rotation], (entity, dt, view, rotation) => rotate(view, rotation));
 
-    // A destroyed asteroid gives points, and splits into two smaller ones
-    this.engine.subscribe(AsteroidDestroyed, ({asteroid}) => {
-      const {size} = asteroid.get(Asteroid)!;
-      const {x, y} = asteroid.get(Position)!;
-      this._score += ASTEROIDS[size].points;
-      if (size === 1) return;
-
-      const smaller = (size - 1) as AsteroidSize;
-      this.engine.addEntity(createAsteroid(x, y, smaller, random));
-      this.engine.addEntity(createAsteroid(x, y, smaller, random));
-    });
-
-    this.engine.subscribe(ShipDestroyed, () => {
-      this._isOver = true;
-    });
-
     this.engine.addEntity(createShip(width / 2, height / 2));
-    this.spawnWave();
   }
 
   public get score(): number {
-    return this._score;
+    return this._score.points;
   }
 
   public get wave(): number {
-    return this._wave;
+    return this.waves.number;
   }
 
+  /**
+   * The game is over when the ship is destroyed, and removed from the engine
+   */
   public get isOver(): boolean {
-    return this._isOver;
+    return this.ships.isEmpty;
   }
 
   /**
@@ -129,19 +123,6 @@ export class AsteroidsGame {
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
-    this.engine.update(dt);
-  }
-
-  /**
-   * Adds large asteroids at the edges, away from the ship in the center. Every wave has one asteroid more.
-   */
-  private spawnWave(): void {
-    this._wave++;
-    for (let i = 0; i < this._wave + 2; i++) {
-      const onVerticalEdge = this.random() < 0.5;
-      const x = onVerticalEdge ? 0 : this.random() * this.width;
-      const y = onVerticalEdge ? this.random() * this.height : 0;
-      this.engine.addEntity(createAsteroid(x, y, 3, this.random));
-    }
+    if (!this.isOver) this.engine.update(dt);
   }
 }

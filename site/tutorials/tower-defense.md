@@ -117,7 +117,8 @@ place, and the spawn system only counts time:
 
 The path system moves creeps with `moveTowards` from the shared geometry helpers. It returns the part of the step left
 after a turn has been reached, so a fast creep turns the corner in the same update. When a creep crosses into another
-cell, it gets a new `Cell`:
+cell, it gets a new `Cell`. A creep, that has reached the exit, escapes: it takes a life of the player, and is
+destroyed:
 
 <<< @/../examples/tower-defense/systems/PathSystem.ts
 
@@ -134,9 +135,9 @@ creeps in cells around the tower:
 <<< @/../examples/tower-defense/SpatialIndex.ts
 
 The index is kept by reaction systems of the `Cell` component. A creep is added when it gets a cell, and when the path
-system gives it a new cell, the reaction system sees the old cell removed and the new one added. A creep that has
-escaped loses its `Health`, so it leaves the index of targets right away. Towers are indexed the same way, so the game
-finds the tower in a cell with a lookup:
+system gives it a new cell, the reaction system sees the old cell removed and the new one added. A creep, that has lost
+its `Health`, leaves the index of targets right away. Towers are indexed the same way, so the game finds the tower in
+a cell with a lookup:
 
 ```typescript
 this.engine
@@ -179,9 +180,16 @@ A projectile keeps a reference to its target, and a tower keeps a reference to i
 or escapes? The projectile system checks it with `creeps.has(target)`: the target is still in the index of creeps with
 health. Towers check it the same way before they fire.
 
-Remember that a removed entity leaves queries at the end of the update it was removed in. A creep that has escaped is
-removed from the engine after the update, so the path system also removes its `Health`: the creep leaves the index of
-targets and queries of death right away, and can't be killed after it has escaped.
+A creep dies or escapes, and is destroyed with the `DESTROYED` tag, as in the previous tutorials. It stays in the
+engine until the end of the update, but it must stop taking part in the game right away. Let's react to the tag:
+a destroyed creep loses its `Health`. It leaves the index of targets, and queries of damage and death, so it can't be
+hit or killed once again:
+
+```typescript
+this.engine
+  .reactive([Health, DESTROYED], {added: ({current}) => current.remove(Health)})
+  .addSystem(new DestroySystem());
+```
 
 > ❗ Keep references to entities only as long as you check that they still take part in the game. A query or an index
 > of the components you need is the simplest way to check it.
@@ -208,8 +216,8 @@ component and keeps the others.
 
 ## The game
 
-Here is the whole game. Its constructor adds indexes, the reaction to levels of towers, systems in the order they are
-updated, and subscriptions to messages. Its methods are actions of the player:
+Here is the whole game. Its constructor adds indexes, the reaction to levels of towers, and systems in the order they
+are updated. Its methods are actions of the player:
 
 <<< @/../examples/tower-defense/game.ts
 
@@ -218,7 +226,8 @@ A few things to notice:
 - Every effect has its own small system, written right where it's added. Hits are dealt once and removed. Poisons
   stack: every poison deals its damage. Slows don't: the path system applies the strongest one. Every effect is
   a class, and every system processes its class.
-- The death system runs after all damage of the update has been dealt, so a killed creep gives gold once.
+- The death system runs after all damage of the update has been dealt. A killed creep gives gold, and is destroyed.
+  Then it has no health, so it's killed only once.
 - Building and upgrading are actions of the player, so they are methods of the game. They check gold, the map, and the
   index of towers, create a tower or replace its `Tower` with the next level.
 
@@ -227,13 +236,16 @@ A few things to notice:
 
 ## Game state outside of entities
 
-Gold and lives belong to the player. There is only one player, and systems don't read gold and lives, they only report
-what has happened. So gold and lives are kept by the game:
+Gold and lives belong to the player. There is only one player, and it's not an entity, so gold and lives are kept by
+the game:
 
 <<< @/../examples/tower-defense/Economy.ts
 
-The game changes them when messages arrive: `CreepKilled` adds gold, `CreepEscaped` takes a life. See
-[Where to keep game state?](/decisions/game-state) for more about this choice.
+Systems, that change them, receive the economy explicitly: the death system gives gold for a killed creep, and the path
+system takes a life, when a creep escapes.
+
+The game is over when there are no lives left. See [Where to keep game state?](/decisions/game-state) for more about
+this choice.
 
 ## Views and input
 

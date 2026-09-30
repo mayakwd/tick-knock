@@ -2,13 +2,13 @@ import {Engine, Entity} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {Cooldown} from '../shared/Cooldown';
 import {CooldownSystem} from '../shared/CooldownSystem';
+import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
 import {Cell, Creep, Health, Hit, Payload, Poison, Position, Slow, Target, Tower, Weapon} from './components';
 import {Economy} from './Economy';
 import {createProjectile, createTower} from './entities';
 import {isBuildable} from './map';
-import {CreepEscaped, CreepKilled, GameOver} from './messages';
 import {CreepViewRef} from './render/CreepViewRef';
 import {drawTower} from './render/graphics';
 import {SpatialIndex} from './SpatialIndex';
@@ -35,7 +35,6 @@ export class TowerDefenseGame {
    */
   private readonly creeps = new SpatialIndex();
   private readonly towers = new SpatialIndex();
-  private _isOver = false;
 
   public constructor({layer}: TowerDefenseGameOptions) {
     // Spatial indexes follow cells of entities: an entity is indexed when it gets a cell, and a creep crossing into
@@ -50,6 +49,12 @@ export class TowerDefenseGame {
         added: ({current}, cell) => this.towers.add(cell, current),
         removed: ({current}, cell) => this.towers.remove(cell, current),
       });
+
+    // A destroyed creep loses its health right away: it's not a target anymore, and can't be damaged or killed again.
+    // It's removed from the engine after the update.
+    this.engine
+      .reactive([Health, DESTROYED], {added: ({current}) => current.remove(Health)})
+      .addSystem(new DestroySystem());
 
     // A level of a tower is turned into its components when the tower is built, and when an upgrade replaces its
     // Tower. It's the only place, where the table of towers is read: from this moment the tower owns its
@@ -70,7 +75,7 @@ export class TowerDefenseGame {
     this.engine
       // Creeps appear and walk along the path
       .addSystem(new SpawnSystem(this.waves))
-      .addSystem(new PathSystem())
+      .addSystem(new PathSystem(this.economy))
 
       // Towers choose targets: every rule of choosing a target is a tag with its own system
       .addSystem(new TargetFirstSystem(this.creeps))
@@ -120,8 +125,8 @@ export class TowerDefenseGame {
       .iterative([Health, Creep], (creep, dt, health, {reward}) => {
         if (health.value > 0) return;
 
-        this.engine.removeEntity(creep);
-        this.engine.dispatch(new CreepKilled(reward));
+        this.economy.gold += reward;
+        creep.add(DESTROYED);
       });
 
     // Views follow positions of entities after all game systems, and creeps show their health and effects
@@ -131,26 +136,17 @@ export class TowerDefenseGame {
       view.setEffects(creep.has(Slow), creep.has(Poison));
     });
 
-    this.engine.subscribe(CreepKilled, ({reward}) => {
-      this.economy.gold += reward;
-    });
-
-    this.engine.subscribe(CreepEscaped, () => {
-      this.economy.lives = Math.max(0, this.economy.lives - 1);
-      if (this.economy.lives === 0) this.engine.dispatch(new GameOver());
-    });
-
-    this.engine.subscribe(GameOver, () => {
-      this._isOver = true;
-    });
   }
 
   public get wave(): number {
     return this.waves.number;
   }
 
+  /**
+   * The game is over when the player has no lives left
+   */
   public get isOver(): boolean {
-    return this._isOver;
+    return this.economy.lives <= 0;
   }
 
   /**
@@ -173,7 +169,7 @@ export class TowerDefenseGame {
    * Returns a value indicating whether a tower of the kind can be built in the cell right now
    */
   public canBuild(kind: TowerKind, cell: Cell): boolean {
-    if (this._isOver || !isBuildable(cell) || this.towerEntityAt(cell) !== undefined) return false;
+    if (this.isOver || !isBuildable(cell) || this.towerEntityAt(cell) !== undefined) return false;
     return this.economy.gold >= TOWERS[kind].levels[0].cost;
   }
 
@@ -182,7 +178,7 @@ export class TowerDefenseGame {
    */
   public canUpgrade(cell: Cell): boolean {
     const level = this.nextLevel(cell);
-    return !this._isOver && level !== undefined && this.economy.gold >= level.cost;
+    return !this.isOver && level !== undefined && this.economy.gold >= level.cost;
   }
 
   /**
@@ -217,7 +213,7 @@ export class TowerDefenseGame {
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
-    if (!this._isOver) this.engine.update(dt);
+    if (!this.isOver) this.engine.update(dt);
   }
 
   /**

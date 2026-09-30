@@ -1,7 +1,7 @@
 # Snake
 
 In this tutorial, we will build the classic Snake step by step. It's a small game, but it touches almost everything
-you need in every game: components and tags, entities, systems, messages, views and input.
+you need in every game: components and tags, entities, systems, views and input.
 
 <GameDemo game="snake" />
 
@@ -88,15 +88,6 @@ once per tick:
 
 <<< @/../examples/snake/Controls.ts
 
-## Messages
-
-When something important happens, systems don't change the score or stop the game themselves. They **dispatch
-a message**, and whoever is interested subscribes to it:
-
-<<< @/../examples/snake/messages.ts
-
-This way, every system knows only about its own job.
-
 ## The grid
 
 The head must know what is in the next cell: a segment, food, or nothing. Our game is a grid, so let's keep entities in
@@ -118,13 +109,35 @@ this.engine.reactive([Cell], {
 > 💡 The grid is an index of a component. Systems that move entities just replace their cells, and the index follows
 > them.
 
+## Destroying entities
+
+Food is eaten, segments expire. How do we remove them? Systems don't remove entities themselves, they **destroy** them
+with a tag, and the destroy system removes destroyed entities from the engine:
+
+<<< @/../examples/shared/DestroySystem.ts
+
+The destroyed entity stays in the engine until the end of the update, so systems updated after can react to it. In
+Snake nobody needs it, but in the next tutorials destroyed asteroids will split, and destroyed creeps will give gold.
+
+There is one catch. A destroyed segment must free its cell right away, so the head can move there in the same tick.
+Let's react to the tag: a destroyed entity loses its `Cell`, and the grid follows:
+
+```typescript
+this.engine
+  .reactive([Cell, DESTROYED], {added: ({current}) => current.remove(Cell)})
+  .addSystem(new DestroySystem());
+```
+
+> ❗ Removing the component, that queries and indexes depend on, makes an entity stop taking part in the game
+> immediately. See [Remove the entity or the component?](/decisions/removing).
+
 ## Systems
 
 Every tick, the head checks where it goes, moves, and eats. Each of these steps is a separate system, and each of them
 is a class with a name, that tells what it does.
 
-The collision system looks into the cell the head is about to move to. A wall or the body ends the game. The crashed
-snake loses its heading, so it doesn't move anymore:
+The collision system looks into the cell the head is about to move to. A wall or the body stops the snake: it loses
+its heading, so it doesn't move anymore, and the game is over:
 
 <<< @/../examples/snake/systems/CollisionSystem.ts
 
@@ -133,18 +146,19 @@ The movement system moves the head one cell forward, and leaves a segment behind
 <<< @/../examples/snake/systems/MovementSystem.ts
 
 The eating system looks for food in the new cell of the head. For a moment the head and food share a cell, that's why
-the grid keeps a list of entities in every cell:
+the grid keeps a list of entities in every cell. The eaten food is destroyed, and leaves the grid:
 
 <<< @/../examples/snake/systems/EatingSystem.ts
 
-> ❗ Entities removed during the update are removed after all systems have been updated, and until then they stay in
-> queries. That's why the eaten food also loses its `Cell`: it leaves the grid right away. Removing the component, that
-> queries and indexes depend on, makes an entity stop taking part in the game immediately.
+And the spawn system adds new food, when there is no food on the grid. It has its own query of food, so it just checks
+whether the query is empty:
+
+<<< @/../examples/snake/systems/SpawnSystem.ts
 
 ## The game
 
 Now let's put it all together. The game is a class, that owns the engine, the controls, and the grid. Its constructor
-adds systems, subscribes to messages, and creates the first entities:
+adds systems, and creates the snake:
 
 <<< @/../examples/snake/game.ts
 
@@ -154,13 +168,15 @@ Systems are updated in the order they are added, so the constructor reads the sa
    [functional system](/guide/built-in-systems#functional-systems), written right where it's added.
    `engine.iterative([Heading, HEAD], ...)` is called for every entity with the `Heading` component and the `HEAD` tag.
    Components are passed to the function, tags are only used for matching.
-2. Segments count down their lifetime. An expired segment loses its cell right away, so the head can move there in the
-   same tick.
+2. Segments count down their lifetime. An expired segment is destroyed, and frees its cell right away, so the head can
+   move there in the same tick.
 3. The head checks where it goes, moves, and eats.
-4. Every time food loses its cell, that is, it's eaten, a reaction system adds new food to a random free cell. When
-   there are no free cells, the snake has filled the grid, and the game is won.
+4. New food appears, when the previous one is eaten.
 
-`engine.subscribe` counts the score and stops the game.
+Where are the score and the end of the game? They are already in entities! Every eaten food makes the snake one segment
+longer, so the score is the length the snake has grown by. The game is over when the head has lost its heading, or
+when the snake has filled the grid, and there is nowhere to put food. The game reads it from its queries, and doesn't
+keep a copy.
 
 ## Views on the screen
 
@@ -212,7 +228,8 @@ never displayed, and the grid is printed as text.
 - Small logic is a functional system written in place, a system that does something bigger is a class with a name.
 - Systems are updated in the order they are added.
 - An index, like the grid, is kept by a reaction system of the component it indexes.
+- Systems destroy entities with a tag, and the destroy system removes them after the update.
 - Removing a component, that queries and indexes depend on, makes an entity stop taking part in the game immediately.
-- Systems dispatch messages, and the game decides what they mean.
+- State, that can be read from entities, is read from them, not copied.
 
 Next, in [Asteroids](/tutorials/asteroids), the world stops being a grid: things fly, collide, and break apart. 🚀

@@ -11,12 +11,12 @@
 
 ## Functional systems
 
-Some logic is tiny: move things, count down timers, remove expired entities. It doesn't need a class:
+Some logic is tiny: move things, count down timers, destroy expired entities. It doesn't need a class:
 
 ```typescript
 engine.iterative([Lifetime], (entity, dt, lifetime) => {
   lifetime.seconds -= dt;
-  if (lifetime.seconds <= 0) engine.removeEntity(entity);
+  if (lifetime.seconds <= 0) entity.add(DESTROYED);
 });
 ```
 

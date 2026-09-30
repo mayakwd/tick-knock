@@ -8,9 +8,11 @@ What it shows:
 
 - Lots of entities created and removed every second: bullets with a lifetime, asteroids that split into smaller ones.
 - Typed queries with `forEach` in a class-based collision system.
-- Safe removal: collided entities lose their colliders immediately, and are removed after the update.
-- A reaction system that starts the next wave when the last asteroid is destroyed.
-- Collisions reported by messages: the game splits asteroids and counts the score.
+- Destruction with a tag: collided entities are destroyed, lose their colliders immediately, and are removed after
+  the update.
+- A system of destroyed asteroids, that splits them into smaller ones.
+- A spawn system, that starts the next wave when the last asteroid is gone.
+- A quad tree of asteroids, kept up to date by a system.
 - Frame rate independence: movement, drag and the cooldown of firing.
 
 - [Sources](https://github.com/mayakwd/tick-knock/tree/develop/examples/asteroids)

@@ -38,7 +38,6 @@ game/
   render/       pixi.js drawing of views
   input/        keyboard, pointer and the autopilot
   tags.ts       tags of entities, if the game uses them
-  messages.ts   messages dispatched by systems
   config.ts     numbers that tune the game
   game.ts       the game: the engine with all systems, without input
   mount.ts      the demo, that starts the game in a page
@@ -46,7 +45,7 @@ game/
 
 A view is a component, that factories create together with entities, and the game adds views to the layer it
 receives. pixi.js creates display objects without a renderer, so tests play the games without a browser.
-[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons,
+[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons, the destroy system,
 keyboard input, views and the demo loop, that lets the autopilot play until the player takes control.
 
 # Snake
@@ -57,11 +56,12 @@ What it shows:
 
 - Tags (`HEAD`, `SEGMENT`, `FOOD`) in queries.
 - Functional systems written in place: steering reads the controls from the closure, the head leaves body segments
-  behind, and segments disappear when their lifetime is over.
+  behind, and segments are destroyed when their lifetime is over.
 - A grid of cells, maintained by a reaction system on the `Cell` component, so the head finds what is in the next
   cell with a lookup.
-- A reaction system, that spawns new food when the previous one is eaten.
-- Messages (`FoodEaten`, `GameOver`) dispatched by systems and handled outside of them.
+- Entities destroyed with the `DESTROYED` tag, and removed by the shared destroy system.
+- A spawn system, that adds new food when there is no food on the grid.
+- State read from entities: the score is the length of the snake, the game is over when the head can't move.
 - The same game rendered with pixi.js in the browser and as text in the terminal.
 
 # Asteroids
@@ -72,9 +72,11 @@ What it shows:
 
 - Lots of entities created and removed every second: bullets with a lifetime, asteroids that split into smaller ones.
 - Typed queries with `forEach` in a class-based collision system.
-- Safe removal: collided entities lose their colliders immediately, and are removed after the update.
-- A reaction system that starts the next wave when the last asteroid is destroyed.
-- Collisions reported by messages: the game splits asteroids and counts the score.
+- Destruction with a tag: collided entities are destroyed, lose their colliders immediately, and are removed after
+  the update.
+- A system of destroyed asteroids, that splits them into smaller ones.
+- A spawn system, that starts the next wave when the last asteroid is gone.
+- A quad tree of asteroids, kept up to date by a system.
 - Frame rate independence: movement, drag and the cooldown of firing.
 
 # Bullet hell
@@ -103,8 +105,8 @@ What it shows:
 - A spatial index of creeps, maintained by reaction systems on the `Cell` component: towers find targets in it,
   and keep them while they are in range. Rules of targeting are tags.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
-- Game state that doesn't belong to entities: gold and lives are kept by the game, that changes them when systems
-  report kills and escapes.
+- Game state that doesn't belong to entities: gold and lives are kept by the game, and systems, that change them,
+  receive them in their constructors.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
 - Static data outside of the engine: the map is a picture and a list of turns of the path, not entities.
 

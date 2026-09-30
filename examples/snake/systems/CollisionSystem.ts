@@ -1,11 +1,10 @@
 import {Entity, IterativeSystem} from 'tick-knock';
 import {Cell, Heading} from '../components';
 import {Grid} from '../Grid';
-import {GameOver} from '../messages';
 import {HEAD, SEGMENT} from '../tags';
 
 /**
- * Looks into the cell the head is about to move to. A wall or the body ends the game.
+ * Looks into the cell the head is about to move to. A wall or the body stops the snake, and the game is over.
  */
 export class CollisionSystem extends IterativeSystem.of(Cell, Heading, HEAD) {
   public constructor(private readonly grid: Grid) {
@@ -20,6 +19,5 @@ export class CollisionSystem extends IterativeSystem.of(Cell, Heading, HEAD) {
 
     // The crashed snake loses its heading, so it doesn't move anymore
     head.remove(Heading);
-    this.dispatch(new GameOver());
   }
 }

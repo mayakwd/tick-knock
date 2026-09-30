@@ -1,4 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
+import {DESTROYED} from '../../shared/DestroySystem';
 import {moveTowards} from '../../shared/geometry';
 import {Hit, Payload, Poison, Position, Projectile, Slow} from '../components';
 import {SpatialIndex} from '../SpatialIndex';
@@ -24,7 +25,7 @@ export class ProjectileSystem extends IterativeSystem.of(Position, Projectile, P
   ): void {
     // The target has died or escaped, and the projectile has nothing to fly to
     if (!this.creeps.has(target)) {
-      this.engine.removeEntity(projectile);
+      projectile.add(DESTROYED);
       return;
     }
 
@@ -33,7 +34,7 @@ export class ProjectileSystem extends IterativeSystem.of(Position, Projectile, P
     if (moveTowards(position, targetPosition, speed * dt) === undefined) return;
 
     // A bullet hits only the target
-    this.engine.removeEntity(projectile);
+    projectile.add(DESTROYED);
     if (payload.splash === 0) {
       deliver(target, payload);
       return;

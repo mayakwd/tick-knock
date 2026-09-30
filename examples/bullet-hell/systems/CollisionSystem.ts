@@ -1,7 +1,7 @@
 import {Entity, QueryBuilder, System} from 'tick-knock';
+import {DESTROYED} from '../../shared/DestroySystem';
 import {isWithin} from '../../shared/geometry';
 import {Collider, Enemy, Hit, Invulnerable, Position} from '../components';
-import {destroy} from '../entities';
 import {ENEMY_BULLET, PLAYER, PLAYER_BULLET} from '../tags';
 
 /**
@@ -30,7 +30,7 @@ export class CollisionSystem extends System {
       this.playerBullets.forEach((bullet, bulletPosition, bulletCollider) => {
         if (!isWithin(enemyPosition, bulletPosition, enemyCollider.radius + bulletCollider.radius)) return;
 
-        destroy(this.engine, bullet);
+        bullet.add(DESTROYED);
         enemy.append(new Hit());
       });
     });
@@ -43,7 +43,7 @@ export class CollisionSystem extends System {
       const hit = (other: Entity, position: Position, collider: Collider) => {
         if (!isWithin(playerPosition, position, playerCollider.radius + collider.radius)) return;
 
-        if (other.has(ENEMY_BULLET)) destroy(this.engine, other);
+        if (other.has(ENEMY_BULLET)) other.add(DESTROYED);
         player.append(new Hit());
       };
       this.enemyBullets.forEach(hit);

@@ -1,14 +1,14 @@
-import {Engine} from 'tick-knock';
+import {Engine, Query, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
-import {Cell, Heading, Lifetime} from './components';
+import {Body, Cell, Heading, Lifetime} from './components';
 import {CELL, START_LENGTH} from './config';
 import {Controls, DIRECTIONS} from './Controls';
-import {createFood, createHead} from './entities';
+import {createHead} from './entities';
 import {Grid} from './Grid';
-import {FoodEaten, GameOver} from './messages';
-import {CollisionSystem, EatingSystem, MovementSystem} from './systems';
+import {CollisionSystem, EatingSystem, MovementSystem, SpawnSystem} from './systems';
 import {FOOD, HEAD} from './tags';
 
 export interface SnakeGameOptions {
@@ -38,14 +38,13 @@ export class SnakeGame {
    * Entities indexed by their cells
    */
   public readonly grid: Grid;
-  private readonly random: Random;
-  private _score = 0;
-  private _isOver = false;
-  private _isWon = false;
+  private readonly heads: Query<[Body]> = new QueryBuilder().contains(Body, HEAD).build();
+  private readonly movingHeads = new QueryBuilder().contains(Heading, HEAD).build();
+  private readonly food = new QueryBuilder().contains(Cell, FOOD).build();
 
   public constructor({width, height, layer, random = Math.random}: SnakeGameOptions) {
     this.grid = new Grid(width, height);
-    this.random = random;
+    this.engine.addQuery(this.heads).addQuery(this.movingHeads).addQuery(this.food);
 
     // The grid follows cells of entities: an entity is added when it gets a cell, and removed when it loses it.
     // A moving head gets a new cell, so it's removed from the previous cell and added to the next one.
@@ -53,6 +52,11 @@ export class SnakeGame {
       added: ({current}, cell) => this.grid.add(cell, current),
       removed: ({current}, cell) => this.grid.remove(cell, current),
     });
+
+    // A destroyed entity leaves the grid right away, and is removed from the engine after the update
+    this.engine
+      .reactive([Cell, DESTROYED], {added: ({current}) => current.remove(Cell)})
+      .addSystem(new DestroySystem());
 
     this.engine
       // First, the head turns in the direction of the controls
@@ -69,14 +73,9 @@ export class SnakeGame {
         heading.dy = dy;
       })
 
-      // Then segments, which lifetime is over, free their cells, so the head can move there
+      // Then segments, which lifetime is over, are destroyed and free their cells, so the head can move there
       .iterative([Lifetime], (segment, dt, lifetime) => {
-        // The segment still occupies its cell
-        if (--lifetime.ticks > 0) return;
-
-        // The segment is removed after the update, but it loses its cell right away
-        segment.remove(Cell);
-        this.engine.removeEntity(segment);
+        if (--lifetime.ticks <= 0) segment.add(DESTROYED);
       })
 
       // The head can't move into a wall or the body
@@ -88,55 +87,38 @@ export class SnakeGame {
       // The head eats food in its new cell
       .addSystem(new EatingSystem(this.grid))
 
-      // Every time food is eaten, a new one appears
-      .reactive([Cell, FOOD], {removed: () => this.spawnFood()});
+      // New food appears, when there is no food on the grid
+      .addSystem(new SpawnSystem(this.grid, random));
 
     // Views are placed after all game systems have moved entities
     addViews(this.engine, layer, {position: Cell, scale: CELL});
 
-    this.engine.subscribe(FoodEaten, () => this._score++);
-    this.engine.subscribe(GameOver, ({isWon}) => {
-      this._isOver = true;
-      this._isWon = isWon;
-    });
-
     this.engine.addEntity(createHead(Math.floor(width / 2), Math.floor(height / 2), START_LENGTH));
-    this.spawnFood();
-  }
-
-  public get score(): number {
-    return this._score;
-  }
-
-  public get isOver(): boolean {
-    return this._isOver;
   }
 
   /**
-   * The snake has filled the whole grid
+   * Every eaten food makes the snake one segment longer, so the score is the length the snake has grown by
    */
+  public get score(): number {
+    const body = this.heads.first?.get(Body);
+    return body === undefined ? 0 : body.length - START_LENGTH;
+  }
+
+  /**
+   * The game is over when the snake has crashed, and lost its heading, or has filled the whole grid
+   */
+  public get isOver(): boolean {
+    return this.movingHeads.isEmpty || this.isWon;
+  }
+
   public get isWon(): boolean {
-    return this._isWon;
+    return this.food.isEmpty && this.grid.isFull;
   }
 
   /**
    * Advances the game by one tick
    */
   public tick(): void {
-    if (!this._isOver) this.engine.update(1);
-  }
-
-  /**
-   * Adds food to a random free cell. When there are no free cells, the snake has filled the grid.
-   */
-  private spawnFood(): void {
-    const free = this.grid.freeCells();
-    if (free.length === 0) {
-      this.engine.dispatch(new GameOver(true));
-      return;
-    }
-
-    const {x, y} = free[Math.floor(this.random() * free.length)];
-    this.engine.addEntity(createFood(x, y));
+    if (!this.isOver) this.engine.update(1);
   }
 }

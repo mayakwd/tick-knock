@@ -1,7 +1,7 @@
 # Remove the entity or the component?
 
-**Short answer:** remove the entity when it's gone. Also remove the component that queries depend on, if the entity
-must stop taking part in the game immediately.
+**Short answer:** destroy the entity with a tag, and let a system remove it. Remove a component, when only one aspect
+of the entity is gone.
 
 ## Removal is deferred during the update
 
@@ -11,18 +11,32 @@ system of the update sees the removed entity, and removing entities never breaks
 removal is deferred: added entities and changed components are seen right away. Outside of the update, entities are
 removed immediately.
 
-## Taking an entity out of queries immediately
+## Destroying with a tag
 
-In [Asteroids](/tutorials/asteroids), a bullet hits an asteroid and is removed. But until the end of the update it's
-still in the query of bullets, and could hit another asteroid. The solution is to remove its collider:
+Systems of the examples don't remove entities themselves. They add the `DESTROYED` tag, and the destroy system reacts
+to it:
+
+<<< @/../examples/shared/DestroySystem.ts
+
+Why not just remove the entity? Because destruction often has consequences. A destroyed asteroid splits into smaller
+ones, a destroyed creep gives gold. The destroyed entity stays in the engine until the end of the update, so systems
+updated after can handle it: they are ordinary systems, that query the tag.
+
+## Taking an entity out of the game immediately
+
+A bullet in [Asteroids](/tutorials/asteroids) hits an asteroid, and both of them are destroyed. But until the end of the
+update they are still in queries: could the bullet hit another asteroid, or another bullet hit the same asteroid?
+
+A destroyed entity must stop taking part in the game right away. Every game reacts to the tag, and removes the component
+the game depends on:
 
 ```typescript
-bullet.remove(Collider);
-this.engine.removeEntity(bullet);
+engine.reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Collider)});
 ```
 
-The query of bullets contains `Collider`, so the bullet leaves it immediately. It's removed from the engine after the
-update.
+The queries of collisions and the tree of asteroids contain `Collider`, so the destroyed entity leaves them
+immediately. The same way a destroyed creep of the [Tower defense](/tutorials/tower-defense) loses its `Health`, and
+destroyed food of [Snake](/tutorials/snake) loses its `Cell`, and leaves the grid.
 
 ## Removing a component instead of the entity
 
@@ -30,21 +44,11 @@ Sometimes the entity is not gone, only one of its aspects is:
 
 - The invulnerability of the player is over — `Invulnerable` is removed, the player stays.
 - A poison has expired — one `Poison` is picked from the creep, others stay.
-- A segment of the snake has expired — it loses its `Cell`, so the grid frees the cell, and the head can move there
-  in the same tick. The segment is removed from the engine after the update.
-
-The same idiom is used in all examples: to make an entity stop taking part in the game right away, remove the
-component the queries and indexes depend on — `Collider` for collisions, `Health` for targets of towers, `Cell` for
-the grid of Snake.
-The entity itself is removed after the update.
+- The snake has crashed — the head loses its `Heading`, and doesn't move anymore.
 
 ## Checking an entity you keep a reference to
 
 If you keep a reference to an entity, like a projectile keeps its target in the
 [Tower defense](/tutorials/tower-defense), check that it still takes part in the game before using it. A query of the
-components you need is the simplest way: `creeps.has(target)`.
-
-A query still contains an entity removed during the current update. If the entity must stop taking part in the game
-immediately, remove a component the query depends on together with the entity: an escaped creep in the tower defense
-loses its `Health`, so projectiles can't hit it anymore. `engine.getEntityById(entity.id)` returns `undefined` for an
-entity removed during the update, when you need to know whether it's going to be removed.
+components you need is the simplest way: `creeps.has(target)`. A destroyed creep has lost its `Health`, so it's not in
+the query of creeps anymore, even before it's removed from the engine.

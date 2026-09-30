@@ -8,8 +8,8 @@ tests, and Snake is also played in a terminal.
 
 | Game | What it shows |
 | :--- | :--- |
-| [Snake](/examples/snake) | Components, tags, first systems and messages |
-| [Asteroids](/examples/asteroids) | Functional systems, collisions and safe removal |
+| [Snake](/examples/snake) | Components, tags, first systems and destroying entities |
+| [Asteroids](/examples/asteroids) | Functional systems, collisions, destruction and waves |
 | [Bullet hell](/examples/bullet-hell) | Hundreds of entities, data-driven enemies and temporary components |
 | [Tower defense](/examples/tower-defense) | Linked components for effects, game state outside of entities |
 
@@ -25,7 +25,6 @@ game/
   render/       pixi.js drawing of views
   input/        keyboard, pointer and the autopilot
   tags.ts       tags of entities, if the game uses them
-  messages.ts   messages dispatched by systems
   game.ts       the game: the engine with all systems, without input
   mount.ts      the demo, that starts the game in a page
 ```

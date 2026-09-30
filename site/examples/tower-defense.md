@@ -11,8 +11,8 @@ What it shows:
 - A spatial index of creeps, maintained by reaction systems on the `Cell` component: towers find targets in it,
   and keep them while they are in range. Rules of targeting are tags.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
-- Game state that doesn't belong to entities: gold and lives are kept by the game, that changes them when systems
-  report kills and escapes.
+- Game state that doesn't belong to entities: gold and lives are kept by the game, and systems, that change them,
+  receive them in their constructors.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
 - Static data outside of the engine: the map is a picture and a list of turns of the path, not entities.
 

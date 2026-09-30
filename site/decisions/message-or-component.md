@@ -1,25 +1,29 @@
 # Message or component?
 
-**Short answer:** if something has happened, and somebody should react to it once, it's a message. If something is
-going on for a while, and systems should process it every update, it's a component.
+**Short answer:** everything that happens inside the game is a component or a tag, and systems handle it. A message
+is for the world outside of the engine: the user interface, sounds, analytics.
 
-## Messages report events
+## Tags and components are events
 
-A message is dispatched by a system and delivered to subscribers right away:
+Something has happened, and somebody should react to it. In ECS, it's data added to an entity, and systems, that are
+interested in it, handle it in their turn:
 
 ```typescript
-// In the collision system
-this.dispatch(new FoodEaten(body.length));
+// The collision system destroys the asteroid
+asteroid.add(DESTROYED);
 
-// In the game
-engine.subscribe(FoodEaten, () => score++);
+// The split system handles destroyed asteroids
+export class SplitSystem extends IterativeSystem.of(Asteroid, Position, DESTROYED) {
+  // ...
+}
 ```
 
-Messages keep systems independent. The collision system doesn't know about the score, the game over screen, or sounds:
-it reports what has happened, and whoever is interested reacts.
+The collision system doesn't know that asteroids split, and the split system doesn't know what has destroyed the
+asteroid. Both of them are just systems in the list, so it's easy to see when the reaction happens: right where the
+system is added.
 
-In the [Bullet hell](/tutorials/bullet-hell), the game handles `PlayerHit`: it counts lives, and removes all enemy
-bullets. The collision system knows about neither.
+A hit in the [Bullet hell](/tutorials/bullet-hell) is a component too. The collision system appends a `Hit` to the hit
+entity, and systems of enemies and of the player decide what a hit does.
 
 ## Components describe states
 
@@ -30,11 +34,36 @@ rendering must make it blink. It's a state, that is checked every update, so it'
 player.add(new Invulnerable(INVULNERABILITY_TIME));
 ```
 
-## Components as events
+And when the player becomes invulnerable, the screen is cleared from enemy bullets. That's a reaction system of the
+component:
 
-Sometimes an event must be processed by a system on the next update, not by a subscriber right away. Then it can be a
-component too: for example, a `Damage` component added to an entity, processed and removed by the damage system. It
-fits well when there are many such events, and they must be processed in a particular order with other systems.
+```typescript
+engine.reactive([Invulnerable, PLAYER], {
+  added: () => enemyBullets.forEach((bullet) => bullet.add(DESTROYED)),
+});
+```
 
-> 💡 Messages are synchronous: the handler runs inside `dispatch`. Don't do heavy work in handlers, and remember that
-> the engine may be in the middle of the update.
+## Messages are for the outside world
+
+The user interface is not a system. It doesn't take part in the update, and it wants to know when something has
+happened: to show the game over screen, or to play a sound. That's what messages are for:
+
+```typescript
+// In a system
+this.dispatch(new GameOver());
+
+// In the user interface
+engine.subscribe(GameOver, () => showGameOverScreen());
+```
+
+The examples don't need messages at all: the user interface reads the game every frame, and the game reads its
+queries. For example, the game of Asteroids is over when there is no ship:
+
+```typescript
+public get isOver(): boolean {
+  return this.ships.isEmpty;
+}
+```
+
+> 💡 Messages are synchronous: the handler runs inside `dispatch`, maybe in the middle of the update. That's another
+> reason to keep the game logic in systems, where the order is clear.

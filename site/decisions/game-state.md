@@ -18,8 +18,8 @@ class Economy {
 }
 ```
 
-The game changes it when messages arrive: systems report kills and escapes, and don't touch gold and lives at all.
-When a system needs such state, it gets it explicitly, as described below.
+Systems, that change gold and lives, receive the economy explicitly: the death of a creep gives gold, and the path
+system takes a life, when a creep escapes.
 
 ## Dependencies are explicit
 
@@ -41,6 +41,15 @@ It's explicit: looking at the closure or at the constructor, you see everything 
 Lives of the player in the [Bullet hell](/tutorials/bullet-hell) are a component of the player, and the game doesn't
 keep a copy of them. It reads the component when it shows the status: there is one source of truth, and nothing to
 keep in sync.
+
+The same goes for everything, that can be read from entities. The score of [Snake](/tutorials/snake) is the length the
+snake has grown by, and the game of [Asteroids](/tutorials/asteroids) is over when there is no ship:
+
+```typescript
+public get isOver(): boolean {
+  return this.ships.isEmpty;
+}
+```
 
 ## State of a system stays in the system
 

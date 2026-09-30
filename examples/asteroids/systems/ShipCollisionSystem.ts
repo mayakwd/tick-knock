@@ -1,8 +1,7 @@
 import {Entity, IterativeSystem} from 'tick-knock';
+import {DESTROYED} from '../../shared/DestroySystem';
 import {AsteroidTree} from '../AsteroidTree';
 import {Collider, Position} from '../components';
-import {destroy} from '../entities';
-import {ShipDestroyed} from '../messages';
 import {SHIP} from '../tags';
 
 /**
@@ -14,9 +13,6 @@ export class ShipCollisionSystem extends IterativeSystem.of(Position, Collider, 
   }
 
   protected updateEntity(ship: Entity, dt: number, position: Position, collider: Collider): void {
-    if (this.asteroids.find(position, collider.radius) === undefined) return;
-
-    destroy(this.engine, ship);
-    this.dispatch(new ShipDestroyed());
+    if (this.asteroids.find(position, collider.radius) !== undefined) ship.add(DESTROYED);
   }
 }

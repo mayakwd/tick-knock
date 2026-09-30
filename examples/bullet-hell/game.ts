@@ -2,15 +2,16 @@ import {Engine, Query, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {Cooldown} from '../shared/Cooldown';
 import {CooldownSystem} from '../shared/CooldownSystem';
+import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
 import {angleTo, isInside} from '../shared/geometry';
 import {Random} from '../shared/random';
+import {Score} from '../shared/Score';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {AimedPattern, Invulnerable, Lives, Position, RingPattern, SpiralPattern, Sway, Velocity} from './components';
+import {AimedPattern, Collider, Invulnerable, Lives, Position, RingPattern, SpiralPattern, Sway, Velocity} from './components';
 import {HEIGHT, SCREEN, SCREEN_MARGIN, WIDTH} from './config';
 import {Controls} from './Controls';
 import {createEnemyBullet, createPlayer} from './entities';
-import {EnemyDestroyed, GameOver, PlayerHit} from './messages';
 import {
   CollisionSystem,
   EnemyHitSystem,
@@ -43,11 +44,15 @@ export class BulletHellGame {
   private readonly waves = new WaveState();
   private readonly players: Query<[Position, Lives]> = new QueryBuilder().contains(Position, Lives, PLAYER).build();
   private readonly enemyBullets = new QueryBuilder().contains(ENEMY_BULLET).build();
-  private _score = 0;
-  private _isOver = false;
+  private readonly _score = new Score();
 
   public constructor({layer, random = Math.random}: BulletHellGameOptions) {
     this.engine.addQuery(this.players).addQuery(this.enemyBullets);
+
+    // A destroyed entity stops colliding right away, and is removed from the engine after the update
+    this.engine
+      .reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Collider)})
+      .addSystem(new DestroySystem());
 
     this.engine
       // Cooldowns are counted down, the player moves and fires, and new enemies appear
@@ -100,7 +105,7 @@ export class BulletHellGame {
 
       // Collisions only report hits, and systems of hit entities decide what a hit does
       .addSystem(new CollisionSystem())
-      .addSystem(new EnemyHitSystem())
+      .addSystem(new EnemyHitSystem(this._score))
       .addSystem(new PlayerHitSystem())
 
       // Invulnerability is over when the component is removed
@@ -109,9 +114,15 @@ export class BulletHellGame {
         if (invulnerable.seconds <= 0) entity.remove(Invulnerable);
       })
 
-      // Bullets and enemies are removed when they leave the screen
+      // Bullets and enemies are destroyed when they leave the screen
       .iterative([Position, REMOVED_OFFSCREEN], (entity, dt, position) => {
-        if (!isInside(position, SCREEN, SCREEN_MARGIN)) this.engine.removeEntity(entity);
+        if (!isInside(position, SCREEN, SCREEN_MARGIN)) entity.add(DESTROYED);
+      })
+
+      // A hit player becomes invulnerable, and the screen is cleared from enemy bullets, so the player has a chance
+      // to recover
+      .reactive([Invulnerable, PLAYER], {
+        added: () => this.enemyBullets.forEach((bullet) => bullet.add(DESTROYED)),
       });
 
     // Views follow positions of entities after all game systems
@@ -128,24 +139,11 @@ export class BulletHellGame {
         },
       });
 
-    this.engine.subscribe(EnemyDestroyed, ({points}) => {
-      this._score += points;
-    });
-
-    // A hit clears the screen from enemy bullets, so the player has a chance to recover
-    this.engine.subscribe(PlayerHit, () => {
-      this.enemyBullets.forEach((bullet) => this.engine.removeEntity(bullet));
-    });
-
-    this.engine.subscribe(GameOver, () => {
-      this._isOver = true;
-    });
-
     this.engine.addEntity(createPlayer(WIDTH / 2, HEIGHT - 80));
   }
 
   public get score(): number {
-    return this._score;
+    return this._score.points;
   }
 
   public get wave(): number {
@@ -166,8 +164,11 @@ export class BulletHellGame {
     return this.enemyBullets.length;
   }
 
+  /**
+   * The game is over when the player is destroyed, and removed from the engine
+   */
   public get isOver(): boolean {
-    return this._isOver;
+    return this.players.isEmpty;
   }
 
   /**
@@ -175,7 +176,7 @@ export class BulletHellGame {
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
-    if (!this._isOver) this.engine.update(dt);
+    if (!this.isOver) this.engine.update(dt);
   }
 
   /**

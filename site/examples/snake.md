@@ -8,11 +8,12 @@ What it shows:
 
 - Tags (`HEAD`, `SEGMENT`, `FOOD`) in queries.
 - Functional systems written in place: steering reads the controls from the closure, the head leaves body segments
-  behind, and segments disappear when their lifetime is over.
+  behind, and segments are destroyed when their lifetime is over.
 - A grid of cells, maintained by a reaction system on the `Cell` component, so the head finds what is in the next
   cell with a lookup.
-- A reaction system, that spawns new food when the previous one is eaten.
-- Messages dispatched by systems and handled outside of them.
+- Entities destroyed with the `DESTROYED` tag, and removed by the shared destroy system.
+- A spawn system, that adds new food when there is no food on the grid.
+- State read from entities: the score is the length of the snake, the game is over when the head can't move.
 - The same game rendered with pixi.js in the browser and as text in the terminal.
 
 - [Sources](https://github.com/mayakwd/tick-knock/tree/develop/examples/snake)

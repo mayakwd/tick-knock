@@ -104,18 +104,24 @@ be hit several times in one update, so `Hit` is a linked component:
 
 <<< @/../examples/bullet-hell/components/Hit.ts
 
-What a hit does is decided by systems of the hit entities. An enemy loses a point of health for every hit:
+What a hit does is decided by systems of the hit entities. An enemy loses a point of health for every hit, and an
+enemy without health is destroyed, and gives points:
 
 <<< @/../examples/bullet-hell/systems/EnemyHitSystem.ts
 
-The player loses one life, even if a bullet and an enemy have hit it at once, and becomes invulnerable:
+The player loses one life, even if a bullet and an enemy have hit it at once, and becomes invulnerable. The player
+without lives is destroyed:
 
 <<< @/../examples/bullet-hell/systems/PlayerHitSystem.ts
 
 Destroyed entities lose their colliders immediately, as in [Asteroids](/tutorials/asteroids), so they can't hit
 anything else in the same update:
 
-<<< @/../examples/bullet-hell/entities/destroy.ts
+```typescript
+this.engine
+  .reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Collider)})
+  .addSystem(new DestroySystem());
+```
 
 ## Waves
 
@@ -141,13 +147,16 @@ Systems are updated in the order they are added, so the constructor reads the sa
    player, that the game has created.
 5. Collisions are checked, and hits are resolved.
 6. Invulnerability is counted down, and the component is removed when the time is over.
-7. Entities with the `REMOVED_OFFSCREEN` tag are removed when they leave the screen. Bullets and enemies have this tag,
-   and the player doesn't:
+7. Entities with the `REMOVED_OFFSCREEN` tag are destroyed when they leave the screen. Bullets and enemies have this
+   tag, and the player doesn't:
 
 <<< @/../examples/bullet-hell/tags.ts
 
-When the player is hit, a subscription to `PlayerHit` removes all enemy bullets, which the game keeps in its own query.
-Lives belong to the player: the game reads the `Lives` component of the player when it shows the status.
+When the player becomes invulnerable, a reaction system of `Invulnerable` destroys all enemy bullets, which the game
+keeps in its own query. It doesn't matter what has made the player invulnerable: the reaction follows the component.
+
+Lives belong to the player: the game reads the `Lives` component of the player when it shows the status. The game is
+over when the player is destroyed, and the query of the player is empty.
 
 ## Hundreds of bullets on the screen
 
@@ -166,6 +175,7 @@ geometry again, and that matters when hundreds of bullets appear every second:
 - Temporary state is a component, that exists while the state lasts.
 - Systems can keep their own state, when it doesn't belong to any entity.
 - Collisions report hits, and systems of hit entities decide what a hit does.
+- Reaction systems react to components, whoever has added them.
 - Hundreds of entities are processed by typed iterative systems and `forEach` without any tricks.
 
 Next, in [Tower defense](/tutorials/tower-defense), entities get several effects of the same kind, and start

@@ -1,14 +1,19 @@
 import {Entity, IterativeSystem} from 'tick-knock';
+import {DESTROYED} from '../../shared/DestroySystem';
 import {moveTowards} from '../../shared/geometry';
-import {Cell, Creep, Health, PathFollower, Position, Slow} from '../components';
+import {Cell, Creep, PathFollower, Position, Slow} from '../components';
+import {Economy} from '../Economy';
 import {cellAt, isSameCell, PATH} from '../map';
-import {CreepEscaped} from '../messages';
 
 /**
  * Moves creeps along the path. A creep that crosses into another cell gets a new `Cell`, so spatial indexes follow it.
- * A creep that has reached the exit escapes: it's removed, and the player loses a life.
+ * A creep that has reached the exit escapes: it's destroyed, and the player loses a life.
  */
 export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell, Creep) {
+  public constructor(private readonly economy: Economy) {
+    super();
+  }
+
   protected updateEntity(entity: Entity, dt: number, position: Position, follower: PathFollower, cell: Cell): void {
     // The creep moves to the next turn of the path. When the turn is reached, the rest of the step is made towards
     // the next one.
@@ -26,12 +31,10 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell,
     const next = cellAt(position);
     if (!isSameCell(next, cell)) entity.add(next);
 
-    // The creep is removed after the update, but it loses its health right away, so it's not a target anymore,
-    // and can't be killed after it has escaped
+    // The creep has escaped
     if (follower.waypoint === PATH.length) {
-      entity.remove(Health);
-      this.engine.removeEntity(entity);
-      this.dispatch(new CreepEscaped());
+      this.economy.lives = Math.max(0, this.economy.lives - 1);
+      entity.add(DESTROYED);
     }
   }
 }

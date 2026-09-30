@@ -101,7 +101,7 @@ A few things to notice:
   after this one, like movement, see it in the same update. The system that is iterating right now visits entities
   added during its iteration starting from the next update.
 
-## Collisions and safe removal
+## Collisions and destruction
 
 Collisions are the heart of the game. A bullet or the ship can only hit asteroids near it, so let's find them without
 checking every asteroid. We will use a **quad tree**: it divides the screen into four quarters, and every quarter,
@@ -126,35 +126,52 @@ to their new positions:
 
 <<< @/../examples/asteroids/systems/AsteroidTreeSystem.ts
 
-Then every bullet and the ship ask the tree for an asteroid they touch. Each of them has its own system:
+Then every bullet and the ship ask the tree for an asteroid they touch. Each of them has its own system. A bullet
+destroys the asteroid, gets its points, and is destroyed too. The ship is just destroyed:
 
 <<< @/../examples/asteroids/systems/BulletCollisionSystem.ts
 
 <<< @/../examples/asteroids/systems/ShipCollisionSystem.ts
 
+Destroying is adding the `DESTROYED` tag, as in [Snake](/tutorials/snake). The destroy system removes destroyed
+entities after the update.
+
 > 💡 A quad tree suits things that move freely, and are spread unevenly over the screen. When entities live in cells,
 > an index of cells is simpler: see the grid of [Snake](/tutorials/snake) and the spatial index of the
 > [Tower defense](/tutorials/tower-defense).
 
-Now, there is a subtle problem. A bullet hits an asteroid and is removed. Entities removed during the update are removed
-after it, so the bullet stays in its query until the end of the update. Could it hit one more asteroid in the same
-update?
+Now, there is a subtle problem. A bullet hits an asteroid, and both are destroyed. The destroyed asteroid stays in the
+engine until the end of the update. Could another bullet hit it in the same update?
 
-**Remove the component that queries depend on.** The hit bullet loses its `Collider`, and leaves the query of bullets
-immediately, because the query contains `Collider`. The bullet is removed from the engine after the update, but it
-can't collide anymore. The same happens to destroyed asteroids and the ship: a destroyed asteroid loses its collider, and
-leaves the query of the tree system, so it leaves the tree right away.
+**Remove the component that queries depend on.** Let's react to the tag: a destroyed entity loses its `Collider`.
+The query of the tree system contains `Collider`, so the destroyed asteroid leaves the tree right away, and nobody can
+hit it anymore:
 
-<<< @/../examples/asteroids/entities/destroy.ts
+```typescript
+this.engine
+  .reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Collider)})
+  .addSystem(new DestroySystem());
+```
 
 > 💡 Removal is deferred, so every system of the update sees the removed entity, and nobody breaks iteration of anybody
 > else. Added entities and changed components are seen right away. See
 > [Remove the entity or the component?](/decisions/removing).
 
-Collision systems only report what has happened: they dispatch `AsteroidDestroyed` with the destroyed asteroid, and
-`ShipDestroyed`:
+## Splitting and waves
 
-<<< @/../examples/asteroids/messages.ts
+A destroyed asteroid splits into two smaller ones. Who does it? A system of destroyed asteroids! The asteroid is still
+in the engine, so the system reads its size and position:
+
+<<< @/../examples/asteroids/systems/SplitSystem.ts
+
+The collision system doesn't know about splitting, and the split system doesn't know what has destroyed the asteroid.
+
+And when the last asteroid is gone, the next wave begins. The spawn system has its own query of asteroids, so it just
+checks whether the query is empty:
+
+<<< @/../examples/asteroids/systems/SpawnSystem.ts
+
+The number of the wave is shown by the game, so it's kept in a small class, that the game gives to the system.
 
 ## The game
 
@@ -164,20 +181,19 @@ Let's put it all together:
 
 Systems are updated in the order they are added, so the constructor reads the same way the update goes:
 
-1. Cooldowns are counted down, and the ship is controlled.
-2. Everything that has a velocity moves, and wraps around the edges of the screen with `wrap`. One system, three kinds
+1. The next wave starts, if there are no asteroids.
+2. Cooldowns are counted down, and the ship is controlled.
+3. Everything that has a velocity moves, and wraps around the edges of the screen with `wrap`. One system, three kinds
    of entities: the ship, asteroids, and bullets share the same components.
-3. Everything that has an angular velocity spins. Only asteroids have one, so only they spin.
-4. Bullets disappear when their lifetime is over.
-5. Asteroids are moved in the tree, and collisions of bullets and the ship are checked after everything has moved.
-6. A reaction system counts asteroids: it's notified when an asteroid appears and when it's removed. When the last one
-   is removed, the next wave begins.
+4. Everything that has an angular velocity spins. Only asteroids have one, so only they spin.
+5. Bullets are destroyed when their lifetime is over.
+6. Asteroids are moved in the tree, and collisions of bullets and the ship are checked after everything has moved.
+7. Destroyed asteroids split.
 
-The game subscribes to `AsteroidDestroyed`: it counts the score, and splits the asteroid into two smaller ones.
-The asteroid is removed after the update, so the subscriber can still read its size and position.
+The game is over when the ship is destroyed and removed: the game has a query of the ship, and checks whether it's
+empty.
 
-> 💡 Movement, spinning and lifetime are closures: movement uses the size of the screen, and lifetime uses the engine.
-> Nothing needs to be passed to them.
+> 💡 Movement is a closure, it uses the size of the screen. Nothing needs to be passed to it.
 
 Views follow positions with the shared `addViews`, as in Snake. Two more systems rotate views of entities that have
 a rotation: a reaction system rotates a new view right away, and `[View, Rotation]` rotates views every update. Bullets
@@ -199,10 +215,10 @@ doesn't care who plays it. The page is the [demo](/tutorials/demo), that reads t
 - A cooldown is data, and `CooldownSystem` counts it down.
 - Small systems are written in place, bigger systems are classes.
 - Behaviour follows data: only entities with an angular velocity spin, and only views with a rotation are rotated.
-- Systems report what has happened with messages, and the game decides what it means.
-- Removed entities stay in queries until the end of the update. To take an entity out of queries immediately, remove
-  the component they depend on.
-- Reaction systems notice when things appear and disappear, like the last asteroid of a wave.
+- Destroyed entities stay in the engine until the end of the update, so systems can react to their destruction, like
+  the split system.
+- To take an entity out of queries immediately, remove the component they depend on.
+- A system with its own query notices when things are gone, like the last asteroid of a wave.
 - A quad tree, kept up to date by a system, finds things near a point without checking all of them.
 
 Next, in the [Bullet hell](/tutorials/bullet-hell), there will be hundreds of entities on the screen at once. 💥

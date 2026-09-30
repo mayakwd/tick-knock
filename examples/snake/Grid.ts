@@ -35,6 +35,10 @@ export class Grid implements Size {
     entities.splice(entities.indexOf(entity), 1);
   }
 
+  public get isFull(): boolean {
+    return this.cells.every((entities) => entities.length > 0);
+  }
+
   public freeCells(): Vector[] {
     const result: Vector[] = [];
     for (let y = 0; y < this.height; y++) {

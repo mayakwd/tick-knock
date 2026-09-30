@@ -1,7 +1,7 @@
 import {Entity, IterativeSystem} from 'tick-knock';
+import {DESTROYED} from '../../shared/DestroySystem';
 import {Body, Cell} from '../components';
 import {Grid} from '../Grid';
-import {FoodEaten} from '../messages';
 import {FOOD, HEAD} from '../tags';
 
 /**
@@ -19,9 +19,6 @@ export class EatingSystem extends IterativeSystem.of(Cell, Body, HEAD) {
     // New segments live longer, so the body grows
     body.length++;
 
-    // The food is removed after the update, but it loses its cell right away, so it leaves the grid
-    food.remove(Cell);
-    this.engine.removeEntity(food);
-    this.dispatch(new FoodEaten(body.length));
+    food.add(DESTROYED);
   }
 }
