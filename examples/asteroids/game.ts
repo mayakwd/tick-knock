@@ -69,7 +69,7 @@ export class AsteroidsGame {
         if (lifetime.seconds <= 0) this.engine.removeEntity(entity);
       })
 
-      // Collisions are checked after everything has moved: asteroids are put into the tree, and bullets and the ship
+      // Collisions are checked after everything has moved: asteroids are moved in the tree, and bullets and the ship
       // look for asteroids near them
       .addSystem(new AsteroidTreeSystem(this.asteroids))
       .addSystem(new BulletCollisionSystem(this.asteroids))

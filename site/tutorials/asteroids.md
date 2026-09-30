@@ -106,7 +106,11 @@ A few things to notice:
 Collisions are the heart of the game. A bullet or the ship can only hit asteroids near it, so let's find them without
 checking every asteroid. We will use a **quad tree**: it divides the screen into four quarters, and every quarter,
 that has too many asteroids, into four more, and so on. Finding asteroids near a point looks only into quarters around
-it:
+it.
+
+Asteroids move a little every frame, so most of the time an asteroid stays in its quarter. Every item of the tree
+remembers the node it's in: when it moves within the node, only its point changes, and when it leaves the node, it's
+removed from it and inserted into the new place. Quarters, that became too empty, are merged back:
 
 <<< @/../examples/shared/QuadTree.ts
 
@@ -116,7 +120,9 @@ across the edges with `wrappedDifference` from the shared geometry helpers:
 
 <<< @/../examples/asteroids/AsteroidTree.ts
 
-Asteroids move every frame, so the tree is filled again every update, after everything has moved:
+Who keeps the tree up to date? The same way as the grid of Snake, a system of asteroids. A new asteroid is inserted
+into the tree, a destroyed one leaves it, and every update, after everything has moved, asteroids are moved in the tree
+to their new positions:
 
 <<< @/../examples/asteroids/systems/AsteroidTreeSystem.ts
 
@@ -136,8 +142,8 @@ update?
 
 **Remove the component that queries depend on.** The hit bullet loses its `Collider`, and leaves the query of bullets
 immediately, because the query contains `Collider`. The bullet is removed from the engine after the update, but it
-can't collide anymore. The same happens to destroyed asteroids and the ship: a destroyed asteroid is still in the tree
-until the next update, but the tree skips asteroids without a collider.
+can't collide anymore. The same happens to destroyed asteroids and the ship: a destroyed asteroid loses its collider, and
+leaves the query of the tree system, so it leaves the tree right away.
 
 <<< @/../examples/asteroids/entities/destroy.ts
 
@@ -163,7 +169,7 @@ Systems are updated in the order they are added, so the constructor reads the sa
    of entities: the ship, asteroids, and bullets share the same components.
 3. Everything that has an angular velocity spins. Only asteroids have one, so only they spin.
 4. Bullets disappear when their lifetime is over.
-5. Asteroids are put into the tree, and collisions of bullets and the ship are checked after everything has moved.
+5. Asteroids are moved in the tree, and collisions of bullets and the ship are checked after everything has moved.
 6. A reaction system counts asteroids: it's notified when an asteroid appears and when it's removed. When the last one
    is removed, the next wave begins.
 
@@ -197,6 +203,6 @@ doesn't care who plays it. The page is the [demo](/tutorials/demo), that reads t
 - Removed entities stay in queries until the end of the update. To take an entity out of queries immediately, remove
   the component they depend on.
 - Reaction systems notice when things appear and disappear, like the last asteroid of a wave.
-- A quad tree, filled every update by a system, finds things near a point without checking all of them.
+- A quad tree, kept up to date by a system, finds things near a point without checking all of them.
 
 Next, in the [Bullet hell](/tutorials/bullet-hell), there will be hundreds of entities on the screen at once. 💥

@@ -21,17 +21,21 @@ export class AsteroidTree {
     this.tree = new QuadTree({x: 0, y: 0, width: screen.width, height: screen.height});
   }
 
-  public clear(): void {
-    this.tree.clear();
-  }
-
   public add(asteroid: Entity, position: Position): void {
     this.tree.insert(asteroid, position);
   }
 
+  public move(asteroid: Entity, position: Position): void {
+    this.tree.move(asteroid, position);
+  }
+
+  public remove(asteroid: Entity): void {
+    this.tree.remove(asteroid);
+  }
+
   /**
-   * Finds an asteroid, that touches the circle. An asteroid destroyed earlier in this update has lost its collider, and
-   * doesn't touch anything.
+   * Finds an asteroid, that touches the circle. An asteroid destroyed earlier in this update has lost its collider, so
+   * it has already left the tree.
    */
   public find(position: Position, radius: number): Entity | undefined {
     const {width, height} = this.screen;
@@ -50,9 +54,7 @@ export class AsteroidTree {
   }
 
   private touches(asteroid: Entity, position: Position, radius: number): boolean {
-    const collider = asteroid.get(Collider);
-    if (collider === undefined) return false;
-
+    const collider = asteroid.get(Collider)!;
     const asteroidPosition = asteroid.get(Position)!;
     const dx = wrappedDifference(position.x, asteroidPosition.x, this.screen.width);
     const dy = wrappedDifference(position.y, asteroidPosition.y, this.screen.height);
