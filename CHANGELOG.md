@@ -27,6 +27,9 @@ Breaking changes:
 - `EntitySnapshot.previous` is restored when it's accessed. A snapshot kept after its handler has returned reflects the
   state of the entity at the moment of access.
 - `Query` is generic: `Query<C>`, where `C` are types of components. `Query` without type arguments accepts any query.
+- `Engine.removeEntity` removes entities safely by default, as promised in 4.3.0: entities removed during the update are
+  removed after all systems have been updated, the `safe` argument is removed. Outside of the update entities are
+  removed immediately.
 
 Performance:
 

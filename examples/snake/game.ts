@@ -110,7 +110,7 @@ class SteeringSystem extends IterativeSystem.of(Heading, HEAD) {
  */
 class CollisionSystem extends IterativeSystem.of(Position, Body, HEAD) {
   private readonly food = new QueryBuilder().contains(Position, FOOD).build();
-  private readonly segments = new QueryBuilder().contains(Position, SEGMENT).build();
+  private readonly segments = new QueryBuilder().contains(Position, Lifetime, SEGMENT).build();
 
   public constructor(private readonly width: number, private readonly height: number) {
     super();
@@ -133,8 +133,9 @@ class CollisionSystem extends IterativeSystem.of(Position, Body, HEAD) {
       this.dispatch(new GameOver());
       return;
     }
-    this.segments.forEach((segment, segmentPosition) => {
-      if (segmentPosition.x === x && segmentPosition.y === y) {
+    this.segments.forEach((segment, segmentPosition, lifetime) => {
+      // Expired segments are removed after the update, but the head can already move to their cells
+      if (lifetime.ticks > 0 && segmentPosition.x === x && segmentPosition.y === y) {
         this.dispatch(new GameOver());
       }
     });

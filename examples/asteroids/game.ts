@@ -140,7 +140,9 @@ class ShipControlSystem extends IterativeSystem.of(Ship, Position, Velocity, Rot
 }
 
 /**
- * Detects collisions of bullets with asteroids, and of the ship with asteroids
+ * Detects collisions of bullets with asteroids, and of the ship with asteroids.
+ * Entities removed during the update are removed after it, so collided entities lose their colliders immediately:
+ * they leave collision queries and can't collide once again in the same update.
  */
 class CollisionSystem extends System {
   private readonly bullets = new QueryBuilder().contains(Position, Collider, BULLET).build();
@@ -163,12 +165,14 @@ class CollisionSystem extends System {
     this.asteroids.forEach((asteroid, asteroidPosition, asteroidCollider, {size}) => {
       this.bullets.forEach((bullet, bulletPosition, bulletCollider) => {
         if (!this.asteroids.has(asteroid) || !collides(asteroidPosition, asteroidCollider, bulletPosition, bulletCollider)) return;
+        bullet.remove(Collider);
         this.engine.removeEntity(bullet);
         this.split(asteroid);
         this.dispatch(new AsteroidDestroyed(size));
       });
       this.ships.forEach((ship, shipPosition, shipCollider) => {
         if (!this.asteroids.has(asteroid) || !collides(asteroidPosition, asteroidCollider, shipPosition, shipCollider)) return;
+        ship.remove(Collider);
         this.engine.removeEntity(ship);
         this.dispatch(new ShipDestroyed());
       });
@@ -217,6 +221,7 @@ export function createAsteroidsGame({width, height, random = Math.random}: Aster
   const split = (asteroid: Entity) => {
     const {size} = asteroid.get(Asteroid)!;
     const {x, y} = asteroid.get(Position)!;
+    asteroid.remove(Collider);
     engine.removeEntity(asteroid);
     if (size > 1) {
       spawnAsteroid(x, y, size - 1);

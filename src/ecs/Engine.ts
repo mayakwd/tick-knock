@@ -51,6 +51,7 @@ export class Engine {
   private _subscriptions: Subscription<any>[] = [];
   private _systemsById: Map<string, System> = new Map();
   private _removalRequested: Set<number> = new Set();
+  private _isUpdating: boolean = false;
 
   /**
    * Gets a list of entities added to engine
@@ -99,22 +100,25 @@ export class Engine {
   }
 
   /**
-   * Remove entity from engine
-   * If engine not contains entity - it does nothing.
+   * Removes an entity from the engine.
+   * If the engine doesn't contain the entity - it does nothing.
+   *
+   * If the engine is being updated, the entity is removed after all systems have been updated, so removing entities
+   * from systems never breaks iteration of other systems. Until then, the entity can't be found by
+   * {@link getEntityById}, but it stays in queries. If the engine is not being updated, the entity is removed
+   * immediately.
    *
    * @param entity Entity to remove from engine
-   * @param safe If true - entity will be removed after update loop, if false - entity is removed immediately.
-   * @since 4.3.0 - Added `safe` option.
-   *  The "safe" flag will be removed in the next major version release, and the default behavior will be changed to "safe".
+   * @since 5.0.0 - Entities removed during the update are always removed after it, `safe` option is removed.
    * @see onEntityRemoved
    */
-  public removeEntity(entity: Entity, safe: boolean = false): Engine {
+  public removeEntity(entity: Entity): Engine {
     if (!this._entityMap.has(entity.id)) return this;
-    if (!safe) {
-      return this.removeEntityNow(entity);
+    if (this._isUpdating) {
+      this._removalRequested.add(entity.id);
+      return this;
     }
-    this._removalRequested.add(entity.id)
-    return this;
+    return this.removeEntityNow(entity);
   }
 
   /**
@@ -156,11 +160,16 @@ export class Engine {
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
-    for (const system of this._systems) {
-      system.update(dt);
-      if (system.isRemovalRequested) {
-        this.removeSystem(system);
+    this._isUpdating = true;
+    try {
+      for (const system of this._systems) {
+        system.update(dt);
+        if (system.isRemovalRequested) {
+          this.removeSystem(system);
+        }
       }
+    } finally {
+      this._isUpdating = false;
     }
     if (this._removalRequested.size > 0) {
       for (const id of this._removalRequested) {

@@ -4,7 +4,6 @@
 > library written in TypeScript
 
 [![Build Status](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml/badge.svg)](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml)
-[![Codecov Coverage](https://img.shields.io/codecov/c/github/mayakwd/tick-knock/develop.svg?style=flat-square)](https://codecov.io/gh/mayakwd/tick-knock/)
 
 😊 [Buy me a coffee](https://www.buymeacoffee.com/rdolivaw)
 
@@ -70,6 +69,8 @@ code works as is, but there are a few breaking changes:
 - Entities added to the query during an update of `IterativeSystem` are updated starting from the next update, and
   entities removed from the query during the update are not updated anymore.
 - `EntitySnapshot.previous` is restored when it's accessed, so don't keep snapshots after handlers have returned.
+- `Engine.removeEntity` doesn't have the `safe` argument anymore: entities removed during the update are always removed
+  after it, as `engine.removeEntity(entity, true)` did before. Outside of the update entities are removed immediately.
 - `Query` and built-in systems are generic now: `Query<C>`, where `C` are types of components. `Query` without type
   arguments accepts any query, so existing code compiles, but types of components are lost.
 - The library is compiled to ES2017.
@@ -107,6 +108,11 @@ Or you can take it out:
 ```typescript
 engine.removeEntity(entity);
 ```
+
+If the engine is being updated, for example when a system removes an entity, the entity is removed after all systems
+have been updated. Removing entities never breaks iteration of other systems, but until the end of the update the
+removed entity stays in queries. If you need an entity to leave some queries immediately, remove the components these
+queries depend on. Outside of the update entities are removed immediately.
 
 The second main "inhabitant" is System. It is responsible for processing Entities and their components. We will learn
 about them in detail later.

@@ -1,5 +1,5 @@
 import {QueryBuilder} from 'tick-knock';
-import {Direction, FOOD, HEAD, Heading, Position, SEGMENT, SnakeGame} from './game';
+import {Direction, FOOD, HEAD, Heading, Lifetime, Position, SEGMENT, SnakeGame} from './game';
 
 const MOVES: Array<[Direction, number, number]> = [['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0]];
 
@@ -10,7 +10,7 @@ const MOVES: Array<[Direction, number, number]> = [['up', 0, -1], ['down', 0, 1]
 export function createAutopilot(game: SnakeGame): () => void {
   const head = new QueryBuilder().contains(Position, Heading, HEAD).build();
   const food = new QueryBuilder().contains(Position, FOOD).build();
-  const segments = new QueryBuilder().contains(Position, SEGMENT).build();
+  const segments = new QueryBuilder().contains(Position, Lifetime, SEGMENT).build();
   game.engine.addQuery(head).addQuery(food).addQuery(segments);
 
   return () => {
@@ -19,10 +19,11 @@ export function createAutopilot(game: SnakeGame): () => void {
     const position = snake.get(Position)!;
     const heading = snake.get(Heading)!;
     const target = food.first?.get(Position);
-    const occupied = new Set(segments.entities.map((segment) => {
-      const {x, y} = segment.get(Position)!;
-      return `${x}:${y}`;
-    }));
+    const occupied = new Set<string>();
+    segments.forEach((segment, {x, y}, lifetime) => {
+      // The tail leaves its cell on the next tick
+      if (lifetime.ticks > 1) occupied.add(`${x}:${y}`);
+    });
 
     let best: Direction | undefined;
     let bestDistance = Infinity;

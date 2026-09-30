@@ -107,7 +107,7 @@ describe('Iterative system', () => {
     expect(onRemoved).toEqual({snapshot: true, entity: false});
   });
 
-  it("Entities safe removal during iteration should not break the iteration ordering", () => {
+  it("Entities removed during iteration are removed after the update and don't break the iteration ordering", () => {
     class Health {
       public constructor(public value: number) {
       }
@@ -122,7 +122,7 @@ describe('Iterative system', () => {
         const health = entity.get(Health)!;
         health.value -= 1;
         if (health.value <= 0) {
-          this.engine.removeEntity(entity, true);
+          this.engine.removeEntity(entity);
         }
       }
     }
@@ -136,7 +136,7 @@ describe('Iterative system', () => {
     expect(engine.entities.length).toBe(0);
   })
 
-  it.each([true, false])(`Re-adding entities which were removed should work after the engine update cycle`, (safe) => {
+  it(`Re-adding entities which were removed should work after the engine update cycle`, () => {
     const engine = new Engine();
     const query = new QueryBuilder().contains(Position).build();
     engine.addQuery(query);
@@ -147,13 +147,47 @@ describe('Iterative system', () => {
 
     const entities = query.entities.concat()
     for (let entity of entities) {
-      engine.removeEntity(entity, safe);
+      engine.removeEntity(entity);
     }
     for (let entity of entities) {
       engine.addEntity(entity);
     }
     engine.update(0);
     expect(engine.entities.length).toBe(5);
+  })
+
+  it('Entities removed and added back during the update stay in the engine', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity).iterative([Position], (current) => {
+      engine.removeEntity(current);
+      engine.addEntity(current);
+    });
+    engine.update(0);
+    expect(engine.entities).toEqual([entity]);
+  })
+
+  it('Entities removed during the update are removed after all systems are updated', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position());
+    const seen: boolean[] = [];
+    engine
+      .addEntity(entity)
+      .iterative([Position], (current) => engine.removeEntity(current))
+      .iterative([Position], (current) => seen.push(engine.getEntityById(current.id) === undefined));
+    engine.update(0);
+    // The second system still sees the entity in its query, but the entity can't be found by id anymore
+    expect(seen).toEqual([true]);
+    expect(engine.entities).toEqual([]);
+  })
+
+  it('Entities removed outside of the update are removed immediately', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position).build();
+    const entity = new Entity().add(new Position());
+    engine.addQuery(query).addEntity(entity).removeEntity(entity);
+    expect(query.isEmpty).toBeTruthy();
+    expect(engine.entities).toEqual([]);
   })
 
   it('Removing entities during update neither skips remaining entities nor updates removed ones', () => {
