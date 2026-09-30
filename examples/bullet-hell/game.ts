@@ -47,7 +47,6 @@ export class BulletHellGame {
   public constructor({layer, random = Math.random}: BulletHellGameOptions) {
     this.engine.addQuery(this.players).addQuery(this.enemyBullets);
 
-    // #region systems
     this.engine
       // The player moves and fires first, and new enemies appear
       .addSystem(new PlayerControlSystem(this.controls))
@@ -108,9 +107,7 @@ export class BulletHellGame {
       .iterative([Position, REMOVED_OFFSCREEN], (entity, dt, position) => {
         if (!isInside(position, SCREEN, SCREEN_MARGIN)) this.engine.removeEntity(entity);
       });
-    // #endregion systems
 
-    // #region views
     // Views follow positions of entities after all game systems
     addViews(this.engine, layer, {position: Position});
 
@@ -124,9 +121,7 @@ export class BulletHellGame {
           display.alpha = 1;
         },
       });
-    // #endregion views
 
-    // #region messages
     this.engine.subscribe(EnemyDestroyed, ({points}) => {
       this._score += points;
     });
@@ -139,7 +134,6 @@ export class BulletHellGame {
     this.engine.subscribe(GameOver, () => {
       this._isOver = true;
     });
-    // #endregion messages
 
     this.engine.addEntity(createPlayer(WIDTH / 2, HEIGHT - 80));
   }

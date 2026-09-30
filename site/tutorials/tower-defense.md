@@ -78,7 +78,19 @@ Its weapon, payload and view come from the level, and a reaction system of `Towe
 appears, and when an upgrade replaces its `Tower` with the next level, so building and upgrading are the same thing
 for it:
 
-<<< @/../examples/tower-defense/game.ts#levels
+```typescript
+this.engine.reactive([Tower], {
+  added: ({current}, {kind, level}) => {
+    const {targeting, levels} = TOWERS[kind];
+    const {range, interval, projectileSpeed, payload} = levels[level];
+    current
+      .add(new Weapon(range, interval, projectileSpeed))
+      .add(new Payload(payload))
+      .add(new View(drawTower(kind, level)))
+      .add(targeting);
+  },
+});
+```
 
 Adding a component, that the entity already has, replaces it, so the tower becomes exactly what the level describes.
 An upgrade is one line: `tower.add(new Tower(kind, level + 1))`. See
@@ -130,7 +142,17 @@ systems maintain it: a creep is added when it gets a cell, and when the path sys
 system sees the old cell removed and the new one added. A creep that has escaped loses its `Health`, so it leaves the
 index of targets right away. Towers are indexed the same way, so the game finds the tower in a cell with a lookup:
 
-<<< @/../examples/tower-defense/game.ts#indexes
+```typescript
+this.engine
+  .reactive([Cell, Health, Creep], {
+    added: ({current}, cell) => this.creeps.add(cell, current),
+    removed: ({current}, cell) => this.creeps.remove(cell, current),
+  })
+  .reactive([Cell, Tower], {
+    added: ({current}, cell) => this.towers.add(cell, current),
+    removed: ({current}, cell) => this.towers.remove(cell, current),
+  });
+```
 
 The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system:
 the same class with the tag of the rule and a score of creeps, the distance passed or the health. A new rule is a new
@@ -140,10 +162,8 @@ tag and a new system, and the others don't change.
 
 The query of the system is built in the constructor with the tag of the rule, so one class serves all rules.
 
-Distances are checked with `isWithin`, that compares squares of distances, so the check reads as what it means, and
-doesn't calculate square roots:
-
-<<< @/../examples/shared/geometry.ts#within
+Distances are checked with `isWithin` from the shared geometry helpers. It compares squares of distances, so the check
+reads as what it means, and doesn't calculate square roots.
 
 ## Projectiles carry their payload
 
@@ -194,9 +214,10 @@ the payload is created from a level.
 Linked components are added with `append` instead of `add`, as the projectile system does on hit. They are processed
 with `iterate`, which visits every linked component of the class. Expired ones are removed with `pick`, which removes
 one particular component and keeps the others. Every effect has its own small system, written right where it's added
-to the engine among the other systems of the game. Systems are updated in the order they are added:
+to the engine among the other systems of the game. Here is the whole game: a class, which constructor adds indexes,
+the reaction to levels of towers, systems in the order they are updated, and subscriptions to messages:
 
-<<< @/../examples/tower-defense/game.ts#systems
+<<< @/../examples/tower-defense/game.ts
 
 Hits are dealt once and removed. Poisons stack: every poison deals its damage. Slows don't: the path system applies
 the strongest one. No system switches on a type of an effect: an effect is a class, and a system processes its class.
@@ -224,13 +245,8 @@ The game keeps it, and changes it when messages arrive: `CreepKilled` adds gold,
 ## Building and upgrading
 
 Building and upgrading are actions of the player, not something that happens every update, so they are methods of the
-game. The actions check gold, the map and the index of towers, create a tower or replace its `Tower` with the next level:
-
-<<< @/../examples/tower-defense/game.ts#actions
-
-The whole game:
-
-<<< @/../examples/tower-defense/game.ts
+game, which you have seen above: `build`, `upgrade`, and methods, that tell whether they are possible. They check gold,
+the map and the index of towers, create a tower or replace its `Tower` with the next level.
 
 ## Views and input
 
@@ -243,7 +259,12 @@ and a typed component besides `View`, so a system updates the health bar without
 
 <<< @/../examples/tower-defense/entities/createCreep.ts
 
-<<< @/../examples/tower-defense/game.ts#views
+```typescript
+this.engine.iterative([CreepViewRef, Health], (creep, dt, {view}, health) => {
+  view.setHealth(health.value / health.max);
+  view.setEffects(creep.has(Slow), creep.has(Poison));
+});
+```
 
 A tower is drawn by its kind and level, so its view comes from the level, together with the weapon. An upgrade replaces
 the view, and the view system destroys the previous one. A projectile is drawn by its payload.

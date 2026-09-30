@@ -37,7 +37,6 @@ export class TowerDefenseGame {
   private _isOver = false;
 
   public constructor({layer}: TowerDefenseGameOptions) {
-    // #region indexes
     // Spatial indexes follow cells of entities: an entity is indexed when it gets a cell, and a creep crossing into
     // another cell gets a new one, so it's removed from the previous cell and added to the next one. A creep, that
     // has lost its health, is not a target anymore, and leaves the index right away.
@@ -50,9 +49,7 @@ export class TowerDefenseGame {
         added: ({current}, cell) => this.towers.add(cell, current),
         removed: ({current}, cell) => this.towers.remove(cell, current),
       });
-    // #endregion indexes
 
-    // #region levels
     // A level of a tower is turned into its components when the tower is built, and when an upgrade replaces its
     // Tower. It's the only place, where the table of towers is read: from this moment the tower owns its
     // characteristics, and the view shows its level.
@@ -67,9 +64,7 @@ export class TowerDefenseGame {
           .add(targeting);
       },
     });
-    // #endregion levels
 
-    // #region systems
     this.engine
       // Creeps appear and walk along the path
       .addSystem(new SpawnSystem(this.waves))
@@ -123,18 +118,14 @@ export class TowerDefenseGame {
         this.engine.removeEntity(creep);
         this.engine.dispatch(new CreepKilled(reward));
       });
-    // #endregion systems
 
-    // #region views
     // Views follow positions of entities after all game systems, and creeps show their health and effects
     addViews(this.engine, layer, {position: Position});
     this.engine.iterative([CreepViewRef, Health], (creep, dt, {view}, health) => {
       view.setHealth(health.value / health.max);
       view.setEffects(creep.has(Slow), creep.has(Poison));
     });
-    // #endregion views
 
-    // #region messages
     this.engine.subscribe(CreepKilled, ({reward}) => {
       this.economy.gold += reward;
     });
@@ -147,7 +138,6 @@ export class TowerDefenseGame {
     this.engine.subscribe(GameOver, () => {
       this._isOver = true;
     });
-    // #endregion messages
   }
 
   public get wave(): number {
@@ -158,7 +148,6 @@ export class TowerDefenseGame {
     return this._isOver;
   }
 
-  // #region actions
   /**
    * Gets the tower built in the cell
    */
@@ -217,7 +206,6 @@ export class TowerDefenseGame {
     entity.add(new Tower(kind, level + 1));
     return true;
   }
-  // #endregion actions
 
   /**
    * Advances the game

@@ -84,10 +84,11 @@ a bullet, is adding one component.
 
 ## Systems
 
-Systems are updated in the order they are added, so they read as the update goes: the player moves and fires, enemies
-appear, everything moves, enemies fire, collisions are checked and hits are resolved, and the screen is cleaned up.
+The game is a class, as in the previous tutorials. Systems are updated in the order they are added, so its
+constructor reads as the update goes: the player moves and fires, enemies appear, everything moves, enemies fire,
+collisions are checked and hits are resolved, and the screen is cleaned up.
 
-<<< @/../examples/bullet-hell/game.ts#systems
+<<< @/../examples/bullet-hell/game.ts
 
 Most systems are a few lines long, so they are written right where they are added to the engine:
 
@@ -161,9 +162,7 @@ The spawn system keeps the progress of the current wave in its own fields. It's 
 any entity, so it doesn't need to be a component. The number of the wave is shared with the game through a small
 object passed to the constructor, so the game can show it.
 
-## Putting it all together
-
-<<< @/../examples/bullet-hell/game.ts
+## Lives
 
 When the player is hit, a subscription to `PlayerHit` removes all enemy bullets, which the game keeps in its own query.
 Lives belong to the player: the game doesn't keep a copy of them, it reads the `Lives` component of the player when

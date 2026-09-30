@@ -19,7 +19,6 @@ export function distance(a: Readonly<Vector>, b: Readonly<Vector>): number {
   return Math.sqrt(distanceSquared(a, b));
 }
 
-// #region within
 /**
  * Returns a value indicating whether the points are not further from each other than the radius.
  * It compares squares of distances, so it doesn't calculate a square root.
@@ -27,7 +26,6 @@ export function distance(a: Readonly<Vector>, b: Readonly<Vector>): number {
 export function isWithin(a: Readonly<Vector>, b: Readonly<Vector>, radius: number): boolean {
   return distanceSquared(a, b) <= radius * radius;
 }
-// #endregion within
 
 /**
  * Returns the direction from one point to another in radians, 0 points to the right

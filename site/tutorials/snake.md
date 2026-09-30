@@ -94,7 +94,12 @@ a reaction system maintains it: an entity is added to the grid when it gets a ce
 the head gets a new cell, the reaction system sees the old cell removed and the new one added, so the grid follows the
 head by itself:
 
-<<< @/../examples/snake/game.ts#grid
+```typescript
+this.engine.reactive([Cell], {
+  added: ({current}, cell) => this.grid.add(cell, current),
+  removed: ({current}, cell) => this.grid.remove(cell, current),
+});
+```
 
 Nobody can forget to update the grid, and no system has to know about it except those that read it.
 
@@ -106,12 +111,26 @@ direction once per tick:
 
 <<< @/../examples/snake/Controls.ts
 
-## Systems
+## Messages
 
-Now the logic. Every tick the snake turns, the tail frees its cell, the head checks where it goes, moves, and eats.
-Systems are updated in the order they are added to the engine, so the code reads as the tick goes:
+When something important happens, systems don't change the score or stop the game themselves. They **dispatch
+a message**, and whoever is interested subscribes to it:
 
-<<< @/../examples/snake/game.ts#systems
+<<< @/../examples/snake/messages.ts
+
+This way the collision system only knows about collisions, and the eating system only knows about eating. Counting
+the score and stopping the game are somebody else's responsibility.
+
+## The game
+
+Now the logic. The game is a class, that owns the engine, the controls and the grid. Its constructor adds systems,
+subscribes to messages and creates the first entities:
+
+<<< @/../examples/snake/game.ts
+
+Systems are updated in the order they are added to the engine, so the constructor reads as the tick goes: the snake
+turns, the tail frees its cell, the head checks where it goes, moves, and eats. Systems also accept a priority and
+an identifier, but the game doesn't need them.
 
 Turning and aging are a few lines each, so they are [functional systems](/guide/built-in-systems#functional-systems),
 written right where they are added. `engine.iterative([Heading, HEAD], ...)` is called for entities with the `Heading`
@@ -121,6 +140,12 @@ component and the `HEAD` tag. Components are passed to the function, tags are on
 > queries. That's why an expired segment also loses its `Cell`: it leaves the grid right away, and the head can move to
 > its cell in the same tick. Removing the component, that queries and indexes depend on, is the way to make an entity
 > stop taking part in the game immediately.
+
+The last game system is a reaction system: every time food loses its cell, that is, it's eaten, new food appears in
+a random free cell of the grid. When there are no free cells, the snake has filled the grid, and the game is won.
+`engine.subscribe` counts the score and stops the game.
+
+## Collisions, movement and eating
 
 Collisions, movement and eating are separate systems. Each of them does one thing, and has a name, so they are classes.
 
@@ -138,35 +163,15 @@ keeps a list of entities in every cell:
 
 <<< @/../examples/snake/systems/EatingSystem.ts
 
-The last system is a reaction system: every time food loses its cell, that is, it's eaten, new food appears in a random
-free cell of the grid. When there are no free cells, the snake has filled the grid, and the game is won.
+## Views follow entities
 
-## Messages
-
-When something important happens, systems don't change the score or stop the game themselves. They **dispatch
-a message**, and whoever is interested subscribes to it:
-
-<<< @/../examples/snake/messages.ts
-
-This way the collision system only knows about collisions, and the eating system only knows about eating. Counting
-the score and stopping the game are somebody else's responsibility.
-
-## Putting it all together
-
-The game is a class, that owns the engine, the controls and the grid, adds systems, subscribes to messages and creates
-the first entities:
-
-<<< @/../examples/snake/game.ts
-
-A few things to notice:
-
-- **Order of systems.** Systems are updated in the order they are added. The snake turns, the tail frees its cell, and
-  then the head moves. Systems also accept a priority and an identifier, but the game doesn't need them.
-- **Views.** `addViews` is added after all game systems. It adds views to the layer, and moves them to cells of their
-  entities after the game systems have moved the entities.
-- **Messages.** `engine.subscribe` counts the score and stops the game.
+`addViews` is added after all game systems. `ViewSystem` adds views to the layer, and destroys them when entities are
+removed, and an iterative system moves views to cells of their entities after the game systems have moved the
+entities:
 
 <<< @/../examples/shared/render/addViews.ts
+
+<<< @/../examples/shared/render/ViewSystem.ts
 
 The game doesn't read input and doesn't know where its layer is displayed. It can be played in a test with a layer
 that is never rendered:
@@ -176,10 +181,6 @@ const game = new SnakeGame({width: 20, height: 10, layer: new Container()});
 game.controls.turn('up');
 game.tick();
 ```
-
-`ViewSystem` adds views to the layer, and destroys them when entities are removed:
-
-<<< @/../examples/shared/render/ViewSystem.ts
 
 ## Input and the game loop
 

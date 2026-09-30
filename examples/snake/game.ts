@@ -47,16 +47,13 @@ export class SnakeGame {
     this.grid = new Grid(width, height);
     this.random = random;
 
-    // #region grid
     // The grid follows cells of entities: an entity is added when it gets a cell, and removed when it loses it.
     // A moving head gets a new cell, so it's removed from the previous cell and added to the next one.
     this.engine.reactive([Cell], {
       added: ({current}, cell) => this.grid.add(cell, current),
       removed: ({current}, cell) => this.grid.remove(cell, current),
     });
-    // #endregion grid
 
-    // #region systems
     this.engine
       // First, the head turns in the direction of the controls
       .iterative([Heading, HEAD], (head, dt, heading) => {
@@ -93,18 +90,15 @@ export class SnakeGame {
 
       // Every time food is eaten, a new one appears
       .reactive([Cell, FOOD], {removed: () => this.spawnFood()});
-    // #endregion systems
 
     // Views are placed after all game systems have moved entities
     addViews(this.engine, layer, {position: Cell, scale: CELL});
 
-    // #region messages
     this.engine.subscribe(FoodEaten, () => this._score++);
     this.engine.subscribe(GameOver, ({isWon}) => {
       this._isOver = true;
       this._isWon = isWon;
     });
-    // #endregion messages
 
     this.engine.addEntity(createHead(Math.floor(width / 2), Math.floor(height / 2), START_LENGTH));
     this.spawnFood();

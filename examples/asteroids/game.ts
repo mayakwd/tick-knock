@@ -40,7 +40,6 @@ export class AsteroidsGame {
     this.height = height;
     this.random = random;
 
-    // #region systems
     this.engine
       // The ship is controlled first, so it moves in the same update
       .addSystem(new ShipControlSystem(this.controls))
@@ -72,9 +71,7 @@ export class AsteroidsGame {
           if (--this.asteroidsLeft === 0 && !this._isOver) this.spawnWave();
         },
       });
-    // #endregion systems
 
-    // #region views
     // Views follow positions and rotations of entities after all game systems
     addViews(this.engine, layer, {position: Position});
     const rotate = ({display}: View, {angle}: Rotation) => {
@@ -83,9 +80,7 @@ export class AsteroidsGame {
     this.engine
       .reactive([View, Rotation], {added: (snapshot, view, rotation) => rotate(view, rotation)})
       .iterative([View, Rotation], (entity, dt, view, rotation) => rotate(view, rotation));
-    // #endregion views
 
-    // #region messages
     // A destroyed asteroid gives points, and splits into two smaller ones
     this.engine.subscribe(AsteroidDestroyed, ({asteroid}) => {
       const {size} = asteroid.get(Asteroid)!;
@@ -101,7 +96,6 @@ export class AsteroidsGame {
     this.engine.subscribe(ShipDestroyed, () => {
       this._isOver = true;
     });
-    // #endregion messages
 
     this.engine.addEntity(createShip(width / 2, height / 2));
     this.spawnWave();

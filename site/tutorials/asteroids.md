@@ -85,9 +85,10 @@ generator and get the same game every time.
 Now the delta time matters. `engine.update(dt)` passes the time since the previous frame to every system, and systems
 move things by `velocity * dt`, so the game runs at the same speed on any frame rate.
 
-Systems are updated in the order they are added, so they read as the update goes:
+The game is a class, as in Snake. Its constructor adds systems in the order they are updated, so it reads as the update
+goes:
 
-<<< @/../examples/asteroids/game.ts#systems
+<<< @/../examples/asteroids/game.ts
 
 The ship is controlled first. The ship control system is bigger than a few lines, so it's a class. It receives the
 controls of the game in the constructor, and `IterativeSystem.of(Position, Velocity, Rotation, Gun, SHIP)` passes four
@@ -140,32 +141,24 @@ update, but it can't collide anymore. The same happens to destroyed asteroids an
 ## Messages
 
 The collision system only reports what has happened: it dispatches `AsteroidDestroyed` with the destroyed asteroid.
-It doesn't count the score and doesn't know how asteroids split. The game subscribes to the message, and does both:
-
-<<< @/../examples/asteroids/game.ts#messages
-
-The asteroid is removed after the update, so the subscriber can still read its size and position.
+It doesn't count the score and doesn't know how asteroids split. The game subscribes to the message in its
+constructor, and does both. The asteroid is removed after the update, so the subscriber can still read its size and
+position.
 
 ## Waves
 
 When the last asteroid is destroyed, a new wave begins. How do we know that it was the last one?
 
-A reaction system of asteroids, the last of the systems above, counts asteroids: it's notified when an asteroid
+A reaction system of asteroids, the last of the game systems, counts asteroids: it's notified when an asteroid
 appears and when it's removed. When the last one is removed, the next wave begins. Nobody has to check asteroids
 every frame: the game reacts to the change when it happens.
 
 ## Views follow entities
 
-Views follow positions of entities with the shared `addViews`, as in Snake, and rotations with two more systems:
-
-<<< @/../examples/asteroids/game.ts#views
-
-`[View, Rotation]` rotates views of entities that have a rotation. Bullets don't have one, and they are not rotated.
-Instead of one system with `if`s, the behaviour is composed from components.
-
-## Putting it all together
-
-<<< @/../examples/asteroids/game.ts
+Views follow positions of entities with the shared `addViews`, as in Snake, and rotations with two more systems of the
+game: a reaction system rotates a new view right away, and `[View, Rotation]` rotates views of entities that have
+a rotation every update. Bullets don't have one, and they are not rotated. Instead of one system with `if`s,
+the behaviour is composed from components.
 
 ## Input
 
