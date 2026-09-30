@@ -254,6 +254,8 @@ export class Engine {
     this._systemsById.clear();
     for (const system of systems) {
       system.onRemovedFromEngine();
+      system.setEngine(undefined);
+      system.setId(undefined);
     }
   }
 
@@ -365,7 +367,7 @@ export class Engine {
   }
 
   /**
-   * Subscribe to any message of the {@link messageType}.
+   * Subscribe to any message of the `messageType`.
    * Those messages can be dispatched from any system attached to the engine
    *
    * @param {Class<T> | T} messageType - Message type (can be class or any instance, for example string or number)
@@ -378,7 +380,7 @@ export class Engine {
   /**
    * Unsubscribe from messages of specific type
    *
-   * @param {Class<T>} messageType - Message type
+   * @param {Class<T> | T} messageType - Message type
    * @param {(value: T) => void} handler - Specific handler that must be unsubscribed, if not defined then all handlers
    *  related to this message type will be unsubscribed.
    */

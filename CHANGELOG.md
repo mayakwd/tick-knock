@@ -54,6 +54,7 @@ Fixes:
 - `onComponentAdded`/`onComponentRemoved` handlers now receive the resolve class of the component, so snapshots
   are correct for components added with `resolveClass`.
 - Query built by `QueryBuilder` is no longer affected by calling `contains` on the builder after `build`.
+- `Engine.removeAllSystems` detaches systems from the engine, the same way `Engine.removeSystem` does.
 
 Tooling:
 
@@ -61,7 +62,7 @@ Tooling:
 - Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
 - Compilation target is ES2017, which the library already required at runtime (`Object.values`).
-- CI runs on Node.js 22 and 24.
+- CI runs on Node.js 22 and 24. Stale Travis CI configuration is removed.
 
 # 4.3.0
 

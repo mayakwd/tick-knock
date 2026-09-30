@@ -20,33 +20,29 @@ import {ReactionSystem} from './ReactionSystem';
  * ```
  *
  * @example
- * You have a View component, that is responsible for entity displaying and contains an image.
- * So every step you want to update image positions, that can depends on Position component.
- *
+ * A system with a query built from a predicate receives only entities, it gets components by itself.
  * ```ts
  * class ViewSystem extends IterativeSystem {
- *   constructor(container:Container) {
- *      super(new Query((entity:Entity) => entity.hasAll(View, Position));
- *      this.container = container;
+ *   public constructor(private readonly container: Container) {
+ *     super((entity: Entity) => entity.hasAll(View, Position) && !entity.has(HIDDEN));
  *   }
  *
- *   // Update entity view position on screen, via position component data
- *   updateEntity(entity:Entity) {
+ *   // Update entity view position on the screen
+ *   protected updateEntity(entity: Entity) {
  *     const {view} = entity.get(View)!;
- *     const {x, y) = entity.get(Position)!;
- *     view.x = x;
- *     view.y = y;
+ *     const {x, y} = entity.get(Position)!;
+ *     view.position.set(x, y);
  *   }
  *
- *   // Add entity view from screen
- *   entityAdded = ({entity}:EntitySnapshot) => {
- *    this.container.add(entity.get(View)!.view);
- *   }
+ *   // Add entity view to the screen
+ *   protected entityAdded = ({current}: EntitySnapshot) => {
+ *     this.container.addChild(current.get(View)!.view);
+ *   };
  *
- *   // Remove entity view from screen
- *   entityRemoved = (snapshot:EntitySnapshot) => {
- *    this.container.remove(snapshot.get(View)!.view);
- *   }
+ *   // Remove entity view from the screen
+ *   protected entityRemoved = ({previous}: EntitySnapshot) => {
+ *     this.container.removeChild(previous.get(View)!.view);
+ *   };
  * }
  * ```
  */

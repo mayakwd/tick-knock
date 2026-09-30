@@ -24,8 +24,11 @@ pnpm bench --baseline ../other/lib        # also another tick-knock build
 pnpm bench --baseline ../other/lib --baseline-name old  # the same, with a custom name in the report
 pnpm bench --libraries none               # only tick-knock builds
 pnpm bench --libraries bitecs,miniplex    # only specified other libraries
-pnpm bench --filter churn --time 2000     # only matching scenarios, 2 seconds per scenario
+pnpm bench --filter churn --time 2000     # only scenarios which ids match, 2 seconds per scenario
 ```
+
+Paths of builds are relative to the folder the command is run in. `--filter` is a regular expression matched against
+identifiers of scenarios, such as `component-churn`, see [Scenario.ts](src/Scenario.ts).
 
 The result is printed as a markdown table, the best result in every scenario is marked with bold.
 

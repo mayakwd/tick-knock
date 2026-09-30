@@ -8,24 +8,25 @@ import {System} from './System';
  * Represents a system that reacts when entities are added to or removed from its query.
  * `entityAdded` and `entityRemoved` will be called accordingly.
  *
+ * The easiest way to create a reaction system is {@link ReactionSystem.of}.
+ *
  * @example
  * ```ts
  * class ViewSystem extends ReactionSystem {
- *   constructor(
- *      private readonly container:Container
- *   ) {
- *      super(new Query((entity:Entity) => entity.has(View));
+ *   public constructor(private readonly container: Container) {
+ *     super(new QueryBuilder().contains(View));
  *   }
  *
  *   // Add entity view to the screen
- *   entityAdded = ({entity}:EntitySnapshot) => {
- *    this.container.add(entity.get(View)!.view);
- *   }
+ *   protected entityAdded = ({current}: EntitySnapshot) => {
+ *     this.container.addChild(current.get(View)!.view);
+ *   };
  *
- *   // Remove entity view from screen
- *   entityRemoved = (snapshot:EntitySnapshot) => {
- *    this.container.remove(snapshot.get(View)!.view);
- *   }
+ *   // Remove entity view from the screen, the view is taken from the previous state of the entity,
+ *   // because the entity could have lost it
+ *   protected entityRemoved = ({previous}: EntitySnapshot) => {
+ *     this.container.removeChild(previous.get(View)!.view);
+ *   };
  * }
  * ```
  */
@@ -52,6 +53,10 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
    * @example
    * ```ts
    * class ViewSystem extends ReactionSystem.of(View, Position) {
+   *   public constructor(private readonly container: Container) {
+   *     super();
+   *   }
+   *
    *   protected entityAdded = (snapshot: EntitySnapshot, {view}: View, {x, y}: Position) => {
    *     view.position.set(x, y);
    *     this.container.addChild(view);
@@ -73,6 +78,10 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
     return TypedReactionSystem;
   }
 
+  /**
+   * Gets entities of the system query at the moment of the call.
+   * The array is rebuilt after the query changes, so don't keep a reference to it.
+   */
   protected get entities(): ReadonlyArray<Entity> {
     return this.query.entities;
   }
@@ -91,6 +100,11 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
     this.query.clear();
   }
 
+  /**
+   * Called when the system is added to the engine, after its query is matched with entities of the engine,
+   * and before the system starts receiving {@link entityAdded} and {@link entityRemoved}.
+   * Override it to handle entities that already exist in the engine.
+   */
   protected prepare() {}
 
   /**
@@ -100,8 +114,8 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
    * Note: Method will not be called for already existing in query entities (at the adding system to engine phase),
    * only new entities will be handled
    *
-   * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
-   *   before adding, and component that will be added
+   * @param entity Snapshot of the entity that was added to the query: `current` is the entity, `previous` is its state
+   *   before the change that added it
    * @param components Components of the entity, if the system is created with {@link ReactionSystem.of}
    *  or its query is built by {@link QueryBuilder}
    */
@@ -109,12 +123,12 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
   };
 
   /**
-   * Method will be called for every entity matches system query, that is going to be removed from engine, or it stops
-   * matching to the query.
+   * Method will be called for every entity of the system query, that was removed from the engine, or stopped
+   * matching the query.
    * You could easily override it with your own logic.
    *
-   * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
-   *   before removing
+   * @param entity Snapshot of the entity that was removed from the query: `current` is the entity, `previous` is its
+   *   state before removing
    * @param components Components the entity had before removing, if the system is created with
    *  {@link ReactionSystem.of} or its query is built by {@link QueryBuilder}
    */

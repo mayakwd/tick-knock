@@ -3,7 +3,7 @@
 > Small and powerful, type-safe and easy-to-use Entity-Component-System (ECS)
 > library written in TypeScript
 
-[![Build Status](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml/badge.svg)](https://travis-ci.org/mayakwd/tick-knock)
+[![Build Status](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml/badge.svg)](https://github.com/mayakwd/tick-knock/actions/workflows/build.yml)
 [![Codecov Coverage](https://img.shields.io/codecov/c/github/mayakwd/tick-knock/develop.svg?style=flat-square)](https://codecov.io/gh/mayakwd/tick-knock/)
 
 😊 [Buy me a coffee](https://www.buymeacoffee.com/rdolivaw)
@@ -11,38 +11,68 @@
 # Table of contents
 
 - [Installing]
+- [Migrating from 4.x]
 - [How it works?]
 - [Inside the Tick-Knock]
     - [Engine]
         - [Subscription]
     - [Component]
     - [Linked Component]
-        - [Tag]
-        - [Entity]
-        - [System]
-        - [Query]
-            - [QueryBuilder]
-            - [Typed queries]
-            - [Queries and Systems]
-            - [Built-in query-based systems]
-                - [ReactionSystem]
-                - [IterativeSystem]
-                - [Functional systems]
-        - [Snapshot]
-        - [Linked Components How-To]
+    - [Tag]
+    - [Entity]
+    - [System]
+    - [Query]
+        - [QueryBuilder]
+        - [Typed queries]
+        - [Queries and Systems]
+        - [Built-in query-based systems]
+            - [ReactionSystem]
+            - [IterativeSystem]
+            - [Remove the system as it's done]
+            - [Functional systems]
+    - [Snapshot]
+    - [Linked Components How-To]
 - [Examples]
 - [Performance]
 - [Restrictions]
     - [Shared and Local Queries]
     - [Queries with complex logic and Entity invalidation]
+- [Development]
 - [License]
-- [Donation]
 
 # Installing
 
 - PNPM: `pnpm add tick-knock`
 - Yarn: `yarn add tick-knock`
 - NPM: `npm i --save tick-knock`
+
+# Migrating from 4.x
+
+Version 5.0 is much faster and has typed queries and systems, see [CHANGELOG](CHANGELOG.md) for all changes. Most of the
+code works as is, but there are a few breaking changes:
+
+- `Engine.sharedConfig` and `System.sharedConfig` are removed. Data shared between systems doesn't need to be an
+  entity: pass it to systems in their constructors.
+
+  ```typescript
+  // 4.x
+  engine.sharedConfig.add(NO_VISUALS);
+  engine.addSystem(new ViewSystem());
+  // Inside of the system: this.sharedConfig.has(NO_VISUALS)
+
+  // 5.0
+  const config = {visuals: false};
+  engine.addSystem(new ViewSystem(config));
+  ```
+
+- `Query.entities` returns an array of entities at the moment of the call, which is rebuilt after the query changes.
+  Read `query.entities` again instead of keeping a reference to the array.
+- Entities added to the query during an update of `IterativeSystem` are updated starting from the next update, and
+  entities removed from the query during the update are not updated anymore.
+- `EntitySnapshot.previous` is restored when it's accessed, so don't keep snapshots after handlers have returned.
+- `Query` and built-in systems are generic now: `Query<C>`, where `C` are types of components. `Query` without type
+  arguments accepts any query, so existing code compiles, but types of components are lost.
+- The library is compiled to ES2017.
 
 # How it works?
 
@@ -68,7 +98,7 @@ To begin with, you can add the most usual "inhabitants" to it.
 const engine = new Engine();
 const entity = new Entity()
   .add(new Hero())
-  .add(new health(10))
+  .add(new Health(10));
 engine.addEntity(entity);
 ```
 
@@ -104,7 +134,7 @@ already filtered and ready-to-use entities.
 ```typescript
 const heroesQuery = new Query((entity) => entity.has(Hero));
 engine.addQuery(heroesQuery);
-````
+```
 
 The main task of the engine is to start the world update process and to report on the ongoing changes to Queries.  
 These changes can be: additions to and removal of entities from the Engine, and changes in the components of specific
@@ -126,7 +156,7 @@ very useful when, for example, you want to report that the round in your game is
 
 ```typescript
 engine.subscribe(GameOver, (message: GameOver) => {
-  if (game.win) {
+  if (message.win) {
     this.showWinMessage();
   } else {
     this.showLoseMessage();
@@ -147,7 +177,7 @@ engine.subscribe(GAME_OVER, () => {
 >
 > When the `dispatch` method is called in the system, then to get the right listeners, the compliance of
 > the `messageType` for each subscription will be checked.
-> - If `typeof subscription.messageType` is a `'function'`, then the matching will be performed using `instanceOf`.
+> - If `typeof subscription.messageType` is a `'function'`, then the matching will be performed using `instanceof`.
 > - Otherwise, the matching will be done through strict equality `message === subscription.messageType`.
 
 ## Component
@@ -197,16 +227,10 @@ class Damage extends LinkedComponent {
 hero.append(new Damage(100));
 hero.append(new Damage(5));
 
-class DamageSystem extends IterativeSystem {
-  public constructor() {
-    super((entity) => entity.hasAll(Damage, Health));
-  }
-
-  public updateEntity(entity: Entity) {
-    const health = entity.get(Health)!;
+class DamageSystem extends IterativeSystem.of(Damage, Health) {
+  protected updateEntity(entity: Entity, dt: number, damage: Damage, health: Health) {
     while (entity.has(Damage)) {
-      const damage = entity.withdraw(Damage);
-      health.value -= damage.value;
+      health.value -= entity.withdraw(Damage)!.value;
     }
   }
 }
@@ -238,7 +262,7 @@ It is a general-purpose object, which can be marked with tags and can contain di
 - So it can be considered as a container that can represent any in-game entity, like an enemy, bomb, configuration, game
   state, etc.
 - Entity can contain only one component or tag of each type. You can't add two `Position` components to the entity, the
-  second one will replace the first one.
+  second one will replace the first one. The only exception is [Linked Component].
 
 **This is how it works:**
 
@@ -265,7 +289,8 @@ Responsibility of the system should cover no more than one logical aspect.
 
 The system always has the following functionality:
 
-- Priority, which can be set before adding a system to the engine.
+- Priority and an optional identifier, which are set when the system is added to the engine:
+  `engine.addSystem(system, {priority, id})`.
 - Reference to the `engine` will give you access to the engine itself and its entities. But be aware - you can't access
   an engine if the system is not connected to it. Otherwise, you'll get an error.
 - Methods `onAddedToEngine` and `onRemovedFromEngine` will be called in the cases described by their naming.
@@ -331,7 +356,9 @@ const displayListQuery = new Query((entity: Entity) => {
 
 > That's all!
 
-Adding this Query to the Engine will always contain an up-to-date list of entities that meet the described requirements.
+After the Query is added to the Engine, it keeps track of entities that meet the described requirements, in the order
+they started matching the query. `query.entities` returns an array of these entities at the moment of the call: it's
+rebuilt after the query changes, so read it again instead of keeping a reference to it.
 Besides, you can always find out when a new entity has appeared in the Query, or an old entity has left it.
 
 ```typescript
@@ -351,7 +378,7 @@ Query builder is super simple. It has not much power, but you can use it for cre
 Components.
 
 ```typescript
-const query: Query = new QueryBuilder()
+const query = new QueryBuilder()
   .contains(ComponentA, ComponentB)
   .contains(TAG)
   .build();
@@ -385,7 +412,9 @@ calling `entity.get` for every entity of `query.entities`.
 It's safe to add and remove entities and components during iteration: entities removed from the query are skipped, and
 entities added to the query are visited in the next iteration.
 
-> 💡 `Query` without type arguments means a query with unknown components, any typed query can be assigned to it.
+- Queries created from a predicate don't know their components, so `forEach` passes only the entity.
+- `Query` without type arguments means a query with unknown components, any typed query can be assigned to it. Don't
+  annotate a variable with `Query`, if you want to keep types of components: `const query = builder.build()`.
 
 ### Queries and Systems
 
@@ -430,16 +459,22 @@ class ViewSystem extends System {
   // We only want to update positions of the views on the screen,
   // so there is no need for "dt" parameter, it can be omitted
   public update(): void {
-    const entities = this.query.entities;
-    for (const entity of entities) {
+    for (const entity of query.entities) {
       this.updatePosition(entity);
     }
   }
 
   private prepare(): void {
-    for (const entity of this.query.entities) {
-      this.onEntityAdded(entity);
+    for (const entity of query.entities) {
+      this.addView(entity);
     }
+  }
+
+  private addView(entity: Entity): void {
+    // Let's add new view to the screen
+    this.container.addChild(entity.get(View)!.view);
+    // Don't forget to update it's position on the screen
+    this.updatePosition(entity);
   }
 
   private updatePosition(entity: Entity): void {
@@ -447,14 +482,11 @@ class ViewSystem extends System {
     const {x, y} = entity.get(Position)!;
     const {rotation} = entity.get(Rotation)!;
     view.position.set(x, y);
-    view.rotaion.set(rotation);
+    view.rotation.set(rotation);
   }
 
   private onEntityAdded = ({current}: EntitySnapshot) => {
-    // Let's add new view to the screen
-    this.container.addChild(current.get(View)!.view);
-    // Don't forget to update it's position on the screen
-    this.updatePosition(current);
+    this.addView(current);
   };
 
   private onEntityRemoved = ({previous}: EntitySnapshot) => {
@@ -467,7 +499,7 @@ class ViewSystem extends System {
 ```
 
 > 😎 I'm sure you saw the reference to `EntitySnapshot` and wondering, "what the heck is that?". Please, be
-> patient, [I'll tell you about](#Snapshot) it a bit later.
+> patient, [I'll tell you about][Snapshot] it a bit later.
 > I think it looks good and clear for understanding!
 
 - 🤔 You can say: "we need to write too much boilerplate-code".
@@ -478,17 +510,22 @@ class ViewSystem extends System {
 In favor of reducing the time to write the boilerplate code - Tick-Knock provides two built-in systems. Each of them
 already knows how to work with Query, process the information coming from it, and allow access to this Query's entities.
 
-All of the following built-in systems have the following features:
+Built-in systems can be created in several ways:
 
-You can initialize those systems via three different items, which will be converted to Query eventually:
+- With `.of(...componentsOrTags)`, for example `IterativeSystem.of(Position, Velocity)`. It's the preferred way: the
+  query is built from the components and tags, and components are passed to the system with inferred types.
+- With a Query itself.
+- With a query predicate - Query will be automatically created on top of it. This feature was introduced to reduce the
+  size of the boilerplate code. Predicate queries don't know their components, so the system receives only entities.
+- With a QueryBuilder.
 
-- Query itself
-- Query predicate - Query will be automatically created on top of it. This feature was introduced to reduce the size of
-  the boilerplate code.
-- QueryBuilder - it is also a valid option.
-- They have a getter `entities`, which returns the current entities list of the Query.
-- They have a built-in property entityAdded and entityRemoved, you need to define them if you want to track Query
+All of them have the following features:
+
+- A getter `entities`, which returns the entities of the Query at the moment of the call.
+- Properties `entityAdded` and `entityRemoved`, you need to define them as arrow functions if you want to track Query
   changes.
+- The query is added to the engine together with the system, and it's removed from the engine and cleared when the
+  system is removed.
 
 #### ReactionSystem
 
@@ -516,8 +553,13 @@ class ViewSystem extends ReactionSystem {
 
   protected prepare(): void {
     for (const entity of this.entities) {
-      this.entityAdded(entity);
+      this.addView(entity);
     }
+  }
+
+  private addView(entity: Entity): void {
+    this.updatePosition(entity);
+    this.container.addChild(entity.get(View)!.view);
   }
 
   private updatePosition(entity: Entity): void {
@@ -525,12 +567,11 @@ class ViewSystem extends ReactionSystem {
     const {x, y} = entity.get(Position)!;
     const {rotation} = entity.get(Rotation)!;
     view.position.set(x, y);
-    view.rotaion.set(rotation);
+    view.rotation.set(rotation);
   }
 
   protected entityAdded = ({current}: EntitySnapshot) => {
-    this.updatePosition(current);
-    this.container.addChild(current.get(View)!.view);
+    this.addView(current);
   };
 
   protected entityRemoved = ({previous}: EntitySnapshot) => {
@@ -541,7 +582,7 @@ class ViewSystem extends ReactionSystem {
 
 > Now it's pretty simpler! 🎉
 
-**Typed reaction system**
+##### Typed reaction system
 
 `ReactionSystem.of` builds the query from the specified components and tags, and passes components to `entityAdded`
 and `entityRemoved` right after the snapshot, with inferred types. In `entityRemoved` you get components the entity had
@@ -578,13 +619,13 @@ class ViewSystem extends IterativeSystem {
   // don't need to override `update` method. 
   // Instead of it we need to override updateEntity method.
   // Also, we can safely omit the dt parameter because we do not use it.
-  protected updateEntity(entity: Entity, dt: number) {
+  protected updateEntity(entity: Entity) {
     this.updatePosition(entity);
   }
 }
 ```
 
-**Typed iterative system**
+##### Typed iterative system
 
 The easiest way to write an iterative system is `IterativeSystem.of`. It builds the query from the specified components
 and tags, and passes components to `updateEntity` right after the entity and delta time, with inferred types. It's also
@@ -598,14 +639,9 @@ class MovementSystem extends IterativeSystem.of(Position, Velocity) {
   }
 }
 
-class ViewSystem extends IterativeSystem.of(View, Position, VISIBLE) {
-  public constructor(private readonly container: Container) {
-    super();
-  }
-
+class ViewPositionSystem extends IterativeSystem.of(View, Position, VISIBLE) {
   protected updateEntity(entity: Entity, dt: number, {view}: View, {x, y}: Position) {
-    view.x = x;
-    view.y = y;
+    view.position.set(x, y);
   }
 }
 ```
@@ -665,10 +701,16 @@ has its own state, dependencies or needs lifecycle methods.
 As you may have noticed, when we are tracking changes in Query, we get in `entityAdded` and `entityRemoved` not `Entity`
 but `EntitySnapshot`.
 **So what is a snapshot?**
-It is a container that displays the difference between the current state of Entity and its previous state. The `entity`
-property always reflects the current state. Still, methods ` get` and `has` methods of the snapshot return the data from
-the previous state of the Entity before it was changed. So you can understand which components have been added and which
-have been removed.
+It is a container that displays the difference between the current state of Entity and its previous state:
+
+- `current` is the entity itself in its current state.
+- `previous` is a read-only copy of the entity as it was before the change.
+
+Compare them to understand which components have been added and which have been removed.
+
+> 💡 `previous` is restored lazily, when it's accessed for the first time, so it costs nothing if you don't use it.
+> Snapshots are reused by queries, so don't keep them after the handler has returned: a kept snapshot reflects the
+> entity at the moment of access, not at the moment of the change.
 
 > ❗ It is important to note that changes in the same entity components' data will not be reflected in the snapshot, even
 > if a manual invalidation of the entity has been triggered.
@@ -723,19 +765,15 @@ Tick-knock provides an extended API for working with linked components since ver
     ) { super(); }
   }
 
-  class BoonExpirationTestSystem extends IterativeSystem {
-    public constructor() {
-      super((entity) => entity.has(Boon));
-    }
-    
-    public updateEntity(entity: Entity, dt: number) {
+  class BoonExpirationTestSystem extends IterativeSystem.of(Boon) {
+    protected updateEntity(entity: Entity, dt: number) {
       // Let's update all boons
       entity.iterate(Boon, (boon) => {
           // Let's reduce boon remaining duration
           boon.duration -= dt;
           // If boon is expired
           if (boon.duration <= 0) {
-             // Then we need to removed it from the Entity
+             // Then we need to remove it from the Entity
              // But `entity.remove` will remove all boons, so we need to cherry-pick
              entity.pick(boon);
           } 
@@ -779,13 +817,8 @@ class Regeneration extends LinkedComponent {
   ) { super(); }
 }
 
-class RegenerationSystem extends IterativeSystem {
-  public constructor() {
-    super((entity) => entity.has(Hero, Regeneration));
-  }
-
-  public updateEntity(entity: Entity, dt: number) {
-    const hero = entity.get(Hero)!
+class RegenerationSystem extends IterativeSystem.of(Hero, Regeneration) {
+  protected updateEntity(entity: Entity, dt: number, hero: Hero) {
     // Let's update all regeneration components on our hero and apply their effects 
     entity.iterate(Regeneration, (it) => {
       // We need to heal hero
@@ -795,19 +828,19 @@ class RegenerationSystem extends IterativeSystem {
       it.duration -= dt;
       // If it's expired
       if (it.duration <= 0) {
-        // Then we need to removed it from the Entity
-        // But `entity.remove` will remove all boons, so we need to cherry-pick
+        // Then we need to remove it from the Entity
+        // But `entity.remove` will remove all regenerations, so we need to cherry-pick
         entity.pick(it);
       }
     });
   }
 
   protected entityAdded = ({current}: EntitySnapshot) => {
-    // When new entity appears in the queue, that means that it has Hero and Regeneration
+    // When new entity appears in the query, that means that it has Hero and Regeneration
     // so we want to instantly heal the hero by existing Regeneration buffs
     current.iterate(Regeneration, (regeneration) => {
-      this.instantlyHealHero(entity, regeneration);
-    })
+      this.instantlyHealHero(current, regeneration);
+    });
     // Also, if any additional Regeneration buff will appear in the entity, we will handle 
     // them as well and instantly heal the hero
     current.onComponentAdded.connect(this.instantlyHealHero);
@@ -815,7 +848,7 @@ class RegenerationSystem extends IterativeSystem {
 
   protected entityRemoved = ({current}: EntitySnapshot) => {
     // We don't want to know if any new components were added to the entity when it left 
-    // the queue already.
+    // the query already.
     current.onComponentAdded.disconnect(this.instantlyHealHero);
   }
 
@@ -891,6 +924,10 @@ engine.addQuery(enemies)
 
 Now you can use these Queries in any other system.
 
+> ❗ Don't pass a shared query to a built-in system (`IterativeSystem`, `ReactionSystem`): a built-in system removes its
+> query from the engine and clears it when the system is removed. Use shared queries in systems that don't own them,
+> as in the example below.
+
 **Example:**
 
 ```typescript
@@ -916,7 +953,7 @@ There are limitations for Query that do not allow you to track changes made insi
 Suppose that you want Query to track entities with an X position of 10.
 
 ```typescript
-const query = new Query((entity) => entity.has(Position) && entity.get(Position).x === 10);
+const query = new Query((entity) => entity.get(Position)?.x === 10);
 ```
 
 And you have changed the Position parameters accordingly:
@@ -931,11 +968,30 @@ called `invalidate`, it will force Query to check this particular entity.
 
 ❗ Try not to use this approach too often. It may affect the performance of your application.
 
+# Development
+
+The repository is a [pnpm](https://pnpm.io) workspace with the library, [benchmarks](bench) and [examples](examples).
+The library is written in TypeScript 7.
+
+```shell
+pnpm install      # install dependencies of all packages
+pnpm build        # build the library to lib
+pnpm test         # run unit tests
+pnpm typecheck    # check types of sources and tests
+pnpm bench        # run benchmarks, see bench/README.md
+```
+
 # License
 
-This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
+This software released under [MIT](LICENSE) license! Good luck, folks.
 
 [Restrictions]: #restrictions
+
+[Development]: #development
+
+[Migrating from 4.x]: #migrating-from-4x
+
+[Remove the system as it's done]: #remove-the-system-as-its-done
 
 [Examples]: #examples
 

@@ -9,7 +9,8 @@
  *                                             - the same, with a custom name of the build in the report
  *   pnpm bench --libraries none               - benchmark only tick-knock builds
  *   pnpm bench --libraries bitecs,miniplex    - benchmark only specified other libraries
- *   pnpm bench --filter iterate --time 2000   - run only matching scenarios, 2 seconds per scenario
+ *   pnpm bench --filter iterate --time 2000   - run only scenarios which ids match the regular expression,
+ *                                               2 seconds per scenario
  */
 import {execFileSync} from 'child_process';
 import * as fs from 'fs';
@@ -62,9 +63,10 @@ function parseOptions(args: ReadonlyArray<string>): Options {
  * @param name Name of the build in the report, by default it's derived from the path or version
  */
 function resolveBaseline(baseline: string, name?: string): LibraryDescriptor {
-  if (fs.existsSync(baseline)) {
-    const buildPath = path.resolve(baseline);
-    return {id: 'tick-knock', name: `tick-knock (${name ?? getBuildName(buildPath)})`, path: buildPath};
+  // pnpm runs the script in the bench folder, so relative paths are resolved from the folder the command was run in
+  const localPath = path.resolve(process.env.INIT_CWD ?? process.cwd(), baseline);
+  if (fs.existsSync(localPath)) {
+    return {id: 'tick-knock', name: `tick-knock (${name ?? getBuildName(localPath)})`, path: localPath};
   }
   const directory = path.join(ROOT, '.baseline', baseline);
   const buildPath = path.join(directory, 'node_modules', 'tick-knock', 'lib');

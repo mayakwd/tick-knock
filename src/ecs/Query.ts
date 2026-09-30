@@ -37,7 +37,9 @@ export type QueryCallback<C extends unknown[]> = (entity: Entity, ...components:
  * Query represents list of entities that matches query request.
  *
  * Queries built by {@link QueryBuilder} know component types they contain, so they store components of their
- * entities next to each other in memory and pass them to {@link forEach} and {@link IterativeSystem} callbacks.
+ * entities next to each other in memory and pass them to {@link forEach}, {@link IterativeSystem} and
+ * {@link ReactionSystem}. Queries created from a predicate don't know their components and pass only entities.
+ * Entities are kept in the order they started matching the query.
  *
  * @typeParam C Types of components passed to {@link forEach}, inferred by {@link QueryBuilder}.
  *  `Query` without type arguments means a query with unknown components, any typed query can be assigned to it.
@@ -122,7 +124,7 @@ export class Query<C extends unknown[] = any[]> {
 
   /**
    * Returns the number of the entities in the query
-   * @returns {Entity | undefined}
+   * @returns {number}
    */
   public get length(): number {
     return this._size;
@@ -141,6 +143,7 @@ export class Query<C extends unknown[] = any[]> {
    *
    * It's safe to add or remove entities and components during iteration: removed entities are skipped,
    * entities added to the query during iteration are visited in the next call.
+   * Queries created from a predicate pass only the entity.
    *
    * @example
    * ```ts

@@ -128,3 +128,15 @@ describe('Reaction handlers typing', () => {
     expect(snapshots.length).toBe(1);
   });
 });
+
+describe('Removing all systems', () => {
+  it('Detaches systems from the engine', () => {
+    const system = new (class extends IterativeSystem.of(Position) {
+      protected updateEntity(): void {}
+    })();
+    const engine = new Engine().addSystem(system, {id: 'system'});
+    engine.removeAllSystems();
+    expect(system.id).toBeUndefined();
+    expect(() => system.engine).toThrow();
+  });
+});

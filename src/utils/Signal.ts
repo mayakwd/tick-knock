@@ -54,7 +54,6 @@ export class Signal<Handler extends (...args: any[]) => any> {
 
   /**
    * Disconnects all signal handlers
-   * @param {Handler} handler
    */
   public disconnectAll(): void {
     this.handlers.length = 0;
@@ -62,7 +61,7 @@ export class Signal<Handler extends (...args: any[]) => any> {
 
   /**
    * Invokes connected handlers with passed parameters.
-   * @param {any} args
+   * @param args Arguments passed to handlers
    */
   public emit(...args: Parameters<Handler>): void {
     const handlers = this.handlers;
