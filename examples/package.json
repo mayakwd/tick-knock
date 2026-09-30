@@ -1,0 +1,20 @@
+{
+  "name": "tick-knock-examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Example games built with tick-knock",
+  "license": "MIT",
+  "scripts": {
+    "snake": "tsx snake/terminal.ts",
+    "asteroids": "vite asteroids",
+    "build": "vite build asteroids",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx tests/smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}

@@ -38,3 +38,8 @@ jobs:
 
       - name: Run tests
         run: pnpm test-ci
+
+      - name: Check examples
+        run: |
+          pnpm --filter tick-knock-examples typecheck
+          pnpm --filter tick-knock-examples test

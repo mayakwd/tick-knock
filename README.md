@@ -30,6 +30,7 @@
                 - [Functional systems]
         - [Snapshot]
         - [Linked Components How-To]
+- [Examples]
 - [Performance]
 - [Restrictions]
     - [Shared and Local Queries]
@@ -830,6 +831,16 @@ class RegenerationSystem extends IterativeSystem {
 }
 ```
 
+# Examples
+
+The [examples](examples) folder contains small games built with tick-knock: Snake in the terminal and Asteroids in the
+browser.
+
+```shell
+pnpm --filter tick-knock-examples snake
+pnpm --filter tick-knock-examples asteroids
+```
+
 # Performance
 
 The repository contains benchmarks in the [bench](bench) folder. They compare tick-knock with its previous versions
@@ -925,6 +936,8 @@ called `invalidate`, it will force Query to check this particular entity.
 This software released under [MIT](https://github.com/Leopotam/ecs/blob/master/LICENSE.md) license! Good luck, folks.
 
 [Restrictions]: #restrictions
+
+[Examples]: #examples
 
 [Performance]: #performance
 

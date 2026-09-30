@@ -11,6 +11,7 @@ Features:
   removing, including the removed one.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
   geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
+- Examples: Snake in the terminal and Asteroids in the browser, see `examples` folder.
 - Functional systems: `engine.iterative([Position, Velocity], (entity, dt, position, velocity) => ...)` and
   `engine.reactive([View], {added, removed})` create systems from functions with inferred types of components.
 - Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.removeSystem`
@@ -56,7 +57,7 @@ Fixes:
 
 Tooling:
 
-- Migrated from yarn to pnpm. The repository is a pnpm workspace with the library and the benchmark package.
+- Migrated from yarn to pnpm. The repository is a pnpm workspace with the library, benchmarks and examples.
 - Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
 - Compilation target is ES2017, which the library already required at runtime (`Object.values`).
