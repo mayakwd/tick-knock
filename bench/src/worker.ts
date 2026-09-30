@@ -23,6 +23,11 @@ async function main(): Promise<void> {
   let result: WorkerResult = {};
   if (factory !== undefined) {
     const benchmark = await factory();
+    if (benchmark.verify !== undefined && scenario.kind === 'speed') {
+      await benchmark.run();
+      benchmark.verify();
+      await benchmark.reset?.();
+    }
     const measurement = scenario.kind === 'memory'
       ? await measureMemory(benchmark, Sizes.memoryEntities)
       : await measureSpeed(benchmark, Number(time));

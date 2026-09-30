@@ -6,6 +6,9 @@ Features:
   passes components of every entity in the order they were specified.
 - `IterativeSystem.of(Position, Velocity)` creates a base class of the system, which `updateEntity` receives components
   of the entity with inferred types. It's several times faster than `entity.get` for every entity.
+- `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
+  receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
+  removing, including the removed one.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, bitecs, ecsy,
   miniplex, sim-ecs): `yarn bench [--baseline <version>]`, see `bench` folder.
 

@@ -1,5 +1,5 @@
 import {Component, ComponentConstructor, Entity, System, SystemQueries, Types, World} from 'ecsy';
-import {Benchmark, ScenarioId, Sizes} from '../Scenario';
+import {Benchmark, ReactionCounter, ScenarioId, Sizes} from '../Scenario';
 import {getPackageVersion, Library} from './Library';
 
 class Position extends Component<Position> {
@@ -59,6 +59,7 @@ export function createEcsyLibrary(): Library {
       [ScenarioId.ComponentChurn]: () => churn(Velocity),
       [ScenarioId.UnrelatedChurn]: () => churn(Transform),
       [ScenarioId.SpawnDespawn]: spawnDespawn,
+      [ScenarioId.ReactiveSystem]: reactiveSystem,
       [ScenarioId.Memory]: memory,
     },
   };
@@ -188,6 +189,47 @@ function spawnDespawn(): Benchmark {
       for (let i = 0; i < Sizes.churnChanged; i++) spawned.push(spawn(world, [Position, Velocity, Rotation]));
       for (let i = 0; i < Sizes.churnChanged; i++) entities[i].remove(true);
       entities = entities.slice(Sizes.churnChanged).concat(spawned);
+    },
+  };
+}
+
+/**
+ * Reactions are implemented with reactive queries. ECSY collects events until the system is executed, and keeps
+ * removed components until the end of the frame, so the world is executed after adding and after removing.
+ */
+function reactiveSystem(): Benchmark {
+  const counter = new ReactionCounter();
+
+  class ReactiveSystem extends System {
+    public static queries = {movable: {components: [Position, Velocity], listen: {added: true, removed: true}}};
+
+    public execute(): void {
+      for (const entity of this.queries.movable.added!) {
+        counter.added++;
+        counter.sum += entity.getComponent(Position)!.x;
+      }
+      for (const entity of this.queries.movable.removed!) {
+        counter.removed++;
+        counter.sum += entity.getRemovedComponent(Velocity)!.x;
+      }
+    }
+  }
+
+  const world = new World().registerComponent(Position).registerComponent(Velocity).registerSystem(ReactiveSystem);
+  const entities: Entity[] = [];
+  for (let i = 0; i < Sizes.churnEntities; i++) {
+    const entity = spawn(world, [Position]);
+    if (i < Sizes.churnChanged) entities.push(entity);
+  }
+  return {
+    run() {
+      for (const entity of entities) entity.addComponent(Velocity);
+      world.execute(1, 0);
+      for (const entity of entities) entity.removeComponent(Velocity);
+      world.execute(1, 0);
+    },
+    verify() {
+      counter.verify();
     },
   };
 }

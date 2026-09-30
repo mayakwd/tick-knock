@@ -1,5 +1,5 @@
-import {addComponent, addEntity, commitRemovals, createWorld, query, removeComponent, removeEntity, World} from 'bitecs';
-import {Benchmark, ScenarioId, Sizes} from '../Scenario';
+import {addComponent, addEntity, commitRemovals, createWorld, observe, onAdd, onRemove, query, removeComponent, removeEntity, World} from 'bitecs';
+import {Benchmark, ReactionCounter, ScenarioId, Sizes} from '../Scenario';
 import {getPackageVersion, Library} from './Library';
 
 /**
@@ -41,6 +41,7 @@ export function createBitEcsLibrary(): Library {
       [ScenarioId.ComponentChurn]: () => churn(false),
       [ScenarioId.UnrelatedChurn]: () => churn(true),
       [ScenarioId.SpawnDespawn]: spawnDespawn,
+      [ScenarioId.ReactiveSystem]: reactiveSystem,
       [ScenarioId.Memory]: memory,
     },
   };
@@ -177,6 +178,43 @@ function spawnDespawn(): Benchmark {
       for (let i = 0; i < Sizes.churnChanged; i++) removeEntity(world, entities[i]);
       commitRemovals(world);
       entities = entities.slice(Sizes.churnChanged).concat(spawned);
+    },
+  };
+}
+
+/**
+ * Reactions are implemented with observers of entities that start and stop matching the query
+ */
+function reactiveSystem(): Benchmark {
+  const world = createWorld();
+  const Position = vector();
+  const Velocity = vector();
+  const counter = new ReactionCounter();
+  observe(world, onAdd(Position, Velocity), (eid: number) => {
+    counter.added++;
+    counter.sum += Position.x[eid];
+  });
+  observe(world, onRemove(Position, Velocity), (eid: number) => {
+    counter.removed++;
+    counter.sum += Velocity.x[eid];
+  });
+  const changed: number[] = [];
+  for (let i = 0; i < Sizes.churnEntities; i++) {
+    const eid = spawn(world, [Position]);
+    setVector(Position, eid, 1, 1);
+    if (i < Sizes.churnChanged) changed.push(eid);
+  }
+  return {
+    run() {
+      for (const eid of changed) {
+        addComponent(world, eid, Velocity);
+        setVector(Velocity, eid, 1, 1);
+      }
+      for (const eid of changed) removeComponent(world, eid, Velocity);
+      commitRemovals(world);
+    },
+    verify() {
+      counter.verify();
     },
   };
 }

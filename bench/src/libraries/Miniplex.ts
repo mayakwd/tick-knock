@@ -1,5 +1,5 @@
 import {World} from 'miniplex';
-import {Benchmark, ScenarioId, Sizes} from '../Scenario';
+import {Benchmark, ReactionCounter, ScenarioId, Sizes} from '../Scenario';
 import {getPackageVersion, Library} from './Library';
 
 interface Vector {
@@ -45,6 +45,7 @@ export function createMiniplexLibrary(): Library {
       [ScenarioId.ComponentChurn]: () => churn('velocity'),
       [ScenarioId.UnrelatedChurn]: () => churn('transform'),
       [ScenarioId.SpawnDespawn]: spawnDespawn,
+      [ScenarioId.ReactiveSystem]: reactiveSystem,
       [ScenarioId.Memory]: memory,
     },
   };
@@ -150,6 +151,37 @@ function spawnDespawn(): Benchmark {
       }
       for (let i = 0; i < Sizes.churnChanged; i++) world.remove(entities[i]);
       entities = entities.slice(Sizes.churnChanged).concat(spawned);
+    },
+  };
+}
+
+/**
+ * Reactions are implemented with events of the query
+ */
+function reactiveSystem(): Benchmark {
+  const world = new World<Entity>();
+  const movable = world.with('position', 'velocity').connect();
+  const counter = new ReactionCounter();
+  movable.onEntityAdded.subscribe(({position}) => {
+    counter.added++;
+    counter.sum += position.x;
+  });
+  movable.onEntityRemoved.subscribe(({velocity}) => {
+    counter.removed++;
+    counter.sum += velocity.x;
+  });
+  const entities: Entity[] = [];
+  for (let i = 0; i < Sizes.churnEntities; i++) {
+    const entity = world.add({position: {x: 1, y: 1}});
+    if (i < Sizes.churnChanged) entities.push(entity);
+  }
+  return {
+    run() {
+      for (const entity of entities) world.addComponent(entity, 'velocity', {x: 1, y: 1});
+      for (const entity of entities) world.removeComponent(entity, 'velocity');
+    },
+    verify() {
+      counter.verify();
     },
   };
 }

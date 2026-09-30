@@ -531,6 +531,29 @@ class ViewSystem extends ReactionSystem {
 
 > Now it's pretty simpler! 🎉
 
+**Typed reaction system**
+
+`ReactionSystem.of` builds the query from the specified components and tags, and passes components to `entityAdded`
+and `entityRemoved` right after the snapshot, with inferred types. In `entityRemoved` you get components the entity had
+before it was removed from the query, even if the component itself was removed.
+
+```typescript
+class ViewSystem extends ReactionSystem.of(View, Position, VISIBLE) {
+  public constructor(private readonly container: Container) {
+    super();
+  }
+
+  protected entityAdded = (snapshot: EntitySnapshot, {view}: View, {x, y}: Position) => {
+    view.position.set(x, y);
+    this.container.addChild(view);
+  };
+
+  protected entityRemoved = (snapshot: EntitySnapshot, {view}: View) => {
+    this.container.removeChild(view);
+  };
+}
+```
+
 #### IterativeSystem
 
 This system has the same advantages as the ReactionSystem because it is inherited from the last one. 😅 All it brings is

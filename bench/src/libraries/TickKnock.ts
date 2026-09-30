@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type * as TickKnockModule from '../../../lib';
 import {A, B, C, D, E, fillerRelated, fillers, Position, Rotation, Transform, Velocity} from '../components';
-import {Benchmark, ScenarioId, Sizes} from '../Scenario';
+import {Benchmark, ReactionCounter, ScenarioId, Sizes} from '../Scenario';
 import {Library} from './Library';
 
 type TickKnock = typeof TickKnockModule;
@@ -226,26 +226,9 @@ function spawnDespawn(tk: TickKnock): Benchmark {
 }
 
 function reactiveSystem(tk: TickKnock): Benchmark {
-  class CounterSystem extends tk.ReactionSystem {
-    public added: number = 0;
-    public removed: number = 0;
-
-    public constructor() {
-      super(new tk.QueryBuilder().contains(Position, Velocity));
-    }
-
-    public update(): void {}
-
-    protected entityAdded = ({current}: TickKnockModule.EntitySnapshot) => {
-      this.added += current.get(Position)!.x;
-    };
-
-    protected entityRemoved = ({previous}: TickKnockModule.EntitySnapshot) => {
-      this.removed += previous.get(Velocity)!.x;
-    };
-  }
-
-  const engine = new tk.Engine().addSystem(new CounterSystem());
+  const counter = new ReactionCounter();
+  const system = typeof tk.ReactionSystem.of === 'function' ? typedReactionSystem(tk, counter) : untypedReactionSystem(tk, counter);
+  const engine = new tk.Engine().addSystem(system);
   const entities = addEntities(engine, Sizes.churnEntities, () => new tk.Entity().add(new Position(1)))
     .slice(0, Sizes.churnChanged);
   return {
@@ -253,7 +236,45 @@ function reactiveSystem(tk: TickKnock): Benchmark {
       for (const entity of entities) entity.add(new Velocity());
       for (const entity of entities) entity.remove(Velocity);
     },
+    verify() {
+      counter.verify();
+    },
   };
+}
+
+/**
+ * Reaction system that receives components of the entity, since 5.0.0
+ */
+function typedReactionSystem(tk: TickKnock, counter: ReactionCounter): TickKnockModule.System {
+  return new (class extends tk.ReactionSystem.of(Position, Velocity) {
+    protected entityAdded = (snapshot: TickKnockModule.EntitySnapshot, position: Position) => {
+      counter.added++;
+      counter.sum += position.x;
+    };
+
+    protected entityRemoved = (snapshot: TickKnockModule.EntitySnapshot, position: Position, velocity: Velocity) => {
+      counter.removed++;
+      counter.sum += velocity.x;
+    };
+  })();
+}
+
+function untypedReactionSystem(tk: TickKnock, counter: ReactionCounter): TickKnockModule.System {
+  return new (class extends tk.ReactionSystem {
+    public constructor() {
+      super(new tk.QueryBuilder().contains(Position, Velocity));
+    }
+
+    protected entityAdded = ({current}: TickKnockModule.EntitySnapshot) => {
+      counter.added++;
+      counter.sum += current.get(Position)!.x;
+    };
+
+    protected entityRemoved = ({previous}: TickKnockModule.EntitySnapshot) => {
+      counter.removed++;
+      counter.sum += previous.get(Velocity)!.x;
+    };
+  })();
 }
 
 function linkedComponents(tk: TickKnock): Benchmark {

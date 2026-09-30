@@ -285,6 +285,14 @@ export class Query<C extends unknown[] = any[]> {
 
   /**
    * @internal
+   * Identifiers of component types, which components are passed to callbacks
+   */
+  public get columnIds(): ReadonlyArray<number> {
+    return this._columnIds;
+  }
+
+  /**
+   * @internal
    * Starts iteration over the dense list of entities. Holes are not compacted until the iteration ends,
    * so indices of the dense list and columns stay valid.
    * @returns Dense list of entities, that can contain holes

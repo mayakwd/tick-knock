@@ -40,6 +40,8 @@ The result is printed as a markdown table, the best result in every scenario is 
 - Memory is measured as heap growth after creating entities, with garbage collection before and after.
 - Libraries that update queries lazily (Ape-ECS, bitecs) are asked to update them at the end of every operation,
   so every library does the same amount of work.
+- Scenarios can verify their result after the first run, for example that every change was reported to a reactive
+  system. The benchmark fails if the result is wrong, so a library can't win by doing less work.
 
 # Scenarios
 
@@ -55,7 +57,7 @@ scenarios that don't fit the library are not implemented and are shown as "–" 
 | unrelated churn | add and remove a component, that no query depends on, on 1000 of 10000 entities |
 | tag churn | add and remove a tag, that changes query membership (tick-knock only) |
 | spawn/despawn | create 1000 entities and remove 1000 oldest ones, keeping 10000 entities in the world |
-| reactive system | a system reacts on entities added to and removed from its query (tick-knock only) |
+| reactive system | a system reacts on entities added to and removed from its query, toggle a component on 1000 of 10000 entities |
 | linked components | append, iterate and withdraw linked components (tick-knock only) |
 | messages | dispatch 10000 messages of 10 types (tick-knock only) |
 | memory per entity | heap size per entity with 2 components, for 50000 entities in a world with 3 queries |
@@ -68,9 +70,9 @@ tick-knock builds that support `IterativeSystem.of` use it in iteration scenario
 | Library | Storage | Notes |
 | :--- | :--- | :--- |
 | [tick-knock](https://github.com/mayakwd/tick-knock) | objects | |
-| [Ape-ECS](https://github.com/fritzy/ape-ecs) | objects | queries are updated lazily |
+| [Ape-ECS](https://github.com/fritzy/ape-ecs) | objects | queries are updated lazily; removed components are destroyed, so reactions only count removals |
 | [bitecs](https://github.com/NateTheGreatt/bitECS) | struct of arrays | components are arrays of numbers indexed by entity id |
-| [ecsy](https://github.com/ecsyjs/ecsy) | objects | components are pooled |
+| [ecsy](https://github.com/ecsyjs/ecsy) | objects | components are pooled; reactive queries collect events until the world is executed |
 | [miniplex](https://github.com/hmans/miniplex) | objects | entities are plain objects |
 | [sim-ecs](https://github.com/NSSTC/sim-ecs) | objects | entities are created before the run, so churn scenarios are not implemented; every step of the world has noticeable overhead |
 

@@ -1,4 +1,4 @@
-import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, System} from '../../src';
+import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, ReactionSystem, System} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -258,6 +258,80 @@ describe('Typed iterative system', () => {
     engine.addEntity(new Entity().add(new Position())).addEntity(new Entity().add(new Position()));
     engine.update(1);
     expect(updated.length).toBe(1);
+  });
+});
+
+describe('Typed reaction system', () => {
+  class View {
+    public constructor(public name: string = 'view') {}
+  }
+
+  const VISIBLE = 'visible';
+
+  class ViewSystem extends ReactionSystem.of(View, Position, VISIBLE) {
+    public log: Array<[string, Entity, View, Position]> = [];
+
+    protected entityAdded = ({current}: EntitySnapshot, view: View, position: Position) => {
+      this.log.push(['added', current, view, position]);
+    };
+
+    protected entityRemoved = ({current}: EntitySnapshot, view: View, position: Position) => {
+      this.log.push(['removed', current, view, position]);
+    };
+  }
+
+  function setup() {
+    const engine = new Engine();
+    const system = new ViewSystem();
+    engine.addSystem(system);
+    const view = new View();
+    const position = new Position(1, 2);
+    const entity = new Entity().add(view).add(position).add(VISIBLE);
+    return {engine, system, entity, view, position};
+  }
+
+  it('Passes components of the added entity', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    expect(system.log).toEqual([['added', entity, view, position]]);
+  });
+
+  it('Passes removed component to entityRemoved', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    entity.remove(View);
+    expect(system.log[1]).toEqual(['removed', entity, view, position]);
+  });
+
+  it('Passes components when the entity is removed from engine or loses a tag', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    entity.remove(VISIBLE);
+    entity.add(VISIBLE);
+    engine.removeEntity(entity);
+    expect(system.log).toEqual([
+      ['added', entity, view, position],
+      ['removed', entity, view, position],
+      ['added', entity, view, position],
+      ['removed', entity, view, position],
+    ]);
+  });
+
+  it('Passes the old component, when it is replaced', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    const replacement = new View('replacement');
+    entity.add(replacement);
+    expect(system.log.slice(1)).toEqual([['removed', entity, view, position], ['added', entity, replacement, position]]);
+  });
+
+  it('Checks types of components', () => {
+    class WrongSystem extends ReactionSystem.of(View, Position) {
+      // @ts-expect-error components are passed in the order they were specified
+      protected entityAdded = (snapshot: EntitySnapshot, position: Position, view: View) => {};
+    }
+
+    expect(WrongSystem).toBeDefined();
   });
 });
 

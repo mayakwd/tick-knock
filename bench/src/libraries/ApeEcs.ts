@@ -1,5 +1,5 @@
 import {Component, Entity, Query, System, World} from 'ape-ecs';
-import {Benchmark, ScenarioId, Sizes} from '../Scenario';
+import {Benchmark, ReactionCounter, ScenarioId, Sizes} from '../Scenario';
 import {getPackageVersion, Library} from './Library';
 
 class Position extends Component {
@@ -58,6 +58,7 @@ export function createApeEcsLibrary(): Library {
       [ScenarioId.ComponentChurn]: () => churn(Velocity),
       [ScenarioId.UnrelatedChurn]: () => churn(Transform),
       [ScenarioId.SpawnDespawn]: spawnDespawn,
+      [ScenarioId.ReactiveSystem]: reactiveSystem,
       [ScenarioId.Memory]: memory,
     },
   };
@@ -196,6 +197,54 @@ function spawnDespawn(): Benchmark {
       for (let i = 0; i < Sizes.churnChanged; i++) entities[i].destroy();
       world.updateIndexes();
       entities = entities.slice(Sizes.churnChanged).concat(spawned);
+    },
+  };
+}
+
+/**
+ * Reactions are implemented with a persisted query that tracks added and removed entities. Ape-ECS destroys removed
+ * components, so values of removed components are not available and only removals are counted.
+ */
+function reactiveSystem(): Benchmark {
+  const counter = new ReactionCounter();
+
+  class ReactiveSystem extends System {
+    private query!: Query;
+
+    public init(): void {
+      this.query = this.createQuery().fromAll(typeOf(Position), typeOf(Velocity)).persist(true, true);
+    }
+
+    public update(): void {
+      for (const entity of this.query.added) {
+        counter.added++;
+        counter.sum += entity.c.Position.x;
+      }
+      counter.removed += this.query.removed.size;
+    }
+  }
+
+  const world = new World();
+  world.registerComponent(Position);
+  world.registerComponent(Velocity);
+  world.registerSystem(FRAME, ReactiveSystem);
+  const entities: Entity[] = [];
+  for (let i = 0; i < Sizes.churnEntities; i++) {
+    const entity = spawn(world, [Position]);
+    if (i < Sizes.churnChanged) entities.push(entity);
+  }
+  const type = typeOf(Velocity);
+  return {
+    run() {
+      for (const entity of entities) entity.addComponent({type, key: type});
+      world.runSystems(FRAME);
+      world.tick();
+      for (const entity of entities) entity.removeComponent(type);
+      world.runSystems(FRAME);
+      world.tick();
+    },
+    verify() {
+      counter.verify();
     },
   };
 }

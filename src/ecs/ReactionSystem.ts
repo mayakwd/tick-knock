@@ -1,4 +1,5 @@
-import {isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryPredicate} from './Query';
+import {ComponentsOf, ComponentType, isQueryBuilder, isQueryPredicate, Query, QueryBuilder, QueryPredicate} from './Query';
+import {Tag} from './Tag';
 import {Engine} from './Engine';
 import {Entity, EntitySnapshot} from './Entity';
 import {System} from './System';
@@ -42,6 +43,36 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
     }
   }
 
+  /**
+   * Creates a base class of the reaction system, which query contains specified components and tags.
+   * Components are passed to {@link entityAdded} and {@link entityRemoved} right after the snapshot, in the same order,
+   * tags are skipped.
+   *
+   * @param componentsOrTags Component classes and tags that entities must have
+   * @example
+   * ```ts
+   * class ViewSystem extends ReactionSystem.of(View, Position) {
+   *   protected entityAdded = (snapshot: EntitySnapshot, {view}: View, {x, y}: Position) => {
+   *     view.position.set(x, y);
+   *     this.container.addChild(view);
+   *   };
+   *
+   *   protected entityRemoved = (snapshot: EntitySnapshot, {view}: View) => {
+   *     this.container.removeChild(view);
+   *   };
+   * }
+   * ```
+   */
+  public static of<T extends Array<ComponentType | Tag>>(...componentsOrTags: T): abstract new () => ReactionSystem<ComponentsOf<T>> {
+    abstract class TypedReactionSystem extends ReactionSystem<ComponentsOf<T>> {
+      public constructor() {
+        super(new QueryBuilder().contains(...componentsOrTags));
+      }
+    }
+
+    return TypedReactionSystem;
+  }
+
   protected get entities(): ReadonlyArray<Entity> {
     return this.query.entities;
   }
@@ -49,14 +80,14 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
   public onAddedToEngine() {
     this.engine.addQuery(this.query);
     this.prepare();
-    this.query.onEntityAdded.connect(this.entityAdded);
-    this.query.onEntityRemoved.connect(this.entityRemoved);
+    this.query.onEntityAdded.connect(this.handleEntityAdded);
+    this.query.onEntityRemoved.connect(this.handleEntityRemoved);
   }
 
   public onRemovedFromEngine() {
     this.engine.removeQuery(this.query);
-    this.query.onEntityAdded.disconnect(this.entityAdded);
-    this.query.onEntityRemoved.disconnect(this.entityRemoved);
+    this.query.onEntityAdded.disconnect(this.handleEntityAdded);
+    this.query.onEntityRemoved.disconnect(this.handleEntityRemoved);
     this.query.clear();
   }
 
@@ -71,8 +102,10 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
    *
    * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
    *   before adding, and component that will be added
+   * @param components Components of the entity, if the system is created with {@link ReactionSystem.of}
+   *  or its query is built by {@link QueryBuilder}
    */
-  protected entityAdded = (entity: EntitySnapshot) => {
+  protected entityAdded = (entity: EntitySnapshot, ...components: C) => {
   };
 
   /**
@@ -82,7 +115,43 @@ export abstract class ReactionSystem<C extends unknown[] = any[]> extends System
    *
    * @param entity EntitySnapshot that contains entity that was removed from query or engine, and components that it has
    *   before removing
+   * @param components Components the entity had before removing, if the system is created with
+   *  {@link ReactionSystem.of} or its query is built by {@link QueryBuilder}
    */
-  protected entityRemoved = (entity: EntitySnapshot) => {
+  protected entityRemoved = (entity: EntitySnapshot, ...components: C) => {
   };
+
+  private readonly handleEntityAdded = (snapshot: EntitySnapshot) => {
+    const components = snapshot.current.components;
+    callWithComponents(this.entityAdded, snapshot, this.query.columnIds, (id) => components[id]);
+  };
+
+  private readonly handleEntityRemoved = (snapshot: EntitySnapshot) => {
+    const components = snapshot.current.components;
+    // Previous state is restored only if the entity doesn't have the component anymore
+    callWithComponents(this.entityRemoved, snapshot, this.query.columnIds, (id) => components[id] ?? snapshot.previous.components[id]);
+  };
+}
+
+/**
+ * Invokes the handler with the snapshot and components, avoiding array allocation for up to three components
+ */
+function callWithComponents(
+  handler: (snapshot: EntitySnapshot, ...components: any[]) => void,
+  snapshot: EntitySnapshot,
+  ids: ReadonlyArray<number>,
+  get: (id: number) => unknown,
+): void {
+  switch (ids.length) {
+    case 0:
+      return handler(snapshot);
+    case 1:
+      return handler(snapshot, get(ids[0]));
+    case 2:
+      return handler(snapshot, get(ids[0]), get(ids[1]));
+    case 3:
+      return handler(snapshot, get(ids[0]), get(ids[1]), get(ids[2]));
+    default:
+      return handler(snapshot, ...ids.map(get));
+  }
 }

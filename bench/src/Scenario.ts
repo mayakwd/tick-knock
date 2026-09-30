@@ -145,6 +145,31 @@ export interface Benchmark {
   run(): void | Promise<void>;
 
   reset?(): void | Promise<void>;
+
+  /**
+   * Checks that the first run did what the scenario requires.
+   * @throws Error if the result of the run is wrong
+   */
+  verify?(): void;
+}
+
+/**
+ * Counts events of {@link ScenarioId.ReactiveSystem} and verifies that every changed entity
+ * was reported as added and removed.
+ */
+export class ReactionCounter {
+  public added: number = 0;
+  public removed: number = 0;
+  /**
+   * Sum of component values read in handlers, so reading components is not optimized away
+   */
+  public sum: number = 0;
+
+  public verify(): void {
+    if (this.added !== Sizes.churnChanged || this.removed !== Sizes.churnChanged) {
+      throw new Error(`Expected ${Sizes.churnChanged} added and removed entities, got ${this.added} and ${this.removed}`);
+    }
+  }
 }
 
 /**
