@@ -51,6 +51,9 @@ jobs:
 
       - name: Track default branch
         if: github.event_name != 'pull_request'
+        # The report is also saved for the documentation site. The explicit shell enables pipefail,
+        # so an error of `bencher run` isn't hidden by `tee`
+        shell: bash
         run: |
           bencher run \
             --branch "${{ github.ref_name }}" \
@@ -66,15 +69,17 @@ jobs:
             --job-timeout 300 \
             --quiet \
             --format json \
-            --error-on-alert > bencher-report.json
+            --error-on-alert | tee bencher-report.json
 
-      # The report is used by the documentation site to show the latest results
+      # The report is used by the documentation site to show the latest results. Results are valid even if an alert
+      # has failed the previous step, so the report is uploaded in this case too.
       - name: Upload report
-        if: github.event_name != 'pull_request'
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
           name: bencher-report
           path: bencher-report.json
+          if-no-files-found: ignore
 
       - name: Compare pull request
         if: github.event_name == 'pull_request'

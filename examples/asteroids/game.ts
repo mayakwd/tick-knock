@@ -1,11 +1,11 @@
-import {Engine, Entity, Query, QueryBuilder} from 'tick-knock';
+import {Engine, Entity} from 'tick-knock';
 import {Random} from '../shared/random';
 import {Asteroid, Collider, Lifetime, Position, Rotation, Velocity} from './components';
 import {ASTEROID_POINTS} from './config';
 import {Controls} from './Controls';
 import {createAsteroid, createShip} from './entities';
 import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {CollisionSystem, expiration, movement, ShipControlSystem, spin} from './systems';
+import {CollisionSystem, expiration, movement, ShipControlSystem, spin, WaveSystem} from './systems';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -52,8 +52,6 @@ export const Priority = {
 export function createAsteroidsGame({width, height, random = Math.random, setup}: AsteroidsGameOptions): AsteroidsGame {
   const engine = new Engine();
   const controls: Controls = {left: false, right: false, thrust: false, fire: false};
-  const asteroids: Query<[Asteroid]> = new QueryBuilder().contains(Asteroid).build();
-  engine.addQuery(asteroids);
   let score = 0;
   let wave = 0;
   let isOver = false;
@@ -85,12 +83,7 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
     .iterative([Rotation, Velocity, Asteroid], spin, {priority: Priority.Movement, id: 'spin'})
     .iterative([Lifetime], expiration(engine), {priority: Priority.Lifetime, id: 'lifetime'})
     .addSystem(new CollisionSystem(split), {priority: Priority.Collisions, id: 'collisions'})
-    // A new wave starts when the last asteroid is destroyed
-    .reactive([Asteroid], {
-      removed: () => {
-        if (asteroids.isEmpty && !isOver) spawnWave();
-      },
-    }, {id: 'waves'});
+    .addSystem(new WaveSystem(spawnWave, () => isOver), {id: 'waves'});
 
   engine.subscribe(AsteroidDestroyed, ({size}) => {
     score += ASTEROID_POINTS[size];

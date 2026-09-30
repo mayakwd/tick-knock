@@ -3,8 +3,8 @@
 Small games built with Tick-Knock. Every game is played by an autopilot until you click it, then you take control.
 
 The sources are in the [examples](https://github.com/mayakwd/tick-knock/tree/develop/examples) folder of the
-repository. The game logic of every example doesn't depend on rendering and input, so the same code runs in a browser,
-a terminal and tests.
+repository. The game logic of every example doesn't depend on rendering and input, so the same code runs in a browser and in
+tests, and Snake is also played in a terminal.
 
 | Game | What it shows |
 | :--- | :--- |
@@ -24,7 +24,7 @@ game/
   systems/      the game logic
   render/       pixi.js views and systems, that attach them to entities
   input/        keyboard, pointer and the autopilot
-  tags.ts       tags of entities
+  tags.ts       tags of entities, if the game uses them
   messages.ts   messages dispatched by systems
   game.ts       the engine with all systems, without rendering and input
   mount.ts      starts the game in a page

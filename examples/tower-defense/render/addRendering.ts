@@ -16,12 +16,16 @@ export function addRendering(engine: Engine, layer: Container): void {
     .reactive([Tower], {added: ({current}, {kind}) => current.add(new View(drawTower(kind)))}, {id: 'tower-view'})
     .reactive([Creep], {added: ({current}) => current.add(new View(new CreepView()))}, {id: 'creep-view'})
     .reactive([Projectile], {added: ({current}, {kind}) => current.add(new View(drawProjectile(kind)))}, {id: 'projectile-view'})
-    .iterative([View, Position], (entity, dt, {display}, {x, y}) => {
-      display.position.set(x, y);
-    }, {priority: Priority.Render, id: 'view-position'})
+    // A new view is placed right away, and follows its entity after all game systems have been updated
+    .reactive([View, Position], {added: (snapshot, view, position) => place(view, position)}, {id: 'view-placement'})
+    .iterative([View, Position], (entity, dt, view, position) => place(view, position), {priority: Priority.Render, id: 'view-position'})
     .iterative([View, Health, Creep], (entity, dt, {display}, health) => {
       const view = display as CreepView;
       view.setHealth(health.value / health.max);
       view.setEffects(entity.has(Slow), entity.has(Poison));
     }, {priority: Priority.Render, id: 'creep-status'});
+}
+
+function place({display}: View, {x, y}: Position): void {
+  display.position.set(x, y);
 }

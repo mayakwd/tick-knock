@@ -42,10 +42,14 @@ Instead of the priority you can pass options with the priority and an identifier
 remove the system later:
 
 ```typescript
-engine.addSystem(new ViewSystem(), {priority: 1, id: 'view'});
-engine.getSystemById('view');
+const viewSystem = new ViewSystem();
+engine.addSystem(viewSystem, {priority: 1, id: 'view'});
+engine.getSystemById('view'); // viewSystem
+engine.getSystemId(viewSystem); // 'view'
 engine.removeSystem('view');
 ```
+
+Identifiers are kept by the engine, so your systems are free to have their own `id` properties.
 
 The third type of resident is Query, which is responsible for mapping entities within the Engine and returns a list of
 already filtered and ready-to-use entities.
@@ -67,3 +71,10 @@ Every time we start an update, the systems take turns, in order of priority, exe
 // Half a second has passed from the previous step.
 engine.update(0.5); 
 ```
+
+Systems can change the engine during the update, and the update stays predictable:
+
+- Systems added during the update are updated starting from the next update.
+- Systems removed during the update are not updated anymore, starting from the moment of removal.
+- Entities removed during the update, including `removeAllEntities`, are removed after all systems have been updated.
+- `clear` removes everything immediately, even during the update: systems that haven't been updated yet are skipped.

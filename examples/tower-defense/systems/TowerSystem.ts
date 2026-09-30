@@ -26,8 +26,8 @@ export class TowerSystem extends IterativeSystem.of(Position, Tower) {
     const {range, interval} = TOWERS[tower.kind];
     let target: Entity | undefined;
     let furthest = -1;
-    this.creeps.forEach((creep, creepPosition, follower, health) => {
-      if (health.value <= 0 || follower.distance <= furthest) return;
+    this.creeps.forEach((creep, creepPosition, follower) => {
+      if (follower.distance <= furthest) return;
       if ((creepPosition.x - position.x) ** 2 + (creepPosition.y - position.y) ** 2 > range * range) return;
       target = creep;
       furthest = follower.distance;

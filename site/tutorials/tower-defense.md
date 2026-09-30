@@ -85,7 +85,8 @@ Poisons stack: every poison deals its damage. Slows don't: the path system appli
 ## Game state outside of entities
 
 Gold and lives belong to the player. They could be components of a "player" entity, but nothing would ever query it:
-there is only one player, and systems need gold and lives only in a couple of places. A plain object is simpler:
+there is only one player, and systems don't even read gold and lives, they only report what has happened. A plain
+object kept by the game is simpler:
 
 <<< @/../examples/tower-defense/Economy.ts
 
@@ -96,8 +97,9 @@ The game keeps it, and changes it when messages arrive: `CreepKilled` adds gold,
 
 <<< @/../examples/tower-defense/systems/TowerSystem.ts
 
-The tower looks through creeps in range, and chooses the one that has passed the longest distance. Creeps without
-health are skipped: they have been killed in this update, and will be removed after it.
+The tower looks through creeps in range, and chooses the one that has passed the longest distance. Towers are updated
+before projectiles and effects deal their damage, so all creeps they see are alive: creeps killed in the previous update
+have already been removed.
 
 ## References between entities
 
@@ -106,13 +108,18 @@ A projectile flies to its target, so it keeps a reference to the target entity:
 <<< @/../examples/tower-defense/components/Projectile.ts
 
 But the target can die or escape before the projectile reaches it. The projectile system checks it with
-`creeps.has(target)`: a removed entity leaves all queries at the end of the update it was removed in. It's a cheap
-check, and it doesn't require the target to know about projectiles flying to it.
+`creeps.has(target)`: the target is still a creep with health, that projectiles can hit. It's a cheap check, and it
+doesn't require the target to know about projectiles flying to it.
+
+Remember that a removed entity leaves queries only at the end of the update it was removed in. A creep that has
+escaped is removed from the engine after the update, so the path system also removes its `Health`: the creep leaves
+queries of towers, projectiles and death right away, and can't be killed after it has escaped. Otherwise the player
+could lose a life and get gold for the same creep.
 
 <<< @/../examples/tower-defense/systems/ProjectileSystem.ts
 
-> ❗ Keep references to entities only as long as you check that they are still alive. A query is the simplest way to
-> check it.
+> ❗ Keep references to entities only as long as you check that they still take part in the game. A query of the
+> components you need is the simplest way to check it.
 
 ## Death
 
@@ -148,7 +155,7 @@ click:
 
 - Not everything must be an entity: static data is just data.
 - Linked components store several components of the same class, `iterate` visits them, and `pick` removes one of them.
-- Game state, that doesn't belong to entities, can be a plain object passed to systems.
+- Game state, that doesn't belong to entities, can be a plain object kept by the game.
 - References to entities are checked with queries before use.
 - Damage from different systems is resolved by one system that runs after all of them.
 

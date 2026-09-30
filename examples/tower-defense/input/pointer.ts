@@ -12,7 +12,16 @@ export class TowerPlacement {
   private readonly preview = new Graphics();
   private cell?: Cell;
 
-  public constructor(private readonly stage: Container, private readonly game: () => TowerDefenseGame) {
+  /**
+   * @param stage Stage that receives pointer events
+   * @param game The current game, it changes when the game restarts
+   * @param isPlaying Returns a value indicating whether the player controls the game
+   */
+  public constructor(
+    private readonly stage: Container,
+    private readonly game: () => TowerDefenseGame,
+    private readonly isPlaying: () => boolean,
+  ) {
     stage.eventMode = 'static';
     stage.on('pointermove', this.onMove);
     stage.on('pointerdown', this.onDown);
@@ -49,6 +58,8 @@ export class TowerPlacement {
 
   private readonly onDown = (event: FederatedPointerEvent) => {
     this.onMove(event);
+    // The click that takes control from the autopilot only focuses the game
+    if (!this.isPlaying()) return;
     if (this.cell !== undefined) this.game().build(this.kind, this.cell);
   };
 

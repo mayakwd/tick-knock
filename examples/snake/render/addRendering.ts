@@ -16,7 +16,11 @@ export function addRendering(engine: Engine, layer: Container): void {
     .reactive([HEAD], {added: ({current}) => current.add(new View(drawHead()))}, {id: 'head-view'})
     .reactive([SEGMENT], {added: ({current}) => current.add(new View(drawSegment()))}, {id: 'segment-view'})
     .reactive([FOOD], {added: ({current}) => current.add(new View(drawFood()))}, {id: 'food-view'})
-    .iterative([View, Position], (entity, dt, {display}, {x, y}) => {
-      display.position.set(x * CELL, y * CELL);
-    }, {priority: Priority.Render, id: 'view-position'});
+    // A new view is placed right away, entities can appear between ticks
+    .reactive([View, Position], {added: (snapshot, view, position) => place(view, position)}, {id: 'view-placement'})
+    .iterative([View, Position], (entity, dt, view, position) => place(view, position), {priority: Priority.Render, id: 'view-position'});
+}
+
+function place({display}: View, {x, y}: Position): void {
+  display.position.set(x * CELL, y * CELL);
 }

@@ -72,8 +72,8 @@ a bullet, is adding one component.
 <<< @/../examples/bullet-hell/systems/motion.ts
 
 - `movement` moves everything that has a velocity: enemies and bullets.
-- `swaying` changes only the horizontal position, so it works together with `movement`: an enemy descends and sways at
-  the same time.
+- `swaying` adds only the change of the swing to the horizontal position, so it works together with `movement`: an
+  enemy descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
 - `leavingScreen` removes bullets and enemies that have left the screen. The player has no velocity, so it's never
   removed by this system.
 - `invulnerability` counts down the invulnerability and removes the component when the time is over.
@@ -125,8 +125,8 @@ object passed to the constructor, so the game can show it.
 
 <<< @/../examples/bullet-hell/game.ts
 
-When the player is hit, a subscription to `PlayerHit` removes all enemy bullets. It's game logic, that reacts to a
-message: the collision system doesn't need to know about it.
+When the player is hit, a subscription to `PlayerHit` counts lives and removes all enemy bullets, which the game keeps
+in its own query. It's game logic, that reacts to a message: the collision system doesn't need to know about it.
 
 ## Rendering hundreds of bullets
 

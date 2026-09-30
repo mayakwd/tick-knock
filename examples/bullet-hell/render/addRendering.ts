@@ -26,9 +26,9 @@ export function addRendering(engine: Engine, layer: Container): void {
     .reactive([Enemy], {added: ({current}, {kind}) => current.add(new View(drawEnemy(kind)))}, {id: 'enemy-view'})
     .reactive([PLAYER_BULLET], {added: attach(drawPlayerBullet)}, {id: 'player-bullet-view'})
     .reactive([ENEMY_BULLET], {added: attach(drawEnemyBullet)}, {id: 'enemy-bullet-view'})
-    .iterative([View, Position], (entity, dt, {display}, {x, y}) => {
-      display.position.set(x, y);
-    }, {priority: Priority.Render, id: 'view-position'})
+    // A new view is placed right away, and follows its entity after all game systems have been updated
+    .reactive([View, Position], {added: (snapshot, view, position) => place(view, position)}, {id: 'view-placement'})
+    .iterative([View, Position], (entity, dt, view, position) => place(view, position), {priority: Priority.Render, id: 'view-position'})
     // The invulnerable player blinks, and becomes solid when the component is removed
     .iterative([View, Invulnerable], (entity, dt, {display}, {seconds}) => {
       display.alpha = Math.floor(seconds * BLINK_RATE) % 2 === 0 ? 1 : 0.3;
@@ -38,4 +38,8 @@ export function addRendering(engine: Engine, layer: Container): void {
         display.alpha = 1;
       },
     }, {id: 'blinking-end'});
+}
+
+function place({display}: View, {x, y}: Position): void {
+  display.position.set(x, y);
 }

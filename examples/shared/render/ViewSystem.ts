@@ -15,6 +15,15 @@ export class ViewSystem extends ReactionSystem.of(View) {
   };
 
   protected entityRemoved = (snapshot: EntitySnapshot, {display}: View) => {
-    display.destroy({children: true});
+    destroy(display);
   };
+}
+
+/**
+ * Destroys the display object with its children. Every object is destroyed without options, so graphics release
+ * their own geometry, while geometry shared by several graphics is kept.
+ */
+function destroy(display: Container): void {
+  for (const child of [...display.children]) destroy(child);
+  display.destroy();
 }

@@ -88,8 +88,8 @@ These are three functional systems:
 - `movement` works for every entity with `Position` and `Velocity`: the ship, asteroids and bullets. One system,
   three kinds of entities, because they share the same components.
 - `spin` is registered with `[Rotation, Velocity, Asteroid]`. The ship has a rotation and a velocity too, but only
-  asteroids spin, so the `Asteroid` component is added to the query. It's not passed to the function, because the
-  function doesn't declare it, but it still filters entities.
+  asteroids spin, so the `Asteroid` component is added to the query. It's passed to the function as the third
+  component, the function just doesn't declare a parameter for it, but it still filters entities.
 - `expiration` removes entities when their lifetime is over.
 
 > 💡 A functional system can be written in its own file as a function returning `IterativeUpdate`. Then the game file
@@ -112,8 +112,9 @@ immediately leaves the query of bullets, because the query contains `Collider`. 
 update, but it can't collide anymore. The same happens to destroyed asteroids and the ship.
 
 > 💡 Why doesn't Tick-Knock remove entities immediately? Because some systems of this update may have already seen the
-> entity, and some haven't yet. Deferred removal guarantees that every system sees the same world during the update,
-> and nobody breaks iteration of anybody else. See [Remove the entity or the component?](/decisions/removing).
+> entity, and some haven't yet. Deferred removal guarantees that every system of the update sees the removed entity,
+> and nobody breaks iteration of anybody else. Only removal is deferred: added entities and changed components are
+> seen right away. See [Remove the entity or the component?](/decisions/removing).
 
 Splitting an asteroid is a function passed to the collision system, so the system doesn't need to know how asteroids
 are created. You'll see it in the game file below.
@@ -122,18 +123,15 @@ are created. You'll see it in the game file below.
 
 When the last asteroid is destroyed, a new wave begins. How do we know that it was the last one?
 
-The game keeps a query of asteroids, and a reaction system is notified every time an asteroid is removed. If the query
-is empty after that, there are no asteroids left:
+A reaction system of asteroids is notified every time an asteroid is removed. If its query is empty after that, there
+are no asteroids left:
 
-```typescript
-engine.reactive([Asteroid], {
-  removed: () => {
-    if (asteroids.isEmpty && !isOver) spawnWave();
-  },
-});
-```
+<<< @/../examples/asteroids/systems/WaveSystem.ts
 
 Nobody has to count asteroids or check them every frame: the game reacts to the change when it happens.
+
+> ❗ The system checks its own query. When the handler is called, the query of the system has already been updated.
+> Another query of asteroids could be notified after this handler, and would still contain the removed asteroid.
 
 ## Putting it all together
 

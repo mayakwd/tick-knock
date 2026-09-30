@@ -1,7 +1,7 @@
 # Where to keep game state?
 
 **Short answer:** state of things is kept in components. State of the game, that doesn't belong to any entity, is kept
-in plain objects passed to systems, or in systems themselves.
+in plain objects owned by the game or passed to systems, or in systems themselves.
 
 ## Not everything must be an entity
 
@@ -18,7 +18,8 @@ interface Economy {
 }
 ```
 
-The game changes it when messages arrive, and passes it to whoever needs it.
+The game changes it when messages arrive: systems report kills and escapes, and don't touch gold and lives at all.
+When a system needs such state, the game passes the object to its constructor, as described below.
 
 ## Dependencies are passed to constructors
 

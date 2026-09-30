@@ -20,9 +20,9 @@ export function testBulletHell(): void {
     game.update(dt);
     const bullets = game.engine.entities.filter((entity) => entity.has(ENEMY_BULLET)).length;
     maxBullets = Math.max(maxBullets, bullets);
-    if (Math.round(seconds / dt) % 30 === 0) assertViews(game.engine, layer, 'bullet hell', [Position]);
+    if (Math.round(seconds / dt) % 30 === 0) assertViews(game.engine, layer, 'bullet hell', [Position], (entity) => entity.get(Position));
   }
-  assertViews(game.engine, layer, 'bullet hell', [Position]);
+  assertViews(game.engine, layer, 'bullet hell', [Position], (entity) => entity.get(Position));
   assert.ok(game.score > 0, 'the player destroys enemies');
   assert.ok(game.wave > 1, 'waves change');
   assert.ok(maxBullets > 300, `enemies fire a lot of bullets, ${maxBullets} at most`);

@@ -18,7 +18,9 @@ export interface ApplicationOptions {
 export async function createApplication(element: HTMLElement, {width, height, background}: ApplicationOptions): Promise<Application> {
   const app = new Application();
   await app.init({width, height, background, antialias: true, resolution: window.devicePixelRatio, autoDensity: true});
+  // The canvas shrinks on narrow pages, and keeps its proportions
   app.canvas.style.maxWidth = '100%';
+  app.canvas.style.height = 'auto';
   app.canvas.style.outline = 'none';
   element.appendChild(app.canvas);
   return app;

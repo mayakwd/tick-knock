@@ -18,6 +18,6 @@ export function createEnemy(kind: EnemyKind, x: number, y: number, strength: num
     .add(new Reward(description.reward))
     .add(new Emitter(description.pattern, description.interval, description.count, description.bulletSpeed));
   // Optional behaviour is an optional component: enemies without it don't sway
-  if (amplitude > 0) entity.add(new Sway(x, amplitude, frequency));
+  if (amplitude > 0) entity.add(new Sway(amplitude, frequency));
   return entity;
 }

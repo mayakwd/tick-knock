@@ -1,7 +1,7 @@
 # Tick-Knock Examples
 
 Small games that show how to build a game with tick-knock. The game logic of every example doesn't depend on rendering
-and input, so the same code runs in a browser, a terminal and tests.
+and input, so the same code runs in a browser and in tests, and Snake is also played in a terminal.
 
 # Table of contents
 
@@ -37,7 +37,7 @@ game/
   systems/      the game logic
   render/       pixi.js views and systems, that attach them to entities
   input/        keyboard, pointer and the autopilot
-  tags.ts       tags of entities
+  tags.ts       tags of entities, if the game uses them
   messages.ts   messages dispatched by systems
   game.ts       the engine with all systems, without rendering and input
   mount.ts      starts the game in a page
@@ -93,7 +93,8 @@ Build towers along the path and don't let creeps through: 1-4 to select a tower,
 What it shows:
 
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
-- Game state that doesn't belong to entities: gold and lives are a plain object passed to the game systems.
+- Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
+  report kills and escapes.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
 - Static data outside of the engine: the map is a picture and a set of cells, not entities.
 

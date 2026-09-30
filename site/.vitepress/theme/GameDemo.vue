@@ -19,12 +19,20 @@ const games: Record<Game, () => Promise<(element: HTMLElement) => Promise<() => 
 };
 
 onMounted(async () => {
-  const mount = await games[props.game]();
-  const stop = await mount(container.value!);
-  if (unmounted) {
-    stop();
-  } else {
-    destroy = stop;
+  // The element is taken before loading, because Vue clears the reference when the page is left
+  const element = container.value!;
+  try {
+    const mount = await games[props.game]();
+    // The page could be left while the game was loading
+    if (unmounted) return;
+    const stop = await mount(element);
+    if (unmounted) {
+      stop();
+    } else {
+      destroy = stop;
+    }
+  } catch (error) {
+    console.error(`Failed to start the ${props.game} example`, error);
   }
 });
 

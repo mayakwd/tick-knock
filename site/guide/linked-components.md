@@ -79,7 +79,8 @@ Tick-knock provides an extended API for working with linked components since ver
 - Method `find` searches a component instance of the specified class. Works for standard components (predicate will be
   called for a single instance in this case).
 - Method `getAll` returns a generator that can be used for iteration over all instances of specific type components.
-- Method `lengthOf` returns the number of existing components of the specified class.
+  Works for standard components (the generator yields a single instance in this case).
+- Method `lengthOf` returns the number of existing components of the specified class: 1 for a standard component.
 
 Now you know the basics. Now let's look at some examples to help you understand when linked components are helpful and
 how to work with them.

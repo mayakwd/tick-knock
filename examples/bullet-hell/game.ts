@@ -1,4 +1,4 @@
-import {Engine} from 'tick-knock';
+import {Engine, QueryBuilder} from 'tick-knock';
 import {Random} from '../shared/random';
 import {Invulnerable, Position, Sway, Velocity} from './components';
 import {HEIGHT, PLAYER_LIVES, WIDTH} from './config';
@@ -77,11 +77,11 @@ export function createBulletHellGame({random = Math.random, setup}: BulletHellGa
     score += points;
   });
   // A hit clears the screen from enemy bullets, so the player has a chance to recover
+  const enemyBullets = new QueryBuilder().contains(ENEMY_BULLET).build();
+  engine.addQuery(enemyBullets);
   engine.subscribe(PlayerHit, ({livesLeft}) => {
     lives = livesLeft;
-    for (const entity of engine.entities) {
-      if (entity.has(ENEMY_BULLET)) engine.removeEntity(entity);
-    }
+    enemyBullets.forEach((bullet) => engine.removeEntity(bullet));
   });
   engine.subscribe(GameOver, () => {
     isOver = true;

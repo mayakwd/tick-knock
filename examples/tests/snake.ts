@@ -5,6 +5,7 @@ import {Position} from '../snake/components';
 import {createSnakeGame} from '../snake/game';
 import {createAutopilot} from '../snake/input/autopilot';
 import {addRendering} from '../snake/render/addRendering';
+import {CELL} from '../snake/render/graphics';
 import {renderSnakeGame} from '../snake/render/text';
 import {FOOD, HEAD} from '../snake/tags';
 import {assertViews} from './rendering';
@@ -14,11 +15,16 @@ export function testSnake(): void {
   const game = createSnakeGame({width: 20, height: 10, random: seededRandom(42), setup: (engine) => addRendering(engine, layer)});
   const autopilot = createAutopilot(game);
   let ticks = 0;
+  const checkViews = () => assertViews(game.engine, layer, 'snake', [Position], (entity) => {
+    const position = entity.get(Position);
+    return position && {x: position.x * CELL, y: position.y * CELL};
+  });
+  checkViews();
   while (!game.isOver && ticks < 5000) {
     autopilot();
     game.tick();
     ticks++;
-    assertViews(game.engine, layer, 'snake', [Position]);
+    checkViews();
   }
   assert.ok(game.score >= 10, `autopilot should eat at least 10 food, ate ${game.score}`);
   assert.equal(game.engine.entities.filter((entity) => entity.has(FOOD)).length, 1, 'there is always one food');

@@ -8,11 +8,14 @@ export const movement: IterativeUpdate<[Position, Velocity]> = (entity, dt, posi
 };
 
 /**
- * Swings entities from side to side. It changes only the horizontal position, so it works together with movement.
+ * Swings entities from side to side. Only the change of the swing is added to the position, so it works together
+ * with movement.
  */
 export const swaying: IterativeUpdate<[Position, Sway]> = (entity, dt, position, sway) => {
   sway.time += dt;
-  position.x = sway.originX + Math.sin(sway.time * sway.frequency * Math.PI * 2) * sway.amplitude;
+  const offset = Math.sin(sway.time * sway.frequency * Math.PI * 2) * sway.amplitude;
+  position.x += offset - sway.offset;
+  sway.offset = offset;
 };
 
 /**

@@ -1,4 +1,4 @@
-import {Engine} from 'tick-knock';
+import {Engine, QueryBuilder} from 'tick-knock';
 import {Random} from '../shared/random';
 import {Body, Heading, Lifetime, Position} from './components';
 import {Controls} from './Controls';
@@ -55,16 +55,16 @@ export function createSnakeGame({width, height, random = Math.random, setup}: Sn
   let score = 0;
   let isOver = false;
 
-  const isFree = (x: number, y: number) => engine.entities.every((entity) => {
-    const position = entity.get(Position);
-    return position === undefined || position.x !== x || position.y !== y;
-  });
+  const occupiers = new QueryBuilder().contains(Position).build();
+  engine.addQuery(occupiers);
 
   const spawnFood = () => {
+    const occupied = new Set<number>();
+    occupiers.forEach((entity, {x, y}) => occupied.add(y * width + x));
     const free: Array<[number, number]> = [];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        if (isFree(x, y)) free.push([x, y]);
+        if (!occupied.has(y * width + x)) free.push([x, y]);
       }
     }
     if (free.length === 0) return;

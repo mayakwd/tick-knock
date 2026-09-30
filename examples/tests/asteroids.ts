@@ -16,7 +16,7 @@ export function testAsteroids(): void {
   for (; seconds < 120 && !game.isOver; seconds += dt) {
     autopilot();
     game.update(dt);
-    assertViews(game.engine, layer, 'asteroids', [Position]);
+    assertViews(game.engine, layer, 'asteroids', [Position], (entity) => entity.get(Position));
     for (const entity of game.engine.entities) {
       const position = entity.get(Position)!;
       assert.ok(Number.isFinite(position.x) && Number.isFinite(position.y), 'positions are finite');

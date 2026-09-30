@@ -17,7 +17,7 @@ export function testTowerDefense(): void {
   for (; seconds < 240 && !game.isOver; seconds += dt) {
     autopilot();
     game.update(dt);
-    if (Math.round(seconds / dt) % 30 === 0) assertViews(game.engine, layer, 'tower defense', [Position]);
+    if (Math.round(seconds / dt) % 30 === 0) assertViews(game.engine, layer, 'tower defense', [Position], (entity) => entity.get(Position));
   }
   const towers = game.engine.entities.filter((entity) => entity.has(Tower)).length;
   assert.ok(towers >= 5, `the autopilot builds towers, ${towers} built`);

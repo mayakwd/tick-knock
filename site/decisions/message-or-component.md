@@ -18,8 +18,8 @@ engine.subscribe(FoodEaten, () => score++);
 Messages keep systems independent. The collision system doesn't know about the score, the game over screen, or sounds:
 it reports what has happened, and whoever is interested reacts.
 
-In the [Bullet hell](/tutorials/bullet-hell), `PlayerHit` is handled in two places: the game counts lives, and removes
-all enemy bullets. The collision system knows about neither.
+In the [Bullet hell](/tutorials/bullet-hell), the game handles `PlayerHit`: it counts lives, and removes all enemy
+bullets. The collision system knows about neither.
 
 ## Components describe states
 

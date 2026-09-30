@@ -23,7 +23,8 @@ export const mountTowerDefense: MountGame = async (element) => {
   const world = new Container();
   const hud = new Hud(WIDTH, HEIGHT);
   app.stage.addChild(drawMap(), world);
-  const placement = new TowerPlacement(app.stage, () => game);
+  const isPlaying = () => document.activeElement === app.canvas;
+  const placement = new TowerPlacement(app.stage, () => game, isPlaying);
   app.stage.addChild(hud);
   app.stage.hitArea = app.screen;
 
@@ -43,12 +44,15 @@ export const mountTowerDefense: MountGame = async (element) => {
   keyboard.onPress('KeyR', () => {
     if (game.isOver) start();
   });
-  // A click on the canvas focuses it, so the player takes control from the autopilot
-  app.canvas.addEventListener('pointerdown', () => app.canvas.focus());
+  // A click on the canvas focuses it, so the player takes control from the autopilot.
+  // Pixi listens to the canvas since the application was created, so it handles the click before this listener,
+  // while the game is not focused yet: the click that takes control doesn't build a tower.
+  const takeControl = () => app.canvas.focus();
+  app.canvas.addEventListener('pointerdown', takeControl);
 
   const update = (ticker: Ticker) => {
     const dt = frameTime(ticker.deltaMS);
-    const playing = document.activeElement === app.canvas;
+    const playing = isPlaying();
     if (!playing) autopilot();
     game.update(dt);
     placement.update();
@@ -70,6 +74,7 @@ export const mountTowerDefense: MountGame = async (element) => {
   return () => {
     keyboard.destroy();
     placement.destroy();
+    app.canvas.removeEventListener('pointerdown', takeControl);
     app.destroy({removeView: true}, {children: true});
   };
 };

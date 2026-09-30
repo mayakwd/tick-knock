@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {Creep, PathFollower, Position, Slow} from '../components';
+import {Creep, Health, PathFollower, Position, Slow} from '../components';
 import {cellCenter, WAYPOINTS} from '../map';
 import {CreepEscaped} from '../messages';
 
@@ -31,6 +31,9 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Creep
     }
 
     if (follower.waypoint === WAYPOINTS.length) {
+      // The creep is removed after the update, but it leaves queries of towers, projectiles and death right now,
+      // so it can't be killed after it has escaped
+      entity.remove(Health);
       this.engine.removeEntity(entity);
       this.dispatch(new CreepEscaped());
     }
