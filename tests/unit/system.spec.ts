@@ -1,4 +1,4 @@
-import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, System} from '../../src';
+import {Engine, Entity, EntitySnapshot, IterativeSystem, Query, QueryBuilder, ReactionSystem, System, without} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -12,7 +12,7 @@ class Position {
 
 class MovementSystem extends IterativeSystem {
   public constructor() {
-    super(new QueryBuilder().contains(Position).build());
+    super(new QueryBuilder().with(Position).build());
   }
 
   protected updateEntity(entity: Entity, dt: number): void {
@@ -48,7 +48,7 @@ describe('Iterative system', () => {
 
     class TestSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Position).build());
+        super(new QueryBuilder().with(Position).build());
       }
 
       protected prepare() {
@@ -77,7 +77,7 @@ describe('Iterative system', () => {
 
     class MovementSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Position).build());
+        super(new QueryBuilder().with(Position).build());
       }
 
       protected updateEntity(entity: Entity, dt: number): void {
@@ -107,7 +107,7 @@ describe('Iterative system', () => {
     expect(onRemoved).toEqual({snapshot: true, entity: false});
   });
 
-  it("Entities safe removal during iteration should not break the iteration ordering", () => {
+  it("Entities removed during iteration are removed after the update and don't break the iteration ordering", () => {
     class Health {
       public constructor(public value: number) {
       }
@@ -115,14 +115,14 @@ describe('Iterative system', () => {
 
     class HealthTickSystem extends IterativeSystem {
       public constructor() {
-        super(new QueryBuilder().contains(Health).build());
+        super(new QueryBuilder().with(Health).build());
       }
 
       protected updateEntity(entity: Entity, dt: number): void {
         const health = entity.get(Health)!;
         health.value -= 1;
         if (health.value <= 0) {
-          this.engine.removeEntity(entity, true);
+          this.engine.removeEntity(entity);
         }
       }
     }
@@ -136,9 +136,9 @@ describe('Iterative system', () => {
     expect(engine.entities.length).toBe(0);
   })
 
-  it.each([true, false])(`Re-adding entities which were removed should work after the engine update cycle`, (safe) => {
+  it(`Re-adding entities which were removed should work after the engine update cycle`, () => {
     const engine = new Engine();
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     engine.addQuery(query);
 
     for (let i = 0; i < 5; i++) {
@@ -147,7 +147,7 @@ describe('Iterative system', () => {
 
     const entities = query.entities.concat()
     for (let entity of entities) {
-      engine.removeEntity(entity, safe);
+      engine.removeEntity(entity);
     }
     for (let entity of entities) {
       engine.addEntity(entity);
@@ -155,6 +155,218 @@ describe('Iterative system', () => {
     engine.update(0);
     expect(engine.entities.length).toBe(5);
   })
+
+  it('Entities removed and added back during the update stay in the engine', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity).iterative([Position], (current) => {
+      engine.removeEntity(current);
+      engine.addEntity(current);
+    });
+    engine.update(0);
+    expect(engine.entities).toEqual([entity]);
+  })
+
+  it('Entities removed during the update are removed after all systems are updated', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position());
+    const seen: boolean[] = [];
+    engine
+      .addEntity(entity)
+      .iterative([Position], (current) => engine.removeEntity(current))
+      .iterative([Position], (current) => seen.push(engine.getEntityById(current.id) === undefined));
+    engine.update(0);
+    // The second system still sees the entity in its query, but the entity can't be found by id anymore
+    expect(seen).toEqual([true]);
+    expect(engine.entities).toEqual([]);
+  })
+
+  it('Entities removed outside of the update are removed immediately', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).build();
+    const entity = new Entity().add(new Position());
+    engine.addQuery(query).addEntity(entity).removeEntity(entity);
+    expect(query.isEmpty).toBeTruthy();
+    expect(engine.entities).toEqual([]);
+  })
+
+  it('Removing entities during update neither skips remaining entities nor updates removed ones', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+    const entities = [0, 1, 2, 3].map(() => new Entity().add(new Position()));
+
+    class RemovingSystem extends IterativeSystem {
+      public constructor() {
+        super(new QueryBuilder().with(Position));
+      }
+
+      protected updateEntity(entity: Entity): void {
+        updated.push(entity);
+        if (entity === entities[0]) this.engine.removeEntity(entity);
+        if (entity === entities[1]) entities[2].remove(Position);
+      }
+    }
+
+    engine.addSystem(new RemovingSystem());
+    entities.forEach((entity) => engine.addEntity(entity));
+    engine.update(1);
+    expect(updated).toEqual([entities[0], entities[1], entities[3]]);
+  });
+});
+
+describe('Typed iterative system', () => {
+  class Velocity {
+    public constructor(public x: number = 1, public y: number = 1) {}
+  }
+
+  const FROZEN = 'frozen';
+
+  class TypedMovementSystem extends IterativeSystem.of(Position, Velocity) {
+    public updated: Entity[] = [];
+
+    public constructor(private readonly speed: number) {
+      super();
+    }
+
+    protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity): void {
+      this.updated.push(entity);
+      position.x += velocity.x * dt * this.speed;
+      position.y += velocity.y * dt * this.speed;
+    }
+  }
+
+  it('Passes components of the entity to updateEntity', () => {
+    const engine = new Engine();
+    const system = new TypedMovementSystem(2);
+    engine.addSystem(system);
+    const entity = new Entity().add(new Position()).add(new Velocity(1, 3));
+    engine.addEntity(entity).addEntity(new Entity().add(new Position()));
+    engine.update(1);
+    expect(system.updated).toEqual([entity]);
+    expect(entity.get(Position)).toEqual(new Position(2, 6));
+  });
+
+  it('Skips tags and uses them for matching', () => {
+    class FrozenSystem extends IterativeSystem.of(FROZEN, Position) {
+      public positions: Position[] = [];
+
+      protected updateEntity(entity: Entity, dt: number, position: Position): void {
+        this.positions.push(position);
+      }
+    }
+
+    const engine = new Engine();
+    const system = new FrozenSystem();
+    engine.addSystem(system);
+    const frozen = new Entity().add(new Position(1)).add(FROZEN);
+    engine.addEntity(frozen).addEntity(new Entity().add(new Position(2)));
+    engine.update(1);
+    expect(system.positions).toEqual([frozen.get(Position)]);
+  });
+
+  it('Checks types of components', () => {
+    class Health {
+      public value: number = 100;
+    }
+
+    class WrongOrderSystem extends IterativeSystem.of(Position, Health) {
+      // @ts-expect-error components are passed in the order they were specified
+      protected updateEntity(entity: Entity, dt: number, health: Health, position: Position): void {}
+    }
+
+    expect(WrongOrderSystem).toBeDefined();
+  });
+
+  it('Stops updating entities if the system is removed during update', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+
+    class RemovingSystem extends IterativeSystem.of(Position) {
+      protected updateEntity(entity: Entity): void {
+        updated.push(entity);
+        this.engine.removeSystem(this);
+      }
+    }
+
+    engine.addSystem(new RemovingSystem());
+    engine.addEntity(new Entity().add(new Position())).addEntity(new Entity().add(new Position()));
+    engine.update(1);
+    expect(updated.length).toBe(1);
+  });
+});
+
+describe('Typed reaction system', () => {
+  class View {
+    public constructor(public name: string = 'view') {}
+  }
+
+  const VISIBLE = 'visible';
+
+  class ViewSystem extends ReactionSystem.of(View, Position, VISIBLE) {
+    public log: Array<[string, Entity, View, Position]> = [];
+
+    protected entityAdded = ({current}: EntitySnapshot, view: View, position: Position) => {
+      this.log.push(['added', current, view, position]);
+    };
+
+    protected entityRemoved = ({current}: EntitySnapshot, view: View, position: Position) => {
+      this.log.push(['removed', current, view, position]);
+    };
+  }
+
+  function setup() {
+    const engine = new Engine();
+    const system = new ViewSystem();
+    engine.addSystem(system);
+    const view = new View();
+    const position = new Position(1, 2);
+    const entity = new Entity().add(view).add(position).add(VISIBLE);
+    return {engine, system, entity, view, position};
+  }
+
+  it('Passes components of the added entity', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    expect(system.log).toEqual([['added', entity, view, position]]);
+  });
+
+  it('Passes removed component to entityRemoved', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    entity.remove(View);
+    expect(system.log[1]).toEqual(['removed', entity, view, position]);
+  });
+
+  it('Passes components when the entity is removed from engine or loses a tag', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    entity.remove(VISIBLE);
+    entity.add(VISIBLE);
+    engine.removeEntity(entity);
+    expect(system.log).toEqual([
+      ['added', entity, view, position],
+      ['removed', entity, view, position],
+      ['added', entity, view, position],
+      ['removed', entity, view, position],
+    ]);
+  });
+
+  it('Passes the old component, when it is replaced', () => {
+    const {engine, system, entity, view, position} = setup();
+    engine.addEntity(entity);
+    const replacement = new View('replacement');
+    entity.add(replacement);
+    expect(system.log.slice(1)).toEqual([['removed', entity, view, position], ['added', entity, replacement, position]]);
+  });
+
+  it('Checks types of components', () => {
+    class WrongSystem extends ReactionSystem.of(View, Position) {
+      // @ts-expect-error components are passed in the order they were specified
+      protected entityAdded = (snapshot: EntitySnapshot, position: Position, view: View) => {};
+    }
+
+    expect(WrongSystem).toBeDefined();
+  });
 });
 
 describe('Failure on accessing engine if not attached to it', () => {
@@ -169,7 +381,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     }
 
     const system = new TestSystem();
-    expect(() => system.update(0)).toThrowError();
+    expect(() => system.update(0)).toThrow();
   });
 
   it(`Expected that message can't be sent if system is not attached to the engine`, () => {
@@ -183,7 +395,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     }
 
     const system = new TestSystem();
-    expect(() => system.update(0)).toThrowError();
+    expect(() => system.update(0)).toThrow();
   });
 
   it(`Expected that removing system from engine breaking the iteration`, () => {
@@ -212,7 +424,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     engine.addEntity(new Entity().add(new Component()));
     expect(() => {
       engine.update(0);
-    }).not.toThrowError();
+    }).not.toThrow();
     expect(amountOfIterations).toBe(1);
   });
 
@@ -260,5 +472,53 @@ describe('Failure on accessing engine if not attached to it', () => {
       engine.update(0);
     }
     expect(iterationsCount).toBe(1);
+  });
+});
+describe('Systems with exclusions', () => {
+  const DESTROYED = 'destroyed';
+
+  it('Iterative system skips entities with excluded tags', () => {
+    class MoveSystem extends IterativeSystem.of(Position, without(DESTROYED)) {
+      protected updateEntity(entity: Entity, dt: number, position: Position): void {
+        position.x += dt;
+      }
+    }
+
+    const engine = new Engine().addSystem(new MoveSystem());
+    const alive = new Entity().add(new Position(0, 0));
+    const destroyed = new Entity().add(new Position(0, 0)).add(DESTROYED);
+    engine.addEntity(alive).addEntity(destroyed);
+    engine.update(1);
+
+    expect(alive.get(Position)!.x).toBe(1);
+    expect(destroyed.get(Position)!.x).toBe(0);
+  });
+
+  it('Reaction system is notified when an entity gets an excluded tag, and receives its components', () => {
+    const removed: Position[] = [];
+
+    class IndexSystem extends ReactionSystem.of(Position, without(DESTROYED)) {
+      protected entityRemoved = (snapshot: EntitySnapshot, position: Position) => {
+        removed.push(position);
+      };
+    }
+
+    const engine = new Engine().addSystem(new IndexSystem());
+    const entity = new Entity().add(new Position(1, 2));
+    engine.addEntity(entity);
+    entity.add(DESTROYED);
+
+    expect(removed).toEqual([entity.get(Position)]);
+  });
+
+  it('Functional systems accept exclusions', () => {
+    const engine = new Engine();
+    const updated: Entity[] = [];
+    engine.iterative([Position, without(DESTROYED)], (entity) => updated.push(entity));
+    const alive = new Entity().add(new Position());
+    engine.addEntity(alive).addEntity(new Entity().add(new Position()).add(DESTROYED));
+    engine.update(1);
+
+    expect(updated).toEqual([alive]);
   });
 });

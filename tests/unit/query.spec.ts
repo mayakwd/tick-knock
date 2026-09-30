@@ -1,4 +1,4 @@
-import {Engine, Entity, LinkedComponent, Query, QueryBuilder} from '../../src';
+import {Engine, Entity, LinkedComponent, Query, QueryBuilder, without} from '../../src';
 
 class Position {
   public x: number = 0;
@@ -21,8 +21,8 @@ class Damage extends LinkedComponent {}
 describe('Query builder', () => {
   it('Building query', () => {
     const query = new QueryBuilder()
-      .contains(Position)
-      .contains(View)
+      .with(Position)
+      .with(View)
       .build();
     expect(query).toBeDefined();
     expect(query.entities).toBeDefined();
@@ -31,8 +31,8 @@ describe('Query builder', () => {
 
   it('Expected that built query matches defined pattern', () => {
     const query = new QueryBuilder()
-      .contains(Position)
-      .contains(View)
+      .with(Position)
+      .with(View)
       .build();
     const entities = [
       new Entity().add(new Position()).add(new View()),
@@ -44,23 +44,23 @@ describe('Query builder', () => {
 
   it(`Expected that adding the same component to the builder twice will use only it only once for construction of predicate `, () => {
     const builder = new QueryBuilder()
-      .contains(Position)
-      .contains(Position)
-      .contains(View);
+      .with(Position)
+      .with(Position)
+      .with(View);
     expect(builder.getComponents().size).toBe(2);
   });
 
   it(`Expected that adding the same tag to the builder twice will use only it only once for construction of predicate `, () => {
     const TAG = 1;
     const builder = new QueryBuilder()
-      .contains(TAG)
-      .contains(TAG);
+      .with(TAG)
+      .with(TAG);
     expect(builder.getTags().size).toBe(1);
   });
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(Position, TAG).build();
+    const query = new QueryBuilder().with(Position, TAG).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -72,7 +72,7 @@ describe('Query builder', () => {
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions (no components)`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(TAG).build();
+    const query = new QueryBuilder().with(TAG).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -84,7 +84,7 @@ describe('Query builder', () => {
 
   it(`Expected that query built with QueryBuilder matches entities with provided conditions (no tags)`, () => {
     const TAG = 1;
-    const query = new QueryBuilder().contains(Position).build();
+    const query = new QueryBuilder().with(Position).build();
     query.matchEntities([
       new Entity().add(new Position()).add(TAG),
       new Entity(),
@@ -103,7 +103,7 @@ describe('Query matching', () => {
 
   function getQuery() {
     return new QueryBuilder()
-      .contains(Position, View)
+      .with(Position, View)
       .build();
   }
 
@@ -648,5 +648,340 @@ describe('Query signals', () => {
     });
     entity.remove(Damage);
     expect(queryCallIndex).toBe(5);
+  });
+});
+
+describe('Query indexing', () => {
+  class Base {}
+
+  class Derived extends Base {}
+
+  it('Built query reacts to components added with resolve class', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Base).build();
+    engine.addQuery(query);
+    const entity = new Entity();
+    engine.addEntity(entity);
+    entity.add(new Derived(), Base);
+    expect(query.has(entity)).toBeTruthy();
+    entity.remove(Base);
+    expect(query.has(entity)).toBeFalsy();
+  });
+
+  it('Built query is not affected by later builder changes', () => {
+    const engine = new Engine();
+    const builder = new QueryBuilder().with(Position);
+    const query = builder.build();
+    builder.with(View);
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    expect(query.has(entity)).toBeTruthy();
+  });
+
+  it('Removed query is not updated anymore', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position, 'tag').build();
+    engine.addQuery(query);
+    engine.removeQuery(query);
+    const entity = new Entity();
+    engine.addEntity(entity);
+    entity.add(new Position()).addTag('tag');
+    expect(query.isEmpty).toBeTruthy();
+  });
+
+  it('Query first, last and entities stay consistent', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map(() => new Entity().add(new Position()));
+    entities.forEach((entity) => engine.addEntity(entity));
+    expect(query.entities).toEqual(entities);
+    entities[0].remove(Position);
+    expect(query.first).toBe(entities[1]);
+    expect(query.last).toBe(entities[2]);
+    expect(query.entities).toEqual([entities[1], entities[2]]);
+    expect(query.length).toBe(2);
+  });
+});
+
+describe('Query forEach', () => {
+  class Health {
+    public constructor(public value: number = 0) {}
+  }
+
+  class Buff extends LinkedComponent {
+    public constructor(public value: number = 0) {
+      super();
+    }
+  }
+
+  function setup() {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position, 'tag', Health).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map((i) => new Entity().add(new Position(i, i)).add(new Health(i)).add('tag'));
+    entities.forEach((entity) => engine.addEntity(entity));
+    return {engine, query, entities};
+  }
+
+  function collect<C extends unknown[]>(query: Query<C>): Array<[Entity, ...C]> {
+    const result: Array<[Entity, ...C]> = [];
+    query.forEach((entity, ...components) => result.push([entity, ...components]));
+    return result;
+  }
+
+  it.each([4, 5, 10, 11])('Passes %i components of every entity', (count) => {
+    const classes = Array.from({length: count}, () => class {
+      public constructor(public value: number) {}
+    });
+    const engine = new Engine();
+    const query = new QueryBuilder().with(...classes).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map((i) => {
+      const entity = new Entity();
+      classes.forEach((Class, index) => entity.add(new Class(i * 10 + index)));
+      engine.addEntity(entity);
+      return entity;
+    });
+    const result: unknown[][] = [];
+    query.forEach((entity: Entity, ...components: unknown[]) => result.push([entity, ...components]));
+    expect(result).toEqual(entities.map((entity) => [entity, ...classes.map((Class) => entity.get(Class))]));
+  });
+
+  it('Passes entity and its components in the order they were specified, skipping tags', () => {
+    const {query, entities} = setup();
+    expect(collect(query)).toEqual(entities.map((entity) => [entity, entity.get(Position), entity.get(Health)]));
+  });
+
+  it('Keeps order of entities after removal', () => {
+    const {query, entities} = setup();
+    entities[1].remove(Health);
+    expect(collect(query).map(([entity]) => entity)).toEqual([entities[0], entities[2]]);
+    expect(query.entities).toEqual([entities[0], entities[2]]);
+    entities[1].add(new Health());
+    expect(query.entities).toEqual([entities[0], entities[2], entities[1]]);
+  });
+
+  it('Passes replaced component', () => {
+    const {query, entities} = setup();
+    const health = new Health(10);
+    entities[0].add(health);
+    expect(collect(query).find(([entity]) => entity === entities[0])![2]).toBe(health);
+  });
+
+  it('Passes the head of linked components', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Buff).build();
+    engine.addQuery(query);
+    const entity = new Entity().append(new Buff(1)).append(new Buff(2));
+    engine.addEntity(entity);
+    expect(collect(query)[0][1]).toBe(entity.get(Buff));
+    entity.pick(entity.get(Buff)!);
+    expect(collect(query)[0][1]).toBe(entity.get(Buff));
+  });
+
+  it('Skips entities removed during iteration and visits added ones in the next call', () => {
+    const {engine, query, entities} = setup();
+    const added = new Entity().add(new Position()).add(new Health()).add('tag');
+    const visited: Entity[] = [];
+    query.forEach((entity) => {
+      visited.push(entity);
+      if (entity === entities[0]) {
+        engine.removeEntity(entities[1]);
+        engine.addEntity(added);
+      }
+    });
+    expect(visited).toEqual([entities[0], entities[2]]);
+    expect(collect(query).map(([entity]) => entity)).toEqual([entities[0], entities[2], added]);
+  });
+
+  it('Predicate query passes only entities', () => {
+    const {engine, entities} = setup();
+    const query = new Query((entity) => entity.has(Position));
+    engine.addQuery(query);
+    const visited: unknown[][] = [];
+    query.forEach((...args) => visited.push(args));
+    expect(visited).toEqual(entities.map((entity) => [entity]));
+  });
+
+  it('Infers types of components', () => {
+    const query = new QueryBuilder().with(Position).with('tag', Health).build();
+    query.forEach((entity: Entity, position: Position, health: Health) => {
+      position.x = health.value;
+    });
+    // @ts-expect-error components are passed in the specified order
+    query.forEach((entity: Entity, health: Health, position: Position) => undefined);
+    // Typed query can be used where a query with unknown components is expected
+    const untyped: Query = query;
+    expect(untyped).toBe(query);
+  });
+
+  it('Is empty after query is cleared', () => {
+    const {engine, query} = setup();
+    engine.removeQuery(query);
+    expect(collect(query)).toEqual([]);
+    expect(query.length).toBe(0);
+    expect(query.first).toBeUndefined();
+  });
+});
+
+describe('Lazy snapshot', () => {
+  it('Previous state is correct if handler changes entity before accessing it', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position, View).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position()).add(new View());
+    engine.addEntity(entity);
+    const results: boolean[] = [];
+    query.onEntityRemoved.connect(({current, previous}) => {
+      current.add(new Move());
+      current.remove(Position);
+      results.push(previous.has(Position), previous.has(View), previous.has(Move));
+    });
+    entity.remove(View);
+    expect(results).toEqual([true, true, false]);
+  });
+
+  it('Previous state is correct for consecutive changes of the same entity', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new View());
+    engine.addEntity(entity);
+    const log: string[] = [];
+    query.onEntityAdded.connect(({previous}) => log.push(`added ${previous.has(Position)} ${previous.has(Move)}`));
+    query.onEntityRemoved.connect(({previous}) => log.push(`removed ${previous.has(Position)} ${previous.has(Move)}`));
+    entity.add(new Position());
+    entity.add(new Move());
+    entity.remove(Position);
+    expect(log).toEqual(['added false false', 'removed true true']);
+  });
+});
+
+describe('Clearing a query during iteration', () => {
+  class A {}
+
+  it('Expected that forEach stops visiting entities after the query is removed from the engine', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(A).build();
+    engine.addQuery(query);
+    for (let i = 0; i < 3; i++) engine.addEntity(new Entity().add(new A()));
+    let calls = 0;
+    query.forEach(() => {
+      calls++;
+      engine.removeQuery(query);
+    });
+    expect(calls).toBe(1);
+    expect(query.isEmpty).toBe(true);
+  });
+
+  it('Expected that the query works after it was cleared during iteration', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(A).build();
+    engine.addQuery(query);
+    engine.addEntity(new Entity().add(new A()));
+    query.forEach(() => query.clear());
+    engine.removeQuery(query);
+    engine.addQuery(query);
+    const entity = new Entity().add(new A());
+    engine.addEntity(entity);
+    const visited: Entity[] = [];
+    query.forEach((it) => visited.push(it));
+    expect(visited.length).toBe(2);
+    expect(query.length).toBe(2);
+    expect(query.entities).toContain(entity);
+  });
+});
+
+describe('Query exclusions', () => {
+  const DESTROYED = 'destroyed';
+
+  it('Entities with an excluded component or tag don\'t match the query', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).without(View, DESTROYED).build();
+    engine.addQuery(query);
+    const moving = new Entity().add(new Position());
+    const viewed = new Entity().add(new Position()).add(new View());
+    const destroyed = new Entity().add(new Position()).add(DESTROYED);
+    engine.addEntity(moving).addEntity(viewed).addEntity(destroyed);
+
+    expect(query.entities).toEqual([moving]);
+  });
+
+  it('Entity leaves the query when it gets an excluded component or tag, and joins it when it loses them', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).without(Stay, DESTROYED).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    const added = jest.fn();
+    const removed = jest.fn();
+    query.onEntityAdded.connect(added);
+    query.onEntityRemoved.connect(removed);
+
+    entity.add(DESTROYED);
+    expect(query.has(entity)).toBeFalsy();
+    expect(removed).toHaveBeenCalledTimes(1);
+
+    entity.add(new Stay());
+    entity.remove(DESTROYED);
+    expect(query.has(entity)).toBeFalsy();
+
+    entity.remove(Stay);
+    expect(query.has(entity)).toBeTruthy();
+    expect(added).toHaveBeenCalledTimes(1);
+  });
+
+  it('Exclusions are listed together with components and tags', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position, without(DESTROYED), View).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position(1, 2)).add(new View());
+    engine.addEntity(entity);
+
+    const callback = jest.fn();
+    query.forEach(callback);
+    expect(callback).toHaveBeenCalledWith(entity, entity.get(Position), entity.get(View));
+
+    entity.add(DESTROYED);
+    expect(query.isEmpty).toBeTruthy();
+  });
+
+  it('Removed entity that had an excluded tag doesn\'t leave the query twice', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(Position).without(DESTROYED).build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position());
+    engine.addEntity(entity);
+    const removed = jest.fn();
+    query.onEntityRemoved.connect(removed);
+
+    entity.add(DESTROYED);
+    engine.removeEntity(entity);
+    expect(removed).toHaveBeenCalledTimes(1);
+  });
+
+  it('Queries matched with existing entities respect exclusions', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Position()).add(DESTROYED);
+    engine.addEntity(entity);
+    const query = new QueryBuilder().with(Position).without(DESTROYED).build();
+    engine.addQuery(query);
+    expect(query.isEmpty).toBeTruthy();
+
+    entity.remove(DESTROYED);
+    expect(query.has(entity)).toBeTruthy();
+  });
+});
+
+describe('Deprecated QueryBuilder.contains', () => {
+  it('Works the same way as with', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(Position, 'tag').build();
+    engine.addQuery(query);
+    const entity = new Entity().add(new Position()).add('tag');
+    engine.addEntity(entity);
+    expect(query.entities).toEqual([entity]);
   });
 });

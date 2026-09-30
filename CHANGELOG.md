@@ -1,3 +1,115 @@
+# 5.0.0 (unreleased)
+
+Features:
+
+- Typed queries: `QueryBuilder` infers types of components, `Query.forEach((entity, position, velocity) => ...)`
+  passes components of every entity in the order they were specified.
+- `IterativeSystem.of(Position, Velocity)` creates a base class of the system, which `updateEntity` receives components
+  of the entity with inferred types. It's several times faster than `entity.get` for every entity. Components are
+  passed without allocations for any number of components.
+- `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
+  receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
+  removing, including the removed one.
+- `QueryBuilder.with(Position, Velocity)` specifies components and tags entities must have, and pairs with `without`.
+  `QueryBuilder.contains` is deprecated and will be removed in the next major version.
+- Exclusions: `QueryBuilder.without(Frozen, DESTROYED)` and `without(...)` listed together with components, like
+  `IterativeSystem.of(Position, without(Frozen))`, exclude entities with specific components or tags. An entity leaves
+  the query when it gets an excluded component or tag, and joins it again when it's removed.
+- Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
+  geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
+- Examples: Snake in the terminal and Asteroids in the browser, see `examples` folder.
+- Functional systems: `engine.iterative([Position, Velocity], (entity, dt, position, velocity) => ...)` and
+  `engine.reactive([View], {added, removed})` create systems from functions with inferred types of components.
+- Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.getSystemId`
+  returns the identifier of a system, `Engine.removeSystem` accepts a system or its identifier. Identifiers are kept
+  by the engine, so they don't conflict with properties of systems.
+- `Entity.iterate`, `Entity.getAll` and `Entity.lengthOf` work for standard components, as it was documented:
+  the single instance is visited.
+
+Breaking changes:
+
+- `Engine.sharedConfig` and `System.sharedConfig` are removed. Data shared between systems doesn't need to be an entity:
+  pass it to class-based systems in the constructor, or read it from the closure in functional systems.
+- `Query.entities` returns a snapshot array, which is rebuilt after the query is changed, instead of the live array.
+  Entities added to the query during `IterativeSystem` update or `Query.forEach` are processed starting from the next
+  update.
+- `EntitySnapshot.previous` is restored when it's accessed. A snapshot kept after its handler has returned reflects the
+  state of the entity at the moment of access.
+- `Query` is generic: `Query<C>`, where `C` are types of components. `Query` without type arguments accepts any query.
+  Components of a list, which length is not known at compile time, like `with(...list)`, are typed as `unknown[]`.
+- `Engine.removeEntity` removes entities safely by default, as promised in 4.3.0: entities removed during the update are
+  removed after all systems have been updated, the `safe` argument is removed. Outside of the update entities are
+  removed immediately. Until the end of the update removed entities stay in `Engine.entities` and queries, but
+  `Engine.getEntityById` doesn't find them. `Engine.removeAllEntities` works the same way during the update, while
+  `Engine.clear` removes everything immediately.
+- Systems added during the update are updated starting from the next update, systems removed during the update are
+  not updated anymore. Before, adding or removing a system during the update could skip the next system or update
+  a system twice.
+- Handlers connected to a `Signal` during `emit` are called starting from the next `emit`. Before, they were called in
+  the same `emit`, and disconnecting a handler during `emit` skipped the next one.
+- Replacing a component with `entity.add` removes the entity from queries and adds it again, as before, so the entity
+  moves to the end of queries. During `Query.forEach` or `IterativeSystem` update such an entity is visited in the next
+  iteration, as any other entity added to the query during iteration.
+- `QueryBuilder.with` (and deprecated `contains`) accepts only component classes, tags and exclusions, instead of any
+  values.
+- `Entity.components` is an array indexed by component ids instead of an object.
+- Component ids are stored in symbol properties of component classes. The `__componentClassId__` property is not
+  used anymore.
+
+Performance:
+
+- Queries store entities and their components in dense arrays: membership checks, adding and removing entities
+  are O(1) instead of O(n), removed entities are compacted lazily keeping the order.
+  `Query.entities` is rebuilt lazily, only after the query has changed.
+- Engine indexes queries built by `QueryBuilder` by their components and tags, so a component change validates
+  only the queries depending on it. Predicate queries are still validated on every change.
+- Engine removes entities in O(1).
+- `Signal.emit` no longer allocates arguments twice per handler.
+- Component class id is stored in symbol properties of the class instead of being checked with `hasOwnProperty`.
+  `Entity.get`/`has` are several times faster.
+- Entities are ~4x lighter in memory (≈370 bytes instead of ≈1470 bytes for an entity with two components):
+  signals, tags and linked components are allocated lazily, components are stored in an array of exact length,
+  Engine tracks entity changes directly instead of connecting three signal handlers to every entity, and positions of
+  the entity in queries are stored in the entity itself. Iteration over large queries is faster due to better cache
+  locality.
+- `EntitySnapshot.previous` is restored lazily, only when it's accessed. If the entity is changed while a snapshot
+  is being dispatched, previous state is restored before the change.
+
+Fixes:
+
+- `IterativeSystem` no longer skips the next entity when the current one is removed from the query during update,
+  and doesn't update entities removed from the query earlier in the same update.
+- `onComponentAdded`/`onComponentRemoved` handlers now receive the resolve class of the component, so snapshots
+  are correct for components added with `resolveClass`.
+- Query built by `QueryBuilder` is no longer affected by calling `with` on the builder after `build`.
+- `Engine.removeAllSystems` detaches systems from the engine, the same way `Engine.removeSystem` does.
+- Components added to an entity by handlers of `Engine.onEntityAdded` or `Query.onEntityAdded`, for example in
+  `entityAdded` of a reaction system, update all queries. Before, queries that had already received the entity
+  missed such changes. Changes made by handlers of removed entities no longer add them back to queries.
+- Removing a query while the engine notifies queries, for example when a reaction system removes itself, no longer
+  makes other queries miss the change.
+- `Query.forEach` stops visiting entities when the query is cleared or removed from the engine during iteration.
+- Adding the same query to the engine twice no longer adds it twice.
+- An entity removed during the update and added back is kept, even if all entities were removed in between.
+  Entities removed during the update are removed even if a system throws an error.
+- A system removed after requesting removal and added again is not removed after its first update.
+- Engine doesn't keep index entries of tags and components, that no query depends on anymore.
+- `Engine.iterative` and `Engine.reactive` accept readonly tuples of components, for example declared with `as const`.
+
+Tooling:
+
+- Continuous benchmarking: Bencher runs the benchmark on bare metal on every push to `develop` and pull request to it.
+  `pnpm bench` gained `--format json` (Bencher Metric Format) and `--prepare` options.
+- Migrated from yarn to pnpm. The repository is a pnpm workspace with the library, benchmarks and examples.
+- Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
+  for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
+- Compilation target is ES2017, which the library already required at runtime (`Object.values`).
+- CI runs on Node.js 22 and 24. Stale Travis CI configuration is removed.
+- The package is published to npm only when a version tag is pushed, and the tag must match the version in
+  `package.json`.
+- Development dependencies are updated: Jest 30, types of Node.js 22. The yarn lockfile, which had vulnerable
+  development dependencies, is replaced by the pnpm one.
+
 # 4.3.0
 
 Features:

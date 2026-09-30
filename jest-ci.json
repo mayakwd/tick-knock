@@ -1,6 +1,6 @@
 {
   "transform": {
-    "^.+\\.tsx?$": "ts-jest"
+    "^.+\\.tsx?$": "@swc/jest"
   },
   "collectCoverage": true,
   "moduleFileExtensions": [

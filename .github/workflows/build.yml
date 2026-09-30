@@ -3,9 +3,9 @@ name: build
 on:
   workflow_dispatch:
   push:
-    branches: [ $default-branch ]
+    branches: [ develop ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ develop ]
 
 jobs:
   build:
@@ -13,22 +13,33 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [ 20 ]
+        node-version: [ 22, 24 ]
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: yarn build
+        run: pnpm build
+
+      - name: Check types
+        run: pnpm typecheck
 
       - name: Run tests
-        run: yarn test-ci
+        run: pnpm test-ci
+
+      - name: Check examples
+        run: |
+          pnpm --filter tick-knock-examples typecheck
+          pnpm --filter tick-knock-examples test

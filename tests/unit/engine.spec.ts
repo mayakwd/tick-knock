@@ -42,7 +42,7 @@ class TestSystem2 extends TestSystem {
 
 class TestSystem3 extends TestSystem {
   public constructor(arr?: number[]) {
-    super(new QueryBuilder().contains(Component), arr);
+    super(new QueryBuilder().with(Component), arr);
   }
 }
 
@@ -120,7 +120,7 @@ describe('System manipulation', () => {
   it(`Expected that removing not attached system will not throw an error`, () => {
     const engine = new Engine();
     const system = new TestSystem1();
-    expect(() => { engine.removeSystem(system);}).not.toThrowError();
+    expect(() => { engine.removeSystem(system);}).not.toThrow();
   });
 
   it('Engine updating', () => {
@@ -305,7 +305,7 @@ describe('System manipulation', () => {
     const TAG = 1;
     const query = new Query((entity: Entity) => entity.has(TAG));
     const engine = new Engine();
-    expect(() => {engine.removeQuery(query);}).not.toThrowError();
+    expect(() => {engine.removeQuery(query);}).not.toThrow();
   });
 
   it(`Expected that adding the same entity twice will add it only once`, () => {
@@ -346,5 +346,212 @@ describe('System manipulation', () => {
     engine.addEntity(entity);
     engine.removeEntity(entity);
     expect(engine.getEntityById(id)).toBeUndefined();
+  });
+});
+
+describe('Changing entities in handlers', () => {
+  class Marker {}
+
+  class View {}
+
+  it('Expected that components added by handlers of added entities update predicate queries', () => {
+    const engine = new Engine();
+    const views = new Query((entity) => entity.has(View));
+    const markers = new QueryBuilder().with(Marker).build();
+    engine.addQuery(views).addQuery(markers);
+    markers.onEntityAdded.connect(({current}) => current.add(new View()));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+
+    expect(views.entities).toEqual([entity]);
+  });
+
+  it('Expected that components added by handlers of added entities update queries added before', () => {
+    const engine = new Engine();
+    const views = new QueryBuilder().with(View).build();
+    const markers = new QueryBuilder().with(Marker).build();
+    engine.addQuery(views).addQuery(markers);
+    markers.onEntityAdded.connect(({current}) => current.add(new View()));
+    const added: Entity[] = [];
+    views.onEntityAdded.connect(({current}) => added.push(current));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+
+    expect(views.entities).toEqual([entity]);
+    expect(added).toEqual([entity]);
+  });
+
+  it('Expected that changes made by handlers of removed entities don\'t add them back to queries', () => {
+    const engine = new Engine();
+    const any = new Query(() => true);
+    const markers = new QueryBuilder().with(Marker).build();
+    engine.addQuery(any).addQuery(markers);
+    markers.onEntityRemoved.connect(({current}) => current.add(new View()));
+
+    const entity = new Entity().add(new Marker());
+    engine.addEntity(entity);
+    engine.removeEntity(entity);
+
+    expect(markers.entities).toEqual([]);
+    expect(any.entities).toEqual([]);
+  });
+});
+
+describe('Changing the engine during the update', () => {
+  class Marker {}
+
+  class LogSystem extends System {
+    public constructor(private readonly name: string, private readonly log: string[], private readonly action?: (system: LogSystem) => void) {
+      super();
+    }
+
+    public update(): void {
+      this.log.push(this.name);
+      this.action?.(this);
+    }
+
+    public remove(): void {
+      this.requestRemoval();
+    }
+  }
+
+  it('Expected that clearing the engine from a system doesn\'t update removed systems', () => {
+    const log: string[] = [];
+    const engine = new Engine()
+      .addSystem(new LogSystem('restart', log, (system) => system.engine.clear()), 0)
+      .addSystem(new LogSystem('other', log, (system) => system.engine), 1);
+    expect(() => engine.update(1)).not.toThrow();
+    expect(log).toEqual(['restart']);
+  });
+
+  it('Expected that a system requesting removal doesn\'t skip the next system', () => {
+    const log: string[] = [];
+    const engine = new Engine()
+      .addSystem(new LogSystem('a', log, (system) => system.remove()), 0)
+      .addSystem(new LogSystem('b', log), 1);
+    engine.update(1);
+    engine.update(1);
+    expect(log).toEqual(['a', 'b', 'b']);
+    expect(engine.systems.length).toBe(1);
+  });
+
+  it('Expected that removing a system from another one doesn\'t skip systems', () => {
+    const log: string[] = [];
+    const engine = new Engine();
+    engine
+      .addSystem(new LogSystem('a', log, () => engine.removeSystem('b')), {priority: 0})
+      .addSystem(new LogSystem('b', log), {priority: 1, id: 'b'})
+      .addSystem(new LogSystem('c', log), {priority: 2});
+    engine.update(1);
+    expect(log).toEqual(['a', 'c']);
+  });
+
+  it('Expected that systems added during the update are updated starting from the next update', () => {
+    const log: string[] = [];
+    const engine = new Engine();
+    let added = false;
+    engine.addSystem(new LogSystem('late', log, () => {
+      if (added) return;
+      added = true;
+      engine.addSystem(new LogSystem('early', log), 0);
+    }), 10);
+    engine.update(1);
+    expect(log).toEqual(['late']);
+    engine.update(1);
+    expect(log).toEqual(['late', 'early', 'late']);
+  });
+
+  it('Expected that a system added again after requesting removal is not removed', () => {
+    const log: string[] = [];
+    const engine = new Engine();
+    const system = new LogSystem('once', log, (it) => it.remove());
+    engine.addSystem(system);
+    engine.update(1);
+    engine.addSystem(new LogSystem('noop', log));
+    const again = new LogSystem('again', log);
+    engine.addSystem(again);
+    engine.update(1);
+    expect(engine.systems).toContain(again);
+  });
+
+  it('Expected that removing all entities during the update is deferred', () => {
+    const engine = new Engine();
+    const entity = new Entity().add(new Marker());
+    const query = new QueryBuilder().with(Marker).build();
+    engine.addQuery(query).addEntity(entity);
+    let inQuery = false;
+    engine.addSystem(new LogSystem('clear', [], () => {
+      engine.removeAllEntities();
+      inQuery = query.has(entity);
+    }));
+    engine.update(1);
+    expect(inQuery).toBe(true);
+    expect(engine.entities).toEqual([]);
+    expect(query.isEmpty).toBe(true);
+  });
+
+  it('Expected that an entity added again after removing all entities is kept', () => {
+    const engine = new Engine();
+    const entity = new Entity();
+    engine.addEntity(entity);
+    engine.addSystem(new LogSystem('readd', [], () => {
+      engine.removeEntity(entity);
+      engine.clear();
+      engine.addEntity(entity);
+    }));
+    engine.update(1);
+    expect(engine.getEntityById(entity.id)).toBe(entity);
+  });
+
+  it('Expected that entities removed before an error in the update are removed', () => {
+    const engine = new Engine();
+    const entity = new Entity();
+    engine.addEntity(entity);
+    engine.addSystem(new LogSystem('failing', [], () => {
+      engine.removeEntity(entity);
+      throw new Error('Failed');
+    }));
+    expect(() => engine.update(1)).toThrow('Failed');
+    expect(engine.entities).toEqual([]);
+  });
+});
+
+describe('Removing queries while the engine notifies them', () => {
+  class A {}
+
+  it('Expected that removing a query on a component change doesn\'t skip other queries', () => {
+    const engine = new Engine();
+    const q1 = new QueryBuilder().with(A).build();
+    const q2 = new QueryBuilder().with(A).build();
+    const q3 = new QueryBuilder().with(A).build();
+    engine.addQuery(q1).addQuery(q2).addQuery(q3);
+    q1.onEntityAdded.connect(() => engine.removeQuery(q1));
+    const entity = new Entity();
+    engine.addEntity(entity);
+    entity.add(new A());
+    expect(q2.has(entity)).toBe(true);
+    expect(q3.has(entity)).toBe(true);
+  });
+
+  it('Expected that removing a query on adding an entity doesn\'t skip other queries', () => {
+    const engine = new Engine();
+    const q1 = new QueryBuilder().with(A).build();
+    const q2 = new QueryBuilder().with(A).build();
+    engine.addQuery(q1).addQuery(q2);
+    q1.onEntityAdded.connect(() => engine.removeQuery(q1));
+    const entity = new Entity().add(new A());
+    engine.addEntity(entity);
+    expect(q2.has(entity)).toBe(true);
+  });
+
+  it('Expected that adding a query twice and removing it once removes it', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().with(A).build();
+    engine.addQuery(query).addQuery(query).removeQuery(query);
+    engine.addEntity(new Entity().add(new A()));
+    expect(engine.queries).toEqual([]);
+    expect(query.isEmpty).toBe(true);
   });
 });

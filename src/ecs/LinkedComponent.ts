@@ -2,7 +2,6 @@
  * Linked list interface for linked components
  * @see {@link Entity.append}
  */
-
 export interface ILinkedComponent {
   id?: string;
   next?: ILinkedComponent;

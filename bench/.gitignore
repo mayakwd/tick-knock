@@ -1,0 +1,4 @@
+dist
+node_modules
+# Installed baseline versions of tick-knock
+.baseline

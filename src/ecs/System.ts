@@ -30,15 +30,6 @@ export abstract class System {
   }
 
   /**
-   * Gets an {@link Entity} instance that is shared across all systems and can be used as a config.
-   * @return {Entity}
-   */
-  protected get sharedConfig(): Entity {
-    if (this._engine === undefined) throw new Error(`Property "sharedConfig" can't be accessed when system is not added to the engine`);
-    return this._engine.sharedConfig;
-  }
-
-  /**
    * Gets a priority of the system
    */
   public get priority(): number {
@@ -109,6 +100,16 @@ export abstract class System {
    */
   public setEngine(engine: Engine | undefined): void {
     this._engine = engine;
+    // A removed system can be added again, and it must not be removed right after its first update
+    this._isRemovalRequested = false;
+  }
+
+  /**
+   * Returns a value indicating whether the system is added to the engine
+   * @internal
+   */
+  public isAttachedTo(engine: Engine): boolean {
+    return this._engine === engine;
   }
 
   /**

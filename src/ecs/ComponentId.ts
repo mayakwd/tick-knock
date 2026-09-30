@@ -11,10 +11,16 @@ export function getComponentId<T>(
   component: Class<T>,
   createIfNotExists: boolean = false,
 ): number | undefined {
-  if (component.hasOwnProperty(COMPONENT_CLASS_ID)) {
-    return (component as ComponentId<T>)[COMPONENT_CLASS_ID];
+  const componentClass = component as ComponentClass<T>;
+  // Id is stored on the class itself together with its owner. Subclasses inherit both properties,
+  // so the owner check tells whether the id belongs to this exact class.
+  if (componentClass[COMPONENT_CLASS_OWNER] === componentClass) {
+    return componentClass[COMPONENT_CLASS_ID];
   } else if (createIfNotExists) {
-    return (component as ComponentId<T>)[COMPONENT_CLASS_ID] = componentClassId++;
+    const id = componentClassId++;
+    Object.defineProperty(componentClass, COMPONENT_CLASS_ID, {value: id});
+    Object.defineProperty(componentClass, COMPONENT_CLASS_OWNER, {value: componentClass});
+    return id;
   }
   return undefined;
 }
@@ -33,10 +39,11 @@ export function getComponentClass<T extends K, K>(component: NonNullable<T>, res
   return componentClass;
 }
 
-let COMPONENT_CLASS_ID = '__componentClassId__';
+const COMPONENT_CLASS_ID: unique symbol = Symbol('componentClassId');
+const COMPONENT_CLASS_OWNER: unique symbol = Symbol('componentClassOwner');
 let componentClassId: number = 1;
 
-type ComponentId<T> = Class<T> & {
-  [key: string]: number;
+type ComponentClass<T> = Class<T> & {
+  [COMPONENT_CLASS_ID]?: number;
+  [COMPONENT_CLASS_OWNER]?: Class<T>;
 };
-

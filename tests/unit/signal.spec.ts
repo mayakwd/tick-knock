@@ -42,3 +42,32 @@ describe('Signals', function () {
     expect(signal.hasHandlers).toBeFalsy();
   });
 });
+
+describe('Changing handlers during emit', () => {
+  it('Expected that a handler disconnecting itself doesn\'t skip the next handler', () => {
+    const signal = new Signal<() => void>();
+    const log: string[] = [];
+    const first = () => {
+      log.push('first');
+      signal.disconnect(first);
+    };
+    signal.connect(first);
+    signal.connect(() => log.push('second'));
+    signal.emit();
+    signal.emit();
+    expect(log).toEqual(['first', 'second', 'second']);
+  });
+
+  it('Expected that a handler connected during emit is called starting from the next emit', () => {
+    const signal = new Signal<() => void>();
+    const log: string[] = [];
+    signal.connect(() => {
+      log.push('first');
+      signal.connect(later);
+    });
+    const later = () => log.push('later');
+    signal.emit();
+    signal.emit();
+    expect(log).toEqual(['first', 'first', 'later']);
+  });
+});

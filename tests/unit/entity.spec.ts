@@ -68,6 +68,21 @@ describe('Components id', () => {
 
     expect(positionId == viewId).toBeFalsy();
   });
+
+  it('Subclass does not inherit component id of its parent', () => {
+    class Parent {
+    }
+
+    class Child extends Parent {
+    }
+
+    const parentId = getComponentId(Parent, true);
+    expect(getComponentId(Child)).toBeUndefined();
+    const childId = getComponentId(Child, true);
+    expect(childId).toBeDefined();
+    expect(childId).not.toBe(parentId);
+    expect(getComponentId(Parent)).toBe(parentId);
+  });
 });
 
 describe('Components and Tags', () => {
@@ -289,7 +304,7 @@ describe('Components and Tags', () => {
     expect(() => {
       entity.append(damage);
       entity.append(damage);
-    }).toThrowError();
+    }).toThrow();
   });
 
   it(`Expected that specifying not ancestor as a resolve class for appended component throws an error`, () => {
@@ -320,7 +335,7 @@ describe('Components and Tags', () => {
         entity.append(new Damage(i));
       }
       entity.append(damage);
-    }).toThrowError();
+    }).toThrow();
   });
 
   it(`Expected that appending the two different instances of linked component will not throw an error`, () => {
@@ -328,7 +343,7 @@ describe('Components and Tags', () => {
     expect(() => {
       entity.append(new Damage(10));
       entity.append(new Damage(10));
-    }).not.toThrowError();
+    }).not.toThrow();
   });
 
   it(`Expected that appending the two different instances of linked component will trigger onComponentAdded only once`, () => {
@@ -609,7 +624,7 @@ describe('Snapshot', () => {
     class Component {}
 
     const snapshot = new EntitySnapshot();
-    expect(() => snapshot.previous.get(Component)).not.toThrowError();
+    expect(() => snapshot.previous.get(Component)).not.toThrow();
     expect(snapshot.previous.get(Component)).toBeUndefined();
   });
 
@@ -623,7 +638,7 @@ describe('Snapshot', () => {
 
     const snapshot = new EntitySnapshot();
     entity.takeSnapshot(snapshot, new Component());
-    expect(() => snapshot.previous.get(NotAComponent)).not.toThrowError();
+    expect(() => snapshot.previous.get(NotAComponent)).not.toThrow();
     expect(snapshot.previous.get(NotAComponent)).toBeUndefined();
   });
 
@@ -703,5 +718,36 @@ describe('Snapshot', () => {
     });
     entity.add(new Damage(100));
     expect(removedNumber).toBe(3);
+  });
+});
+
+describe('Iterating standard components', () => {
+  class Health {
+    public constructor(public value: number) {}
+  }
+
+  it('Expected that iterate, getAll and lengthOf work for a standard component', () => {
+    const health = new Health(10);
+    const entity = new Entity().add(health);
+    const iterated: Health[] = [];
+    entity.iterate(Health, (it) => iterated.push(it));
+    expect(iterated).toEqual([health]);
+    expect(Array.from(entity.getAll(Health))).toEqual([health]);
+    expect(entity.lengthOf(Health)).toBe(1);
+  });
+
+  it('Expected that iterating a standard component doesn\'t create a list of linked components', () => {
+    const entity = new Entity().add(new Health(10));
+    entity.iterate(Health, () => undefined);
+    expect(entity.getLinkedComponentList(Health, false)).toBeUndefined();
+  });
+
+  it('Expected that iterate, getAll and lengthOf find nothing without the component', () => {
+    const entity = new Entity();
+    let called = false;
+    entity.iterate(Health, () => called = true);
+    expect(called).toBe(false);
+    expect(Array.from(entity.getAll(Health))).toEqual([]);
+    expect(entity.lengthOf(Health)).toBe(0);
   });
 });
