@@ -1,11 +1,10 @@
+import {Cooldown} from '../../shared/Cooldown';
+
 /**
  * Fires a few bullets in a direction, that rotates after every shot
  */
 export class SpiralPattern {
-  /**
-   * Time in seconds until the next shot
-   */
-  public cooldown: number;
+  public readonly cooldown: Cooldown;
   /**
    * Current direction of the spiral in radians
    */
@@ -15,7 +14,7 @@ export class SpiralPattern {
     /**
      * Time in seconds between shots
      */
-    public readonly interval: number,
+    interval: number,
     /**
      * Amount of bullets in one shot, spread evenly around the circle
      */
@@ -33,6 +32,6 @@ export class SpiralPattern {
      */
     delay: number,
   ) {
-    this.cooldown = delay;
+    this.cooldown = new Cooldown(interval, delay);
   }
 }

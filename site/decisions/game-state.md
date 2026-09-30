@@ -19,21 +19,32 @@ interface Economy {
 ```
 
 The game changes it when messages arrive: systems report kills and escapes, and don't touch gold and lives at all.
-When a system needs such state, the game passes the object to its constructor, as described below.
+When a system needs such state, it gets it explicitly, as described below.
 
-## Dependencies are passed to constructors
+## Dependencies are explicit
 
-Class-based systems receive shared data in their constructors, functional systems read it from the closure:
+Functional systems read shared data from the closure, class-based systems receive it in their constructors:
 
 ```typescript
 const controls: Controls = {left: false, right: false, thrust: false, fire: false};
-engine.addSystem(new ShipControlSystem(controls));
+engine.iterative([Position, Velocity, Rotation, Gun, SHIP], (ship, dt, position, velocity, rotation, gun) => {
+  if (controls.fire) {
+    // ...
+  }
+});
+engine.addSystem(new SpawnSystem(waves));
 ```
 
-It's explicit: looking at the constructor, you see everything the system depends on.
+It's explicit: looking at the closure or at the constructor, you see everything the system depends on.
 
 > 💡 Before 5.0, there was `Engine.sharedConfig`, an entity shared by all systems. It was removed: passing data
 > explicitly is simpler and typed.
+
+## State of an entity stays in the entity
+
+Lives of the player in the [Bullet hell](/tutorials/bullet-hell) are a component of the player, and the game doesn't
+keep a copy of them. It reads the component when it shows the status: there is one source of truth, and nothing to
+keep in sync.
 
 ## State of a system stays in the system
 

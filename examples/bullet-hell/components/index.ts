@@ -3,6 +3,7 @@ export * from './Collider';
 export * from './Enemy';
 export * from './Gun';
 export * from './Health';
+export * from './Hit';
 export * from './Invulnerable';
 export * from './Lives';
 export * from './Position';

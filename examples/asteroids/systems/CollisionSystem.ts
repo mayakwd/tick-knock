@@ -1,10 +1,11 @@
 import {Entity, QueryBuilder, System} from 'tick-knock';
-import {Asteroid, Collider, Position, Ship} from '../components';
+import {Size, wrappedDifference} from '../../shared/geometry';
+import {Asteroid, Collider, Position} from '../components';
 import {AsteroidDestroyed, ShipDestroyed} from '../messages';
-import {BULLET} from '../tags';
+import {BULLET, SHIP} from '../tags';
 
 /**
- * Detects collisions of bullets with asteroids, and of the ship with asteroids.
+ * Detects collisions of bullets with asteroids, and of the ship with asteroids, and reports them with messages.
  *
  * Entities removed during the update are removed after it, so collided entities lose their colliders immediately:
  * they leave collision queries and can't collide once again in the same update.
@@ -12,12 +13,12 @@ import {BULLET} from '../tags';
 export class CollisionSystem extends System {
   private readonly bullets = new QueryBuilder().contains(Position, Collider, BULLET).build();
   private readonly asteroids = new QueryBuilder().contains(Position, Collider, Asteroid).build();
-  private readonly ships = new QueryBuilder().contains(Position, Collider, Ship).build();
+  private readonly ships = new QueryBuilder().contains(Position, Collider, SHIP).build();
 
   /**
-   * @param split Splits the destroyed asteroid into smaller ones
+   * @param screen Size of the screen, which wraps around, so objects at opposite edges can collide
    */
-  public constructor(private readonly split: (asteroid: Entity) => void) {
+  public constructor(private readonly screen: Size) {
     super();
   }
 
@@ -30,25 +31,39 @@ export class CollisionSystem extends System {
   }
 
   public update(): void {
-    this.asteroids.forEach((asteroid, asteroidPosition, asteroidCollider, {size}) => {
+    this.asteroids.forEach((asteroid, asteroidPosition, asteroidCollider) => {
       this.bullets.forEach((bullet, bulletPosition, bulletCollider) => {
-        if (!this.asteroids.has(asteroid) || !collides(asteroidPosition, asteroidCollider, bulletPosition, bulletCollider)) return;
-        bullet.remove(Collider);
-        this.engine.removeEntity(bullet);
-        this.split(asteroid);
-        this.dispatch(new AsteroidDestroyed(size));
+        // The asteroid could have been destroyed by another bullet of this update
+        if (!this.asteroids.has(asteroid)) return;
+        if (!this.collide(asteroidPosition, bulletPosition, asteroidCollider.radius + bulletCollider.radius)) return;
+        this.destroy(bullet);
+        this.destroy(asteroid);
+        this.dispatch(new AsteroidDestroyed(asteroid));
       });
       this.ships.forEach((ship, shipPosition, shipCollider) => {
-        if (!this.asteroids.has(asteroid) || !collides(asteroidPosition, asteroidCollider, shipPosition, shipCollider)) return;
-        ship.remove(Collider);
-        this.engine.removeEntity(ship);
+        if (!this.asteroids.has(asteroid)) return;
+        if (!this.collide(asteroidPosition, shipPosition, asteroidCollider.radius + shipCollider.radius)) return;
+        this.destroy(ship);
         this.dispatch(new ShipDestroyed());
       });
     });
   }
-}
 
-function collides(a: Position, aCollider: Collider, b: Position, bCollider: Collider): boolean {
-  const distance = aCollider.radius + bCollider.radius;
-  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < distance * distance;
+  /**
+   * Returns a value indicating whether the points are closer than the distance. The distance is measured across
+   * the edges of the screen, so objects at opposite edges collide.
+   */
+  private collide(a: Position, b: Position, distance: number): boolean {
+    const dx = wrappedDifference(a.x, b.x, this.screen.width);
+    const dy = wrappedDifference(a.y, b.y, this.screen.height);
+    return dx * dx + dy * dy < distance * distance;
+  }
+
+  /**
+   * Removes the entity after the update, and removes its collider right away
+   */
+  private destroy(entity: Entity): void {
+    entity.remove(Collider);
+    this.engine.removeEntity(entity);
+  }
 }

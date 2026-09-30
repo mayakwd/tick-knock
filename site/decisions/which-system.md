@@ -2,9 +2,9 @@
 
 **Short answer:**
 
-- Small logic for every entity with some components — a functional system, `engine.iterative`, written right where
-  it's added to the engine.
-- Bigger logic, or logic with its own state — `IterativeSystem.of(...)` in its own file.
+- Logic for every entity with some components — a functional system, `engine.iterative`, written right where it's
+  added to the engine. It reads anything it needs from the closure: controls, settings, queries of the game.
+- Logic with its own state or its own queries — `IterativeSystem.of(...)` in its own file.
 - Logic that runs when entities appear or disappear — `engine.reactive` or `ReactionSystem.of(...)`.
 - Logic that works with several queries at once, or with no entities at all — `System`.
 
@@ -24,27 +24,38 @@ and the whole game loop is seen at once. A functional system is a closure, so it
 passing it around: the engine, the size of the screen, a query of the player, like the aimed pattern in the
 [Bullet hell](/tutorials/bullet-hell).
 
-> 💡 Don't move a small system into its own file just to make the game file shorter. When a system grows, or gets its
-> own state, make it a class.
-
-## Class-based iterative systems
-
-When a system is bigger, or has its own state, it's a class in its own file. Its dependencies, like controls, are
-passed to the constructor:
+Dependencies don't make a system a class. The ship control of [Asteroids](/tutorials/asteroids) reads the controls of
+the game from the closure, and it's twenty lines in place:
 
 ```typescript
-class ShipControlSystem extends IterativeSystem.of(Ship, Position, Velocity, Rotation) {
-  public constructor(private readonly controls: Controls) {
-    super();
+engine.iterative([Position, Velocity, Rotation, Gun, SHIP], (ship, dt, position, velocity, rotation, gun) => {
+  const {left, right, thrust, fire} = controls;
+  // ...
+});
+```
+
+> 💡 Don't move a small system into its own file just to make the game file shorter. When a system gets its own
+> state or its own queries, make it a class.
+
+## Class-based systems
+
+When a system has its own state or its own queries, it's a class in its own file. It adds its queries to the engine in
+`onAddedToEngine` and removes them in `onRemovedFromEngine`, so they live exactly as long as the system:
+
+```typescript
+class CollisionSystem extends System {
+  private readonly bullets = new QueryBuilder().contains(Position, Collider, BULLET).build();
+  private readonly asteroids = new QueryBuilder().contains(Position, Collider, Asteroid).build();
+
+  public onAddedToEngine(): void {
+    this.engine.addQuery(this.bullets).addQuery(this.asteroids);
   }
 
-  protected updateEntity(entity: Entity, dt: number, ship: Ship, position: Position, velocity: Velocity, rotation: Rotation) {
-    // ...
-  }
+  // ...
 }
 ```
 
-When a class needs additional queries, it adds them to the engine in `onAddedToEngine`.
+Data the system needs from the game, like the size of the screen, is passed to the constructor.
 
 ## Reaction systems
 
@@ -54,6 +65,10 @@ appears when the old one is eaten, the next wave starts when the last enemy is g
 ```typescript
 engine.reactive([Position, FOOD], {removed: spawnFood});
 ```
+
+Indexes are kept the same way: the grid of [Snake](/tutorials/snake) and spatial indexes of the
+[Tower defense](/tutorials/tower-defense) are maintained by reaction systems on the `Cell` component, and don't need
+an update at all.
 
 A reaction system is notified only about changes that happen after it has been added. If entities already exist,
 override `prepare` in a class-based reaction system to handle them, or add the system before the entities, as the

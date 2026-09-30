@@ -1,5 +1,5 @@
 import {Entity} from 'tick-knock';
-import {Lifetime, Position} from '../components';
+import {Cell, Lifetime} from '../components';
 import {SEGMENT} from '../tags';
 
 /**
@@ -7,7 +7,7 @@ import {SEGMENT} from '../tags';
  */
 export function createSegment(x: number, y: number, ticks: number): Entity {
   return new Entity()
-    .add(new Position(x, y))
+    .add(new Cell(x, y))
     .add(new Lifetime(ticks))
     .add(SEGMENT);
 }

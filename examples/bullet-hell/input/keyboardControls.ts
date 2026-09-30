@@ -4,7 +4,7 @@ import {Controls} from '../Controls';
 export const KEY_CODES = [
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
   'KeyA', 'KeyD', 'KeyW', 'KeyS',
-  'ShiftLeft', 'ShiftRight', 'Space', 'KeyZ', 'KeyR',
+  'ShiftLeft', 'ShiftRight', 'Space', 'KeyZ',
 ];
 
 /**

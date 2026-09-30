@@ -1,11 +1,12 @@
-import {Engine, QueryBuilder} from 'tick-knock';
+import {Engine, Entity} from 'tick-knock';
 import {Random} from '../shared/random';
-import {Body, Heading, Lifetime, Position} from './components';
-import {Controls} from './Controls';
+import {Body, Cell, Heading, Lifetime} from './components';
+import {START_LENGTH} from './config';
+import {Controls, DIRECTIONS} from './Controls';
 import {createFood, createHead, createSegment} from './entities';
+import {Grid} from './Grid';
 import {FoodEaten, GameOver} from './messages';
-import {CollisionSystem, SteeringSystem} from './systems';
-import {FOOD} from './tags';
+import {FOOD, HEAD, SEGMENT} from './tags';
 
 export interface SnakeGameOptions {
   width: number;
@@ -27,10 +28,18 @@ export interface SnakeGameOptions {
 export interface SnakeGame {
   readonly engine: Engine;
   readonly controls: Controls;
+  /**
+   * Entities indexed by their cells
+   */
+  readonly grid: Grid;
   readonly width: number;
   readonly height: number;
   readonly score: number;
   readonly isOver: boolean;
+  /**
+   * The snake has filled the whole board
+   */
+  readonly isWon: boolean;
 
   /**
    * Advances the game by one tick
@@ -39,69 +48,101 @@ export interface SnakeGame {
 }
 
 /**
- * Priorities of systems: the snake turns, moves, its tail shortens, and only then collisions are checked
+ * Priorities of systems: the snake turns, its tail shortens and frees its cell, and then the snake moves
  */
 export const Priority = {
   Steering: 0,
-  Movement: 1,
-  Aging: 2,
-  Collisions: 3,
+  Aging: 1,
+  Movement: 2,
   Render: 100,
 } as const;
 
 export function createSnakeGame({width, height, random = Math.random, setup}: SnakeGameOptions): SnakeGame {
   const engine = new Engine();
   const controls: Controls = {};
+  const grid = new Grid(width, height);
   let score = 0;
   let isOver = false;
+  let isWon = false;
 
-  const occupiers = new QueryBuilder().contains(Position).build();
-  engine.addQuery(occupiers);
-
+  // Food appears in a random free cell. When there are no free cells, the snake has filled the board.
   const spawnFood = () => {
-    const occupied = new Set<number>();
-    occupiers.forEach((entity, {x, y}) => occupied.add(y * width + x));
-    const free: Array<[number, number]> = [];
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (!occupied.has(y * width + x)) free.push([x, y]);
-      }
+    const free = grid.freeCells();
+    if (free.length === 0) {
+      engine.dispatch(new GameOver(true));
+      return;
     }
-    if (free.length === 0) return;
-    const [x, y] = free[Math.floor(random() * free.length)];
+    const {x, y} = free[Math.floor(random() * free.length)];
     engine.addEntity(createFood(x, y));
   };
 
+  // An eaten food leaves its cell right away, so new food can't appear under the head
+  const eat = (food: Entity, body: Body) => {
+    body.length++;
+    food.remove(Cell);
+    engine.removeEntity(food);
+    engine.dispatch(new FoodEaten(body.length));
+  };
+
+  // #region grid
+  // The grid follows cells of entities: an entity is indexed when it gets a cell, and a moved entity gets a new cell,
+  // so it's removed from the previous one and added to the next one
+  engine.reactive([Cell], {
+    added: ({current}, cell) => grid.set(cell, current),
+    removed: ({current}, cell) => grid.delete(cell, current),
+  }, {id: 'grid'});
+  // #endregion grid
+
   // #region systems
   engine
-    .addSystem(new SteeringSystem(controls), {priority: Priority.Steering, id: 'steering'})
-    // The head leaves a segment behind, which lives as many ticks as long the snake is, and moves one cell forward
-    .iterative([Position, Heading, Body], (head, dt, position, heading, body) => {
-      engine.addEntity(createSegment(position.x, position.y, body.length));
-      position.x += heading.dx;
-      position.y += heading.dy;
-    }, {priority: Priority.Movement, id: 'movement'})
-    // Segments disappear when their lifetime is over
+    // The snake turns in the direction of the controls, but can't turn back into itself
+    .iterative([Heading, HEAD], (head, dt, heading) => {
+      const {direction} = controls;
+      if (direction === undefined) return;
+      controls.direction = undefined;
+      const {dx, dy} = DIRECTIONS[direction];
+      if (dx === -heading.dx && dy === -heading.dy) return;
+      heading.dx = dx;
+      heading.dy = dy;
+    }, {priority: Priority.Steering, id: 'steering'})
+    // Segments disappear when their lifetime is over. The segment is removed after the update, but it loses its cell
+    // right away, so the head can move to the cell in the same tick.
     .iterative([Lifetime], (segment, dt, lifetime) => {
-      if (--lifetime.ticks <= 0) engine.removeEntity(segment);
+      if (--lifetime.ticks > 0) return;
+      segment.remove(Cell);
+      engine.removeEntity(segment);
     }, {priority: Priority.Aging, id: 'aging'})
-    .addSystem(new CollisionSystem(width, height), {priority: Priority.Collisions, id: 'collisions'})
+    // The head looks into the next cell: a wall or the body ends the game, food makes the snake longer.
+    // Then the head moves, and leaves a segment behind, which lives as many ticks as long the body is.
+    .iterative([Cell, Heading, Body, HEAD], (head, dt, cell, heading, body) => {
+      const next = new Cell(cell.x + heading.dx, cell.y + heading.dy);
+      const occupant = grid.at(next);
+      if (!grid.isInside(next) || occupant?.has(SEGMENT)) {
+        engine.dispatch(new GameOver());
+        return;
+      }
+      head.add(next);
+      engine.addEntity(createSegment(cell.x, cell.y, body.length - 1));
+      if (occupant?.has(FOOD)) eat(occupant, body);
+    }, {priority: Priority.Movement, id: 'movement'})
     // Every time food is eaten, a new one appears
-    .reactive([Position, FOOD], {removed: spawnFood}, {id: 'food-spawner'});
+    .reactive([Cell, FOOD], {removed: spawnFood}, {id: 'food-spawner'});
   // #endregion systems
 
   engine.subscribe(FoodEaten, () => score++);
-  engine.subscribe(GameOver, () => {
+  engine.subscribe(GameOver, (message) => {
     isOver = true;
+    isWon = message.isWon;
   });
 
   setup?.(engine);
-  engine.addEntity(createHead(Math.floor(width / 2), Math.floor(height / 2), 3));
+  engine.addEntity(createHead(Math.floor(width / 2), Math.floor(height / 2), START_LENGTH));
   spawnFood();
 
   return {
     engine,
     controls,
+    grid,
     width,
     height,
     get score() {
@@ -109,6 +150,9 @@ export function createSnakeGame({width, height, random = Math.random, setup}: Sn
     },
     get isOver() {
       return isOver;
+    },
+    get isWon() {
+      return isWon;
     },
     tick() {
       if (!isOver) engine.update(1);

@@ -1,5 +1,6 @@
 import {QueryBuilder} from 'tick-knock';
 import {Enemy, Position, Velocity} from '../components';
+import {distance} from '../../shared/geometry';
 import {HEIGHT} from '../config';
 import {BulletHellGame} from '../game';
 import {ENEMY_BULLET, PLAYER} from '../tags';
@@ -12,6 +13,23 @@ const DANGER_DISTANCE = 70;
  * The autopilot looks this far ahead in seconds, so it dodges bullets before they come
  */
 const LOOKAHEAD = 0.2;
+/**
+ * The autopilot keeps this far from the bottom edge of the screen, so it has room to dodge
+ */
+const BOTTOM_DISTANCE = 90;
+/**
+ * How strongly the ship is pulled to its place under the enemy, and how strongly bullets push it away
+ */
+const PULL = 0.02;
+const PUSH = 3;
+/**
+ * Pushes weaker than this don't move the ship, so it doesn't jitter
+ */
+const DEAD_ZONE = 0.2;
+/**
+ * Weight of the vertical distance to an enemy when the autopilot chooses the enemy to keep under
+ */
+const VERTICAL_WEIGHT = 0.2;
 
 /**
  * Creates an autopilot for the demo mode and tests: it keeps under the nearest enemy, fires all the time,
@@ -31,30 +49,30 @@ export function createAutopilot(game: BulletHellGame): () => void {
 
     let targetX = ship.x;
     let nearest = Infinity;
+    // The nearest enemy horizontally is preferred, enemies far above count less
     enemies.forEach((enemy, {x, y}) => {
-      const distance = Math.abs(x - ship.x) + (ship.y - y) * 0.2;
-      if (y < ship.y && distance < nearest) {
-        nearest = distance;
+      const cost = Math.abs(x - ship.x) + (ship.y - y) * VERTICAL_WEIGHT;
+      if (y < ship.y && cost < nearest) {
+        nearest = cost;
         targetX = x;
       }
     });
-    let pushX = (targetX - ship.x) * 0.02;
-    let pushY = (HEIGHT - 90 - ship.y) * 0.02;
+    let pushX = (targetX - ship.x) * PULL;
+    let pushY = (HEIGHT - BOTTOM_DISTANCE - ship.y) * PULL;
 
     bullets.forEach((bullet, position, velocity) => {
-      const dx = ship.x - (position.x + velocity.x * LOOKAHEAD);
-      const dy = ship.y - (position.y + velocity.y * LOOKAHEAD);
-      const distance = Math.hypot(dx, dy);
-      if (distance > DANGER_DISTANCE || distance === 0) return;
-      const force = (DANGER_DISTANCE - distance) / DANGER_DISTANCE;
-      pushX += (dx / distance) * force * 3;
-      pushY += (dy / distance) * force * 3;
+      const ahead = {x: position.x + velocity.x * LOOKAHEAD, y: position.y + velocity.y * LOOKAHEAD};
+      const length = distance(ahead, ship);
+      if (length > DANGER_DISTANCE || length === 0) return;
+      const force = ((DANGER_DISTANCE - length) / DANGER_DISTANCE) * PUSH;
+      pushX += ((ship.x - ahead.x) / length) * force;
+      pushY += ((ship.y - ahead.y) / length) * force;
     });
 
-    controls.left = pushX < -0.2;
-    controls.right = pushX > 0.2;
-    controls.up = pushY < -0.2;
-    controls.down = pushY > 0.2;
+    controls.left = pushX < -DEAD_ZONE;
+    controls.right = pushX > DEAD_ZONE;
+    controls.up = pushY < -DEAD_ZONE;
+    controls.down = pushY > DEAD_ZONE;
     controls.focus = false;
   };
 }

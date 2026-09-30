@@ -1,11 +1,13 @@
-import {Engine, Entity} from 'tick-knock';
+import {Engine} from 'tick-knock';
+import {wrap} from '../shared/geometry';
 import {Random} from '../shared/random';
-import {Asteroid, Collider, Lifetime, Position, Rotation, Velocity} from './components';
-import {ASTEROID_POINTS} from './config';
+import {AngularVelocity, Asteroid, Gun, Lifetime, Position, Rotation, Velocity} from './components';
+import {ASTEROIDS, AsteroidSize, DRAG, THRUST, TURN_SPEED} from './config';
 import {Controls} from './Controls';
-import {createAsteroid, createShip} from './entities';
+import {createAsteroid, createBullet, createShip} from './entities';
 import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {CollisionSystem, ShipControlSystem, WaveSystem} from './systems';
+import {CollisionSystem} from './systems';
+import {SHIP} from './tags';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -55,6 +57,7 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
   let score = 0;
   let wave = 0;
   let isOver = false;
+  let asteroidsLeft = 0;
 
   const spawnWave = () => {
     wave++;
@@ -65,45 +68,69 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
     }
   };
 
-  const split = (asteroid: Entity) => {
-    const {size} = asteroid.get(Asteroid)!;
-    const {x, y} = asteroid.get(Position)!;
-    // The asteroid is removed after the update, but it leaves collision queries right now
-    asteroid.remove(Collider);
-    engine.removeEntity(asteroid);
-    if (size > 1) {
-      engine.addEntity(createAsteroid(x, y, size - 1, random));
-      engine.addEntity(createAsteroid(x, y, size - 1, random));
-    }
-  };
-
   // #region systems
   engine
-    .addSystem(new ShipControlSystem(controls), {priority: Priority.Control, id: 'ship-control'})
+    // The ship turns, accelerates and fires according to the controls
+    .iterative([Position, Velocity, Rotation, Gun, SHIP], (ship, dt, position, velocity, rotation, gun) => {
+      const {left, right, thrust, fire} = controls;
+      if (left) rotation.angle -= TURN_SPEED * dt;
+      if (right) rotation.angle += TURN_SPEED * dt;
+      if (thrust) {
+        velocity.x += Math.cos(rotation.angle) * THRUST * dt;
+        velocity.y += Math.sin(rotation.angle) * THRUST * dt;
+      }
+      // The ship loses the same share of the speed every second, whatever the frame rate is
+      const drag = Math.exp(-DRAG * dt);
+      velocity.x *= drag;
+      velocity.y *= drag;
+
+      gun.cooldown.tick(dt);
+      if (fire && gun.cooldown.isReady) {
+        gun.cooldown.restart();
+        engine.addEntity(createBullet(position, velocity, rotation.angle));
+      }
+    }, {priority: Priority.Control, id: 'ship-control'})
     // Everything that has a velocity moves, and wraps around the edges of the screen
     .iterative([Position, Velocity], (entity, dt, position, velocity) => {
       position.x = wrap(position.x + velocity.x * dt, width);
       position.y = wrap(position.y + velocity.y * dt, height);
     }, {priority: Priority.Movement, id: 'movement'})
-    // Asteroids slowly spin in the direction they fly
-    .iterative([Rotation, Velocity, Asteroid], (entity, dt, rotation, velocity) => {
-      rotation.angle += Math.sign(velocity.x) * dt;
+    // Everything that has an angular velocity spins
+    .iterative([Rotation, AngularVelocity], (entity, dt, rotation, angularVelocity) => {
+      rotation.angle += angularVelocity.value * dt;
     }, {priority: Priority.Movement, id: 'spin'})
     // Bullets disappear when their lifetime is over
     .iterative([Lifetime], (entity, dt, lifetime) => {
       lifetime.seconds -= dt;
       if (lifetime.seconds <= 0) engine.removeEntity(entity);
     }, {priority: Priority.Lifetime, id: 'lifetime'})
-    .addSystem(new CollisionSystem(split), {priority: Priority.Collisions, id: 'collisions'})
-    .addSystem(new WaveSystem(spawnWave, () => isOver), {id: 'waves'});
+    .addSystem(new CollisionSystem({width, height}), {priority: Priority.Collisions, id: 'collisions'})
+    // The next wave starts when the last asteroid is gone
+    .reactive([Asteroid], {
+      added: () => {
+        asteroidsLeft++;
+      },
+      removed: () => {
+        if (--asteroidsLeft === 0 && !isOver) spawnWave();
+      },
+    }, {id: 'waves'});
   // #endregion systems
 
-  engine.subscribe(AsteroidDestroyed, ({size}) => {
-    score += ASTEROID_POINTS[size];
+  // #region messages
+  // A destroyed asteroid gives points, and splits into two smaller ones
+  engine.subscribe(AsteroidDestroyed, ({asteroid}) => {
+    const {size} = asteroid.get(Asteroid)!;
+    const {x, y} = asteroid.get(Position)!;
+    score += ASTEROIDS[size].points;
+    if (size === 1) return;
+    const smaller = (size - 1) as AsteroidSize;
+    engine.addEntity(createAsteroid(x, y, smaller, random));
+    engine.addEntity(createAsteroid(x, y, smaller, random));
   });
   engine.subscribe(ShipDestroyed, () => {
     isOver = true;
   });
+  // #endregion messages
 
   setup?.(engine);
   engine.addEntity(createShip(width / 2, height / 2));
@@ -127,8 +154,4 @@ export function createAsteroidsGame({width, height, random = Math.random, setup}
       engine.update(dt);
     },
   };
-}
-
-function wrap(value: number, size: number): number {
-  return ((value % size) + size) % size;
 }

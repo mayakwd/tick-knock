@@ -1,14 +1,15 @@
 import {Entity} from 'tick-knock';
 import {Collider, Position, Velocity} from '../components';
-import {ENEMY_BULLET_RADIUS, PLAYER_BULLET_SPEED} from '../config';
-import {ENEMY_BULLET, PLAYER_BULLET} from '../tags';
+import {ENEMY_BULLET_RADIUS, PLAYER_BULLET_RADIUS, PLAYER_BULLET_SPEED} from '../config';
+import {ENEMY_BULLET, PLAYER_BULLET, REMOVED_OFFSCREEN} from '../tags';
 
 export function createPlayerBullet(x: number, y: number): Entity {
   return new Entity()
     .add(new Position(x, y))
     .add(new Velocity(0, -PLAYER_BULLET_SPEED))
-    .add(new Collider(3))
-    .add(PLAYER_BULLET);
+    .add(new Collider(PLAYER_BULLET_RADIUS))
+    .add(PLAYER_BULLET)
+    .add(REMOVED_OFFSCREEN);
 }
 
 /**
@@ -20,5 +21,6 @@ export function createEnemyBullet(x: number, y: number, angle: number, speed: nu
     .add(new Position(x, y))
     .add(new Velocity(Math.cos(angle) * speed, Math.sin(angle) * speed))
     .add(new Collider(ENEMY_BULLET_RADIUS))
-    .add(ENEMY_BULLET);
+    .add(ENEMY_BULLET)
+    .add(REMOVED_OFFSCREEN);
 }

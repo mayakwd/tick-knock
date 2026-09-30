@@ -1,17 +1,16 @@
+import {Cooldown} from '../../shared/Cooldown';
+
 /**
  * Fires bullets in all directions at once
  */
 export class RingPattern {
-  /**
-   * Time in seconds until the next shot
-   */
-  public cooldown: number;
+  public readonly cooldown: Cooldown;
 
   public constructor(
     /**
      * Time in seconds between shots
      */
-    public readonly interval: number,
+    interval: number,
     /**
      * Amount of bullets in one shot
      */
@@ -25,6 +24,6 @@ export class RingPattern {
      */
     delay: number,
   ) {
-    this.cooldown = delay;
+    this.cooldown = new Cooldown(interval, delay);
   }
 }

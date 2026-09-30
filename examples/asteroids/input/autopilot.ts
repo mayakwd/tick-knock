@@ -1,13 +1,24 @@
 import {QueryBuilder} from 'tick-knock';
-import {Asteroid, Position, Rotation, Ship} from '../components';
+import {angleDifference, angleTo, distanceSquared} from '../../shared/geometry';
+import {Asteroid, Position, Rotation} from '../components';
 import {AsteroidsGame} from '../game';
+import {SHIP} from '../tags';
+
+/**
+ * The ship turns while the target is further than this angle in radians
+ */
+const AIM_PRECISION = 0.05;
+/**
+ * The ship fires while the target is closer than this angle in radians
+ */
+const FIRE_ANGLE = 0.3;
 
 /**
  * Creates an autopilot for the demo mode and tests: it turns the ship to the nearest asteroid and fires.
  * It reads the game through its own queries, the same way any system would do.
  */
 export function createAutopilot(game: AsteroidsGame): () => void {
-  const ships = new QueryBuilder().contains(Ship, Position, Rotation).build();
+  const ships = new QueryBuilder().contains(Position, Rotation, SHIP).build();
   const asteroids = new QueryBuilder().contains(Position, Asteroid).build();
   game.engine.addQuery(ships).addQuery(asteroids);
 
@@ -20,21 +31,19 @@ export function createAutopilot(game: AsteroidsGame): () => void {
     const rotation = ship.get(Rotation)!;
 
     let target: Position | undefined;
-    let distance = Infinity;
+    let nearest = Infinity;
     asteroids.forEach((asteroid, asteroidPosition) => {
-      const value = Math.hypot(asteroidPosition.x - position.x, asteroidPosition.y - position.y);
-      if (value < distance) {
+      const distance = distanceSquared(position, asteroidPosition);
+      if (distance < nearest) {
         target = asteroidPosition;
-        distance = value;
+        nearest = distance;
       }
     });
     if (target === undefined) return;
 
-    const angle = Math.atan2(target.y - position.y, target.x - position.x);
-    // Difference of angles normalized to [-PI, PI]
-    const turn = Math.atan2(Math.sin(angle - rotation.angle), Math.cos(angle - rotation.angle));
-    controls.left = turn < -0.05;
-    controls.right = turn > 0.05;
-    controls.fire = Math.abs(turn) < 0.3;
+    const turn = angleDifference(rotation.angle, angleTo(position, target));
+    controls.left = turn < -AIM_PRECISION;
+    controls.right = turn > AIM_PRECISION;
+    controls.fire = Math.abs(turn) < FIRE_ANGLE;
   };
 }

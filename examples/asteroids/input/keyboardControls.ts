@@ -1,7 +1,7 @@
 import {Keyboard} from '../../shared/Keyboard';
 import {Controls} from '../Controls';
 
-export const KEY_CODES = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space', 'KeyR'];
+export const KEY_CODES = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space'];
 
 /**
  * Updates the controls from the keyboard

@@ -1,12 +1,10 @@
+import {Cooldown} from '../../shared/Cooldown';
+
 /**
- * Weapon of a tower. Every tower has one, and upgrades change its characteristics. The damage it deals is a separate
- * component.
+ * Weapon of a tower. Every tower has one, and upgrades replace it. What a hit does is the payload of the tower.
  */
 export class Weapon {
-  /**
-   * Time in seconds until the weapon can fire again
-   */
-  public cooldown: number = 0;
+  public readonly cooldown: Cooldown;
 
   public constructor(
     /**
@@ -16,7 +14,9 @@ export class Weapon {
     /**
      * Time in seconds between shots
      */
-    public readonly interval: number,
+    interval: number,
     public readonly projectileSpeed: number,
-  ) {}
+  ) {
+    this.cooldown = new Cooldown(interval);
+  }
 }

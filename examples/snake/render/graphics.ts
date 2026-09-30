@@ -1,6 +1,5 @@
 import {Graphics} from 'pixi.js';
-
-export const CELL = 20;
+import {CELL} from '../config';
 
 const HEAD_COLOR = 0x7ee787;
 const SEGMENT_COLOR = 0x2ea043;

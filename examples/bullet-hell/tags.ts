@@ -4,3 +4,7 @@ export const PLAYER = 'player';
  */
 export const PLAYER_BULLET = 'player-bullet';
 export const ENEMY_BULLET = 'enemy-bullet';
+/**
+ * Entities with this tag are removed when they leave the screen: bullets and enemies, but not the player
+ */
+export const REMOVED_OFFSCREEN = 'removed-offscreen';

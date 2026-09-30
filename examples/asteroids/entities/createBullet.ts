@@ -1,6 +1,6 @@
 import {Entity} from 'tick-knock';
 import {Collider, Lifetime, Position, Velocity} from '../components';
-import {BULLET_LIFETIME, BULLET_SPEED, SHIP_RADIUS} from '../config';
+import {BULLET_LIFETIME, BULLET_RADIUS, BULLET_SPEED, SHIP_RADIUS} from '../config';
 import {BULLET} from '../tags';
 
 /**
@@ -12,7 +12,7 @@ export function createBullet(position: Position, velocity: Velocity, angle: numb
   return new Entity()
     .add(new Position(position.x + directionX * SHIP_RADIUS, position.y + directionY * SHIP_RADIUS))
     .add(new Velocity(velocity.x + directionX * BULLET_SPEED, velocity.y + directionY * BULLET_SPEED))
-    .add(new Collider(2))
+    .add(new Collider(BULLET_RADIUS))
     .add(new Lifetime(BULLET_LIFETIME))
     .add(BULLET);
 }

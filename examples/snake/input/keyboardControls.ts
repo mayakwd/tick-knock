@@ -8,7 +8,7 @@ const KEYS: Record<string, Direction> = {
   ArrowRight: 'right', KeyD: 'right',
 };
 
-export const KEY_CODES = [...Object.keys(KEYS), 'KeyR'];
+export const KEY_CODES = Object.keys(KEYS);
 
 /**
  * Turns the snake when a key is pressed. The last pressed direction is applied on the next tick.

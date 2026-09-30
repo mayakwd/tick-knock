@@ -6,6 +6,8 @@ export class FoodEaten {
 }
 
 /**
- * Message dispatched when the snake hits a wall or itself
+ * Message dispatched when the snake hits a wall or itself, or fills the whole board
  */
-export class GameOver {}
+export class GameOver {
+  public constructor(public readonly isWon: boolean = false) {}
+}

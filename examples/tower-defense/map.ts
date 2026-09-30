@@ -1,9 +1,6 @@
+import {Vector} from '../shared/geometry';
+import {Cell} from './components';
 import {CELL, COLUMNS, ROWS} from './config';
-
-export interface Cell {
-  readonly column: number;
-  readonly row: number;
-}
 
 /**
  * Turns of the path in cells. Creeps enter the map at the first point and leave it at the last one.
@@ -23,8 +20,35 @@ export const WAYPOINTS: ReadonlyArray<Cell> = [
 /**
  * Center of the cell in pixels
  */
-export function cellCenter({column, row}: Cell): { x: number; y: number } {
+export function cellCenter({column, row}: Cell): Vector {
   return {x: (column + 0.5) * CELL, y: (row + 0.5) * CELL};
+}
+
+/**
+ * Returns the cell the point is in
+ */
+export function cellAt({x, y}: Readonly<Vector>): Cell {
+  return new Cell(Math.floor(x / CELL), Math.floor(y / CELL));
+}
+
+export function isSameCell(a: Cell, b: Cell): boolean {
+  return a.column === b.column && a.row === b.row;
+}
+
+/**
+ * Turns of the path in pixels, creeps follow them
+ */
+export const PATH: ReadonlyArray<Readonly<Vector>> = WAYPOINTS.map(cellCenter);
+
+/**
+ * Returns the index of the cell inside the map, cells are numbered row by row
+ */
+export function cellIndex({column, row}: Cell): number {
+  return row * COLUMNS + column;
+}
+
+export function isInsideMap({column, row}: Cell): boolean {
+  return column >= 0 && column < COLUMNS && row >= 0 && row < ROWS;
 }
 
 /**
@@ -45,7 +69,7 @@ export function isOnPath({column, row}: Cell): boolean {
  * and not in the top row, which is covered by the status line
  */
 export function isBuildable(cell: Cell): boolean {
-  return cell.column >= 0 && cell.column < COLUMNS && cell.row >= 1 && cell.row < ROWS && !isOnPath(cell);
+  return isInsideMap(cell) && cell.row > 0 && !isOnPath(cell);
 }
 
 function isBetween(value: number, a: number, b: number): boolean {

@@ -30,7 +30,7 @@ Most components are familiar: position, velocity, collider, health.
 
 <<< @/../examples/bullet-hell/components/Health.ts
 
-The player has lives and a gun:
+The player has lives and a gun. The gun keeps a shared `Cooldown`, as in [Asteroids](/tutorials/asteroids):
 
 <<< @/../examples/bullet-hell/components/Lives.ts
 
@@ -53,6 +53,8 @@ Instead, every pattern is a component with its own parameters:
 <<< @/../examples/bullet-hell/components/SpiralPattern.ts
 
 <<< @/../examples/bullet-hell/components/AimedPattern.ts
+
+Every pattern has a cooldown of its own, so patterns of one enemy fire independently.
 
 An enemy fires with every pattern it has. A boss that fires a spiral and aimed fans at the same time is an entity with
 two components, and it needs no new code.
@@ -87,18 +89,24 @@ Most systems of the game are a few lines long. They are written right where they
 
 <<< @/../examples/bullet-hell/game.ts#systems
 
+- `player-control` moves the player and fires its gun according to the controls. `clamp` from the shared geometry
+  helpers keeps the player on the screen.
 - `movement` moves everything that has a velocity: enemies and bullets.
 - `swaying` adds only the change of the swing to the horizontal position, so it works together with `movement`: an
   enemy descends and sways at the same time, and a bullet flying sideways would keep flying and sway.
-- Every pattern has its own system. Patterns count down their cooldowns with the same helper, and fire with the same
-  function, so each system describes only the directions of bullets.
+- Every pattern has its own system. Patterns fire with the same function, so each system describes only
+  the directions of bullets. `cooldown.repeat` fires as many times as the cooldown is over in this update: a spiral
+  fires every 0.05 seconds, and on a slow frame it fires twice instead of losing a shot.
 - The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
   player, that the game has created.
+- `enemy-hits` and `player-hits` decide what a hit does, see [Collisions](#collisions) below.
 - `invulnerability` counts down the invulnerability and removes the component when the time is over.
-- `leaving-screen` removes bullets and enemies that have left the screen. The player has no velocity, so it's never
-  removed by this system.
+- `leaving-screen` removes entities with the `REMOVED_OFFSCREEN` tag that have left the screen: bullets and enemies.
+  The rule is explicit: the player doesn't have the tag, and is never removed by this system.
 
-The player control, collisions and waves are bigger and have their own state, so they are classes in their own files.
+<<< @/../examples/bullet-hell/tags.ts
+
+Collisions and waves have their own queries and state, so they are classes in their own files.
 See [Which system?](/decisions/which-system) for more about this choice.
 
 ## Temporary state is a component
@@ -108,13 +116,9 @@ component, that exists while the state lasts:
 
 <<< @/../examples/bullet-hell/components/Invulnerable.ts
 
-The collision system just checks `player.has(Invulnerable)`. Rendering makes the invulnerable player blink with a
+The collision system just checks `player.has(Invulnerable)`: bullets fly through the invulnerable player. Rendering makes the invulnerable player blink with a
 system for `[View, Invulnerable]`, and restores it when the component is removed. Nobody checks timers and flags
 everywhere: the presence of the component is the state.
-
-## The player
-
-<<< @/../examples/bullet-hell/systems/PlayerControlSystem.ts
 
 ## Collisions
 
@@ -124,8 +128,19 @@ There are hundreds of enemy bullets, and one player. Checking every bullet again
 the query with `forEach`, which is fast: components are stored next to each other, and there are no lookups. For this
 game, no spatial partitioning is needed. See [Performance](/decisions/performance) for when it is.
 
-Hits use the same trick as in [Asteroids](/tutorials/asteroids): hit entities lose their colliders immediately, so
-they can't hit anything else in the same update.
+The collision system only reports hits. A bullet that hits is destroyed, and the hit entity gets a `Hit`, a linked
+component, because an entity can be hit several times in one update:
+
+<<< @/../examples/bullet-hell/components/Hit.ts
+
+What a hit does is decided by systems of the hit entities, `enemy-hits` and `player-hits` above. An enemy loses a point
+of health for every hit. The player loses one life, even if a bullet and an enemy have hit it at once, and becomes
+invulnerable. The collision system doesn't know about health, lives or the score: they can change without touching it.
+
+Destroyed entities use the same trick as in [Asteroids](/tutorials/asteroids): they lose their colliders immediately,
+so they can't hit anything else in the same update.
+
+<<< @/../examples/bullet-hell/entities/destroy.ts
 
 ## Waves
 
@@ -139,8 +154,9 @@ object passed to the constructor, so the game can show it.
 
 <<< @/../examples/bullet-hell/game.ts
 
-When the player is hit, a subscription to `PlayerHit` counts lives and removes all enemy bullets, which the game keeps
-in its own query. It's game logic, that reacts to a message: the collision system doesn't need to know about it.
+When the player is hit, a subscription to `PlayerHit` removes all enemy bullets, which the game keeps in its own query.
+Lives belong to the player: the game doesn't keep a copy of them, it reads the `Lives` component of the player when
+the status is shown.
 
 ## Rendering hundreds of bullets
 
@@ -159,6 +175,7 @@ geometry again:
 - Small systems are written in place with `engine.iterative`.
 - Temporary state is a component, that exists while the state lasts.
 - Systems can keep their own state, when it doesn't belong to any entity.
+- Collisions report hits, and systems of hit entities decide what a hit does.
 - Hundreds of entities are processed by typed iterative systems and `forEach` without any tricks.
 
 Next, in [Tower defense](/tutorials/tower-defense), entities get several effects of the same kind, and start

@@ -7,7 +7,9 @@ Keys 1-4 select a tower, a click builds it or upgrades the tower in the cell, R 
 What it shows:
 
 - Kinds of towers are data, but every tower owns its characteristics as components, so it can be upgraded.
-- Damage described once: the same `Damage` is data of a level and a component of towers, projectiles and creeps.
+- Descriptions reused as components: the payload of a level is the component of the tower and its projectiles.
+- A spatial index of creeps, maintained by reaction systems on the `Cell` component: towers find targets in it,
+  and keep them while they are in range. Rules of targeting are tags.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
 - Game state that doesn't belong to entities: gold and lives are a plain object, that the game changes when systems
   report kills and escapes.

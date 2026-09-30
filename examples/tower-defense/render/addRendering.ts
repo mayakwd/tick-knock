@@ -1,34 +1,30 @@
 import {Engine} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {addViews} from '../../shared/render/addViews';
 import {View} from '../../shared/render/View';
-import {ViewSystem} from '../../shared/render/ViewSystem';
-import {Creep, Damage, Health, Position, Projectile, Tower} from '../components';
+import {Creep, Health, Payload, Poison, Position, Projectile, Slow, Tower} from '../components';
 import {Priority} from '../game';
 import {CreepView} from './CreepView';
+import {CreepViewRef} from './CreepViewRef';
 import {drawProjectile, drawTower} from './graphics';
 
 /**
  * Adds rendering to the game: views are attached to towers, creeps and projectiles when they appear
  */
 export function addRendering(engine: Engine, layer: Container): void {
+  addViews(engine, layer, {position: Position, priority: Priority.Render});
   engine
-    .addSystem(new ViewSystem(layer), {id: 'views'})
     // An upgrade replaces the Tower component, so the tower is drawn again with its new level
     .reactive([Tower], {added: ({current}, {kind, level}) => current.add(new View(drawTower(kind, level)))}, {id: 'tower-view'})
-    .reactive([Creep], {added: ({current}) => current.add(new View(new CreepView()))}, {id: 'creep-view'})
-    .reactive([Projectile], {added: ({current}, {kind}) => current.add(new View(drawProjectile(kind)))}, {id: 'projectile-view'})
-    // A new view is placed right away, and follows its entity after all game systems have been updated
-    .reactive([View, Position], {added: (snapshot, view, position) => place(view, position)}, {id: 'view-placement'})
-    .iterative([View, Position], (entity, dt, view, position) => place(view, position), {priority: Priority.Render, id: 'view-position'})
-    .iterative([View, Health, Creep], (entity, dt, {display}, health) => {
-      const view = display as CreepView;
+    .reactive([Creep], {
+      added: ({current}) => {
+        const view = new CreepView();
+        current.add(new View(view)).add(new CreepViewRef(view));
+      },
+    }, {id: 'creep-view'})
+    .reactive([Projectile, Payload], {added: ({current}, projectile, payload) => current.add(new View(drawProjectile(payload)))}, {id: 'projectile-view'})
+    .iterative([CreepViewRef, Health], (creep, dt, {view}, health) => {
       view.setHealth(health.value / health.max);
-      const frozen = entity.find(Damage, ({type}) => type === 'frost') !== undefined;
-      const poisoned = entity.find(Damage, ({type}) => type === 'poison') !== undefined;
-      view.setEffects(frozen, poisoned);
+      view.setEffects(creep.has(Slow), creep.has(Poison));
     }, {priority: Priority.Render, id: 'creep-status'});
-}
-
-function place({display}: View, {x, y}: Position): void {
-  display.position.set(x, y);
 }

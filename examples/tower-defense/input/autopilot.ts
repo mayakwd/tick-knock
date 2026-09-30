@@ -1,4 +1,4 @@
-import {Cell} from '../map';
+import {Cell} from '../components';
 import {TowerDefenseGame} from '../game';
 import {TowerKind} from '../towers';
 

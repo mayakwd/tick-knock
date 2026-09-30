@@ -1,6 +1,7 @@
 import {Entity} from 'tick-knock';
-import {Collider, Position, Rotation, Ship, Velocity} from '../components';
-import {SHIP_RADIUS} from '../config';
+import {Collider, Gun, Position, Rotation, Velocity} from '../components';
+import {FIRE_INTERVAL, SHIP_RADIUS} from '../config';
+import {SHIP} from '../tags';
 
 export function createShip(x: number, y: number): Entity {
   return new Entity()
@@ -8,5 +9,6 @@ export function createShip(x: number, y: number): Entity {
     .add(new Velocity())
     .add(new Rotation(-Math.PI / 2))
     .add(new Collider(SHIP_RADIUS))
-    .add(new Ship());
+    .add(new Gun(FIRE_INTERVAL))
+    .add(SHIP);
 }

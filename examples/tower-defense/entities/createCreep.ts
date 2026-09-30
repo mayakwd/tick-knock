@@ -1,11 +1,17 @@
 import {Entity} from 'tick-knock';
-import {Creep, Health, PathFollower, Position} from '../components';
-import {cellCenter, WAYPOINTS} from '../map';
+import {Cell, Creep, Health, PathFollower, Position} from '../components';
+import {PATH, WAYPOINTS} from '../map';
+import {CreepDescription} from '../waves';
 
-export function createCreep(health: number, speed: number, reward: number): Entity {
-  const {x, y} = cellCenter(WAYPOINTS[0]);
+/**
+ * Creates a creep at the entrance of the path, which is outside the map
+ */
+export function createCreep({health, speed, reward}: CreepDescription): Entity {
+  const {x, y} = PATH[0];
+  const {column, row} = WAYPOINTS[0];
   return new Entity()
     .add(new Position(x, y))
+    .add(new Cell(column, row))
     .add(new PathFollower(speed))
     .add(new Health(health))
     .add(new Creep(reward));

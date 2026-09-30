@@ -1,15 +1,7 @@
 import {QueryBuilder, System} from 'tick-knock';
 import {Creep} from '../components';
 import {createCreep} from '../entities';
-
-/**
- * Pause in seconds before every wave
- */
-const PAUSE = 3;
-/**
- * Time in seconds between creeps of a wave
- */
-const INTERVAL = 0.9;
+import {creepOfWave, SPAWN_INTERVAL, WAVE_PAUSE, waveSize} from '../waves';
 
 /**
  * Progress of waves, shared with the game, which shows the number of the wave
@@ -19,12 +11,12 @@ export interface WaveState {
 }
 
 /**
- * Spawns creeps of waves, every wave has more and stronger creeps. The next wave starts when all creeps
- * of the current one are killed or have escaped.
+ * Spawns creeps of waves. The next wave starts when all creeps of the current one are killed or have escaped.
+ * The time and the amount of spawned creeps are the state of the system, not of any entity.
  */
 export class SpawnSystem extends System {
   private readonly creeps = new QueryBuilder().contains(Creep).build();
-  private time = -PAUSE;
+  private time = -WAVE_PAUSE;
   private spawned = 0;
 
   public constructor(private readonly state: WaveState) {
@@ -40,17 +32,15 @@ export class SpawnSystem extends System {
   }
 
   public update(dt: number): void {
-    const wave = this.state.number;
-    const count = 6 + wave * 2;
+    const size = waveSize(this.state.number);
     this.time += dt;
-    while (this.spawned < count && this.time >= this.spawned * INTERVAL) {
-      const health = Math.round(18 * 1.22 ** (wave - 1));
-      this.engine.addEntity(createCreep(health, 45 + wave * 1.5, 4 + Math.floor(wave / 2)));
+    while (this.spawned < size && this.time >= this.spawned * SPAWN_INTERVAL) {
+      this.engine.addEntity(createCreep(creepOfWave(this.state.number)));
       this.spawned++;
     }
-    if (this.spawned === count && this.creeps.isEmpty) {
+    if (this.spawned === size && this.creeps.isEmpty) {
       this.state.number++;
-      this.time = -PAUSE;
+      this.time = -WAVE_PAUSE;
       this.spawned = 0;
     }
   }

@@ -1,6 +1,6 @@
 import {Graphics, GraphicsContext} from 'pixi.js';
 import {Asteroid} from '../components';
-import {ASTEROID_RADIUS, SHIP_RADIUS} from '../config';
+import {ASTEROIDS, BULLET_RADIUS, SHIP_RADIUS} from '../config';
 
 const SHIP_COLOR = 0x58a6ff;
 const ASTEROID_COLOR = 0x8b949e;
@@ -22,7 +22,7 @@ export function drawShip(): Graphics {
 }
 
 export function drawAsteroid({size, outline}: Asteroid): Graphics {
-  const radius = ASTEROID_RADIUS[size];
+  const {radius} = ASTEROIDS[size];
   const points = outline.flatMap((scale, i) => {
     const angle = (i / outline.length) * Math.PI * 2;
     return [Math.cos(angle) * radius * scale, Math.sin(angle) * radius * scale];
@@ -34,6 +34,6 @@ export function drawAsteroid({size, outline}: Asteroid): Graphics {
  * All bullets look the same, so they share the geometry
  */
 export function drawBullet(): Graphics {
-  bulletContext ??= new GraphicsContext().rect(-1.5, -1.5, 3, 3).fill(BULLET_COLOR);
+  bulletContext ??= new GraphicsContext().rect(-BULLET_RADIUS, -BULLET_RADIUS, BULLET_RADIUS * 2, BULLET_RADIUS * 2).fill(BULLET_COLOR);
   return new Graphics(bulletContext);
 }

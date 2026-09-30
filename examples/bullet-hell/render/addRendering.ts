@@ -1,7 +1,7 @@
 import {Engine, EntitySnapshot} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {addViews} from '../../shared/render/addViews';
 import {View} from '../../shared/render/View';
-import {ViewSystem} from '../../shared/render/ViewSystem';
 import {Collider, Enemy, Invulnerable, Position} from '../components';
 import {Priority} from '../game';
 import {ENEMY_BULLET, PLAYER, PLAYER_BULLET} from '../tags';
@@ -20,17 +20,14 @@ export function addRendering(engine: Engine, layer: Container): void {
     current.add(new View(draw()));
   };
 
+  addViews(engine, layer, {position: Position, priority: Priority.Render});
   engine
-    .addSystem(new ViewSystem(layer), {id: 'views'})
     .reactive([PLAYER], {added: attach(drawPlayer)}, {id: 'player-view'})
     .reactive([Enemy, Collider], {
       added: ({current}, {kind}, {radius}) => current.add(new View(drawEnemy(kind, radius))),
     }, {id: 'enemy-view'})
     .reactive([PLAYER_BULLET], {added: attach(drawPlayerBullet)}, {id: 'player-bullet-view'})
     .reactive([ENEMY_BULLET], {added: attach(drawEnemyBullet)}, {id: 'enemy-bullet-view'})
-    // A new view is placed right away, and follows its entity after all game systems have been updated
-    .reactive([View, Position], {added: (snapshot, view, position) => place(view, position)}, {id: 'view-placement'})
-    .iterative([View, Position], (entity, dt, view, position) => place(view, position), {priority: Priority.Render, id: 'view-position'})
     // The invulnerable player blinks, and becomes solid when the component is removed
     .iterative([View, Invulnerable], (entity, dt, {display}, {seconds}) => {
       display.alpha = Math.floor(seconds * BLINK_RATE) % 2 === 0 ? 1 : 0.3;
@@ -40,8 +37,4 @@ export function addRendering(engine: Engine, layer: Container): void {
         display.alpha = 1;
       },
     }, {id: 'blinking-end'});
-}
-
-function place({display}: View, {x, y}: Position): void {
-  display.position.set(x, y);
 }

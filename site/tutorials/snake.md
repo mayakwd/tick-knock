@@ -10,7 +10,7 @@ game: components and tags, entities, systems of different kinds, messages, rende
 Before writing any code, let's think about what our game consists of. In ECS it's always the same question: **what
 data do we have, and what happens to it?**
 
-- There is a grid. Everything on it occupies a cell, so it has a **position**.
+- There is a grid. Everything on it occupies a **cell**.
 - The snake has a **head**, that moves in some **direction** every tick.
 - The snake has a **body**, that follows the head.
 - There is **food**. When the head reaches it, the snake grows, and new food appears.
@@ -25,9 +25,13 @@ eats, it just becomes longer, and new segments live longer. 🐍
 
 Components are data. Let's write them, one per file.
 
-The position is a cell of the grid:
+The cell of the grid an entity occupies:
 
-<<< @/../examples/snake/components/Position.ts
+<<< @/../examples/snake/components/Cell.ts
+
+The cell is immutable. When the head moves, it gets a new cell: `head.add(new Cell(x, y))` replaces the component.
+Why not just change `x` and `y`? Because Tick-Knock notices a replaced component and updates queries and reaction
+systems, while a changed field goes unnoticed. We'll use it to keep the grid up to date.
 
 The direction the head moves in:
 
@@ -51,8 +55,8 @@ what [tags](/guide/tag) are for:
 
 <<< @/../examples/snake/tags.ts
 
-A segment and food both have a `Position`. Tags let queries tell them apart: a query of segments contains `Position`
-and `SEGMENT`, a query of food contains `Position` and `FOOD`.
+A segment and food both have a `Cell`. Tags let queries tell them apart: a query of segments contains `Cell` and
+`SEGMENT`, a query of food contains `Cell` and `FOOD`.
 
 ## Entities
 
@@ -65,72 +69,73 @@ entities reads like a description of the game:
 
 <<< @/../examples/snake/entities/createFood.ts
 
-## Movement
+## The grid
 
-Now the logic. Every tick the head leaves a segment behind and moves one cell forward. It's a small piece of logic
-without any state, so it doesn't need a class: a [functional system](/guide/built-in-systems#functional-systems) is
-enough. Such systems are written right where they are added to the engine, together with the other systems of the
-game:
+The head must know what is in the next cell: a segment, food or nothing. Searching all segments and food every tick
+would work, but the game is a grid, so let's use one. The grid keeps the entity of every cell in an array, and a cell
+is an index of the array, so a lookup is instant:
 
-<<< @/../examples/snake/game.ts#systems
+<<< @/../examples/snake/Grid.ts
 
-`engine.iterative([Position, Heading, Body], ...)` adds a system with a function, that receives an entity, the delta
-time and components of the entity. It's called for every entity that has all three components, which is only the
-head. The function is a closure, so it uses the engine to add segments without passing it anywhere.
+Who keeps the grid up to date? Not the systems that move things. The grid is an **index of the `Cell` component**, and
+a reaction system maintains it: an entity is added to the grid when it gets a cell, and removed when it loses it. When
+the head gets a new cell, the reaction system sees the old cell removed and the new one added, so the grid follows the
+head by itself:
 
-`aging` counts down the lifetime of segments, and removes a segment when its time is over. The other systems are
-explained below.
+<<< @/../examples/snake/game.ts#grid
 
-> ❗ Segments are removed while the engine is being updated. Tick-Knock doesn't remove them immediately: entities
-> removed during the update are removed after all systems have been updated. That's why the collision system below
-> checks `lifetime.ticks > 0`: an expired segment is still in the query until the end of the update, but the head can
-> already move to its cell.
+Nobody can forget to update the grid, and no system has to know about it except those that read it.
 
-## Steering
+## Controls
 
 The player turns the snake. The input can come from the keyboard, an autopilot or a test, so the game doesn't read the
 keyboard itself. Instead, it has **controls**, a plain object that any input source can change:
 
 <<< @/../examples/snake/Controls.ts
 
-The steering system needs these controls, so it's a class, that receives them in the constructor.
-`IterativeSystem.of(Heading, HEAD)` builds its query: entities with the `Heading` component and the `HEAD` tag.
-Components are passed to `updateEntity`, tags are only used for matching.
+## Systems
 
-<<< @/../examples/snake/systems/SteeringSystem.ts
+Now the logic. Every tick the snake turns, its tail shortens, and the head moves one cell forward. These are small
+pieces of logic, so [functional systems](/guide/built-in-systems#functional-systems) are enough. Such systems are
+written right where they are added to the engine, together with the other systems of the game:
 
-## Collisions and messages
+<<< @/../examples/snake/game.ts#systems
 
-The collision system checks what the head has run into. It needs more than one query: its own query of heads, and
-additional queries of food and segments. Additional queries must be added to the engine, so the system adds them in
-`onAddedToEngine` and removes them in `onRemovedFromEngine`.
+- `steering` turns the head in the direction of the controls. It's called for entities with the `Heading` component
+  and the `HEAD` tag. Components are passed to the function, tags are only used for matching. The function is
+  a closure, so it reads the controls of the game without any constructor or parameter.
+- `aging` counts down the lifetime of segments. An expired segment is removed from the engine after the update, but it
+  loses its `Cell` right away, so the grid frees the cell, and the head can move there in the same tick.
+- `movement` looks into the next cell with the grid. A wall or a segment ends the game, food makes the snake longer.
+  Then the head gets its new cell and leaves a segment behind.
+- The food spawner is a reaction system: every time food loses its cell, that is, it's eaten, new food appears in a
+  random free cell of the grid. When there are no free cells, the snake has filled the board, and the game is won.
 
-<<< @/../examples/snake/systems/CollisionSystem.ts
+> ❗ Entities removed during the update are removed after all systems have been updated, and until then they stay in
+> queries. Removing the component, that queries and indexes depend on, is the way to make an entity stop taking part in
+> the game immediately: here it's `Cell` of expired segments and eaten food.
 
-When something important happens, the system doesn't change the score or stop the game itself. It **dispatches a
-message**, and whoever is interested subscribes to it:
+## Messages
+
+When something important happens, the movement system doesn't change the score or stop the game itself. It
+**dispatches a message**, and whoever is interested subscribes to it:
 
 <<< @/../examples/snake/messages.ts
 
-This way the collision system only knows about collisions. Counting the score and stopping the game are somebody
+This way the movement system only knows about movement. Counting the score and stopping the game are somebody
 else's responsibility.
 
 ## Putting it all together
-
-The game is an engine with systems. Let's look at it piece by piece.
 
 <<< @/../examples/snake/game.ts
 
 A few things to notice:
 
-- **Priorities.** Systems are updated in order of their priority, from the lowest to the highest. The snake must turn
-  before it moves, and collisions are checked after it has moved. Priorities are named in one place, so the order of
-  systems is easy to read and change.
+- **Priorities.** Systems are updated in order of their priority, from the lowest to the highest. The snake turns,
+  the tail frees its cell, and then the head moves. Priorities are named in one place, so the order of systems is easy
+  to read and change.
 - **Identifiers.** Every system has an `id`, so it can be found with `engine.getSystemById` or removed with
   `engine.removeSystem`.
-- **Food spawner.** A reaction system created with `engine.reactive([Position, FOOD], {removed: spawnFood})` calls
-  `spawnFood` every time food leaves its query, that is, when it's eaten. The game doesn't need to remember that food
-  must be spawned after eating: it reacts to the change.
 - **Messages.** `engine.subscribe` counts the score and stops the game.
 - **The `setup` option.** It lets the host of the game add its own systems, rendering for example. We'll need it in a
   moment.
@@ -157,8 +162,13 @@ a **view** to it. The view is a component too:
 
 <<< @/../examples/shared/render/ViewSystem.ts
 
-And here is the rendering of Snake. Reaction systems attach views to entities by their tags, and an iterative system
-moves views to the cells of their entities after all game systems have been updated:
+Every game places views the same way: a new view is placed right away, and views follow their entities after all game
+systems have been updated. It's shared by all examples:
+
+<<< @/../examples/shared/render/addViews.ts
+
+And here is the rendering of Snake. Reaction systems attach views to entities by their tags, and cells are scaled to
+pixels:
 
 <<< @/../examples/snake/render/addRendering.ts
 
@@ -167,13 +177,15 @@ moves views to the cells of their entities after all game systems have been upda
 
 ## Input and the game loop
 
-The last part starts the game in a page: it creates a pixi.js application, connects the keyboard, and updates the
-game. Snake works in ticks, so the time of frames is accumulated, and the game is advanced by whole ticks:
+The last part starts the game in a page. All examples do the same: create a pixi.js application, connect the keyboard,
+let the autopilot play until the player clicks the game, and restart the game when it's over. That's in the shared
+`mountDemo`, and every game only describes itself. Snake works in ticks, so the time of frames is accumulated, and the
+game is advanced by whole ticks:
 
 <<< @/../examples/snake/mount.ts
 
-The autopilot plays until you click the game. It's written the same way as systems: it has its own queries and reads
-components through them.
+The autopilot plays until you click the game. It's written the same way as systems: it finds the head and food with
+its own queries, and looks into cells with the grid.
 
 <<< @/../examples/snake/input/autopilot.ts
 
@@ -189,7 +201,10 @@ has its view.
 
 - Components are plain data, tags are labels without data.
 - Entity factories keep creation of entities in one place.
-- Small logic without state is a functional system, logic with dependencies is a class.
+- Small logic is a functional system written in place.
+- An index, like the grid, is maintained by a reaction system on the component it indexes, and an immutable component
+  replaced on every change keeps it up to date.
+- Removing a component, that queries and indexes depend on, makes an entity stop taking part in the game immediately.
 - Systems dispatch messages instead of changing things they are not responsible for.
 - Reaction systems react to changes of queries: new food appears when the old one is eaten.
 - Rendering is attached to entities from outside, so the game runs anywhere.

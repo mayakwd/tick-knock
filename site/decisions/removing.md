@@ -29,7 +29,14 @@ update.
 Sometimes the entity is not gone, only one of its aspects is:
 
 - The invulnerability of the player is over — `Invulnerable` is removed, the player stays.
-- A poison has expired — one `Damage` is picked from the creep, others stay.
+- A poison has expired — one `Poison` is picked from the creep, others stay.
+- A segment of the snake has expired — it loses its `Cell`, so the grid frees the cell, and the head can move there
+  in the same tick. The segment is removed from the engine after the update.
+
+The same idiom is used in all examples: to make an entity stop taking part in the game right away, remove the
+component the queries and indexes depend on — `Collider` for collisions, `Health` for targets of towers, `Cell` for
+the grid of Snake.
+The entity itself is removed after the update.
 
 ## Checking an entity you keep a reference to
 

@@ -10,10 +10,10 @@ A tag is a string or a number. It marks an entity as something, and queries can 
 const HEAD = 'head';
 const FOOD = 'food';
 
-const food = new QueryBuilder().contains(Position, FOOD).build();
+const food = new QueryBuilder().contains(Cell, FOOD).build();
 ```
 
-In [Snake](/tutorials/snake) the head, segments and food all have a `Position`, and tags tell them apart. They don't
+In [Snake](/tutorials/snake) the head, segments and food all have a `Cell`, and tags tell them apart. They don't
 have any data of their own, so classes like `class Food {}` would add nothing but code.
 
 ## Components hold data

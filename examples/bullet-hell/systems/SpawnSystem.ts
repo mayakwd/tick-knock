@@ -50,7 +50,7 @@ export class SpawnSystem extends System {
     const strength = 1 + Math.floor((this.state.number - 1) / WAVES.length) * STRENGTH_GROWTH;
     while (this.pending.length > 0 && this.pending[0].time <= this.time) {
       const {kind, x} = this.pending.shift()!;
-      this.engine.addEntity(createEnemy(kind, x * WIDTH, -30, strength));
+      this.engine.addEntity(createEnemy(kind, x * WIDTH, strength));
     }
     if (this.pending.length === 0 && this.enemies.isEmpty) {
       this.state.number++;

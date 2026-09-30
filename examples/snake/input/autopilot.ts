@@ -1,41 +1,40 @@
 import {QueryBuilder} from 'tick-knock';
-import {Heading, Lifetime, Position} from '../components';
-import {Direction} from '../Controls';
+import {Cell, Heading, Lifetime} from '../components';
+import {Direction, DIRECTIONS} from '../Controls';
 import {SnakeGame} from '../game';
-import {FOOD, HEAD, SEGMENT} from '../tags';
-
-const MOVES: Array<[Direction, number, number]> = [['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0]];
+import {FOOD, HEAD} from '../tags';
 
 /**
  * Creates a greedy autopilot: every tick it turns to the free cell closest to food.
- * It reads the game through its own queries, the same way any system would do.
+ * It reads the game through its own queries and the grid, the same way any system would do.
  */
 export function createAutopilot(game: SnakeGame): () => void {
-  const head = new QueryBuilder().contains(Position, Heading, HEAD).build();
-  const food = new QueryBuilder().contains(Position, FOOD).build();
-  const segments = new QueryBuilder().contains(Position, Lifetime, SEGMENT).build();
-  game.engine.addQuery(head).addQuery(food).addQuery(segments);
+  const head = new QueryBuilder().contains(Cell, Heading, HEAD).build();
+  const food = new QueryBuilder().contains(Cell, FOOD).build();
+  game.engine.addQuery(head).addQuery(food);
+  const {grid} = game;
+
+  // The tail leaves its cell on the next tick, before the head moves, so it's free
+  const isFree = (cell: Cell) => {
+    if (!grid.isInside(cell)) return false;
+    const lifetime = grid.at(cell)?.get(Lifetime);
+    return lifetime === undefined || lifetime.ticks <= 1;
+  };
 
   return () => {
     const snake = head.first;
     if (snake === undefined) return;
-    const position = snake.get(Position)!;
+    const cell = snake.get(Cell)!;
     const heading = snake.get(Heading)!;
-    const target = food.first?.get(Position);
-    const occupied = new Set<string>();
-    segments.forEach((segment, {x, y}, lifetime) => {
-      // The tail leaves its cell on the next tick
-      if (lifetime.ticks > 1) occupied.add(`${x}:${y}`);
-    });
+    const target = food.first?.get(Cell);
 
     let best: Direction | undefined;
     let bestDistance = Infinity;
-    for (const [direction, dx, dy] of MOVES) {
+    for (const [direction, {dx, dy}] of Object.entries(DIRECTIONS) as Array<[Direction, typeof DIRECTIONS.up]>) {
       if (dx === -heading.dx && dy === -heading.dy) continue;
-      const x = position.x + dx;
-      const y = position.y + dy;
-      if (x < 0 || y < 0 || x >= game.width || y >= game.height || occupied.has(`${x}:${y}`)) continue;
-      const distance = target === undefined ? 0 : Math.abs(target.x - x) + Math.abs(target.y - y);
+      const next = new Cell(cell.x + dx, cell.y + dy);
+      if (!isFree(next)) continue;
+      const distance = target === undefined ? 0 : Math.abs(target.x - next.x) + Math.abs(target.y - next.y);
       if (distance < bestDistance) {
         best = direction;
         bestDistance = distance;
