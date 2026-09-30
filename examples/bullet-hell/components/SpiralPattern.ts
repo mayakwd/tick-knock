@@ -1,15 +1,10 @@
 /**
- * Fires a few bullets in a direction, that rotates after every shot
+ * Fires a few bullets spread evenly around the circle, and rotates the barrel after every shot
  */
 export class SpiralPattern {
-  /**
-   * Current direction of the spiral in radians
-   */
-  public angle: number = Math.PI / 2;
-
   public constructor(
     /**
-     * Amount of bullets in one shot, spread evenly around the circle
+     * Amount of bullets in one shot
      */
     public readonly count: number,
     /**
@@ -17,7 +12,7 @@ export class SpiralPattern {
      */
     public readonly speed: number,
     /**
-     * Rotation of the direction after every shot in radians
+     * Rotation of the barrel after every shot in radians
      */
     public readonly step: number,
   ) {}

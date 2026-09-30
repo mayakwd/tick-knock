@@ -4,17 +4,30 @@ import {Cooldown} from '../shared/Cooldown';
 import {CooldownSystem} from '../shared/CooldownSystem';
 import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
 import {angleTo, isInside} from '../shared/geometry';
-import {Random} from '../shared/random';
 import {Score} from '../shared/Score';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {AimedPattern, Collider, Invulnerable, Lives, Position, RingPattern, SpiralPattern, Sway, Velocity} from './components';
+import {
+  AimedPattern,
+  Barrel,
+  Collider,
+  Invulnerable,
+  Lives,
+  Position,
+  RingPattern,
+  SpiralPattern,
+  Sway,
+  Velocity,
+} from './components';
 import {HEIGHT, SCREEN, SCREEN_MARGIN, WIDTH} from './config';
 import {Controls} from './Controls';
 import {createEnemyBullet, createPlayer} from './entities';
+import {ColliderTree} from './ColliderTree';
 import {
-  CollisionSystem,
+  ColliderTreeSystem,
   EnemyHitSystem,
+  PlayerBulletCollisionSystem,
+  PlayerCollisionSystem,
   PlayerControlSystem,
   PlayerHitSystem,
   SpawnSystem,
@@ -32,7 +45,6 @@ export interface BulletHellGameOptions {
    * Layer views of entities are added to
    */
   layer: Container;
-  random?: Random;
 }
 
 /**
@@ -46,8 +58,11 @@ export class BulletHellGame {
   private readonly enemyBullets = new QueryBuilder().contains(ENEMY_BULLET).build();
   private readonly _score = new Score();
 
-  public constructor({layer, random = Math.random}: BulletHellGameOptions) {
+  public constructor({layer}: BulletHellGameOptions) {
     this.engine.addQuery(this.players).addQuery(this.enemyBullets);
+
+    // Entities with colliders at their positions, collisions look for entities near bullets and the player in it
+    const colliders = new ColliderTree();
 
     // A destroyed entity stops colliding right away, and is removed from the engine after the update
     this.engine
@@ -76,35 +91,40 @@ export class BulletHellGame {
 
       // Every pattern is a component with its own system. An enemy fires, when its cooldown is over. A cooldown can be
       // over several times in one update, then the enemy fires several times.
-      .iterative([Position, RingPattern, Cooldown], (entity, dt, position, ring, cooldown) => {
+      .iterative([Position, RingPattern, Barrel, Cooldown], (entity, dt, position, ring, barrel, cooldown) => {
         while (cooldown.remaining <= 0) {
-          this.fireBullets(position, ring.count, ring.speed, random() * Math.PI, Math.PI * 2);
+          this.fireBullets(position, ring.count, ring.speed, barrel.angle, Math.PI * 2);
+          barrel.angle += Math.PI / ring.count;
           cooldown.remaining += cooldown.interval;
         }
       })
 
-      .iterative([Position, SpiralPattern, Cooldown], (entity, dt, position, spiral, cooldown) => {
+      .iterative([Position, SpiralPattern, Barrel, Cooldown], (entity, dt, position, spiral, barrel, cooldown) => {
         while (cooldown.remaining <= 0) {
-          this.fireBullets(position, spiral.count, spiral.speed, spiral.angle, Math.PI * 2);
-          spiral.angle += spiral.step;
+          this.fireBullets(position, spiral.count, spiral.speed, barrel.angle, Math.PI * 2);
+          barrel.angle += spiral.step;
           cooldown.remaining += cooldown.interval;
         }
       })
 
-      .iterative([Position, AimedPattern, Cooldown], (entity, dt, position, aimed, cooldown) => {
+      .iterative([Position, AimedPattern, Barrel, Cooldown], (entity, dt, position, aimed, barrel, cooldown) => {
         // There is nobody to aim at
         const target = this.players.first?.get(Position);
         if (target === undefined) return;
 
-        const from = angleTo(position, target) - aimed.spread / 2;
+        barrel.angle = angleTo(position, target);
         while (cooldown.remaining <= 0) {
-          this.fireBullets(position, aimed.count, aimed.speed, from, aimed.spread);
+          this.fireBullets(position, aimed.count, aimed.speed, barrel.angle - aimed.spread / 2, aimed.spread);
           cooldown.remaining += cooldown.interval;
         }
       })
 
-      // Collisions only report hits, and systems of hit entities decide what a hit does
-      .addSystem(new CollisionSystem())
+      // Collisions are checked after everything has moved: entities are moved in the tree of colliders, and bullets of
+      // the player and the player look for what they touch. Collisions only report hits, and systems of hit entities
+      // decide what a hit does.
+      .addSystem(new ColliderTreeSystem(colliders))
+      .addSystem(new PlayerBulletCollisionSystem(colliders))
+      .addSystem(new PlayerCollisionSystem(colliders))
       .addSystem(new EnemyHitSystem(this._score))
       .addSystem(new PlayerHitSystem())
 

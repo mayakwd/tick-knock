@@ -1,4 +1,4 @@
-import {EnemyKind} from '../enemies';
+import type {EnemyKind} from '../enemies';
 
 /**
  * Marks the entity as an enemy and keeps its kind, so rendering can draw every kind differently

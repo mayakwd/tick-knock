@@ -1,4 +1,5 @@
 export * from './AimedPattern';
+export * from './Barrel';
 export * from './Collider';
 export * from './Enemy';
 export * from './Health';

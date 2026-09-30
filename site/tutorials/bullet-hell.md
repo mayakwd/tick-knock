@@ -48,19 +48,28 @@ Enemies fire bullets in patterns. Every pattern is a component with its own para
 
 <<< @/../examples/bullet-hell/components/AimedPattern.ts
 
-An enemy has one of them, and a cooldown, that tells how often it fires. Every pattern has its own system, and
-the system fires only for enemies with its pattern. A new pattern is a new component and a new system. 😈
+Patterns don't change, so they have only readonly parameters. But the direction of firing changes: an aimed pattern
+turns to the player, a spiral rotates after every shot. That's the state of every enemy, so it's a separate component,
+the barrel of the enemy:
+
+<<< @/../examples/bullet-hell/components/Barrel.ts
+
+An enemy has one pattern, a barrel, and a cooldown, that tells how often it fires. Every pattern has its own system,
+and the system fires only for enemies with its pattern. A new pattern is a new component and a new system. 😈
 
 ## Enemies are data
 
-Kinds of enemies are described in one table, and waves are lists of enemies with the time and place they appear:
+Kinds of enemies are described in one table, and waves are lists of enemies with the time and place they appear.
+The pattern of an enemy is one field, typed as a union of the pattern components, so a kind can't have two patterns or
+none:
 
 <<< @/../examples/bullet-hell/enemies.ts
 
 To add a new enemy, you add a description. To change the difficulty, you change numbers. Systems stay the same.
 
-The factory turns a description into an entity with its view. The description is used only here: from this moment,
-the enemy owns its parameters.
+The factory turns a description into an entity with its view. The pattern is already a component, and it's immutable,
+so all enemies of the kind share it, and the factory just adds it. Everything else, that changes, is created for every
+enemy: health, the barrel, the cooldown, the sway.
 
 <<< @/../examples/bullet-hell/entities/createEnemy.ts
 
@@ -80,9 +89,9 @@ a component, that exists while the state lasts:
 
 <<< @/../examples/bullet-hell/components/Invulnerable.ts
 
-The collision system checks `player.has(Invulnerable)`, and bullets fly through the invulnerable player. The view of
-the invulnerable player blinks with a system of `[View, Invulnerable]`, and becomes solid when the component is
-removed. The presence of the component is the state.
+The collision system of the player checks `player.has(Invulnerable)`, and bullets fly through the invulnerable player.
+The view of the invulnerable player blinks with a system of `[View, Invulnerable]`, and becomes solid when the component
+is removed. The presence of the component is the state.
 
 ## Controlling the player
 
@@ -93,13 +102,26 @@ helpers keeps the player on the screen:
 
 ## Collisions and hits
 
-<<< @/../examples/bullet-hell/systems/CollisionSystem.ts
+There are hundreds of bullets on the screen. Checking every bullet against every enemy and the player would be a lot of
+work, so let's use the quad tree from [Asteroids](/tutorials/asteroids). This time the tree keeps every entity with
+a collider: the player, enemies and all bullets:
 
-There are hundreds of enemy bullets and one player. Checking every bullet against the player is a single pass over the
-query with `forEach`, and that is fast: components are stored next to each other, and there are no lookups. For this
-game, it's all we need. See [Performance](/decisions/performance) for when a spatial index is worth it.
+<<< @/../examples/bullet-hell/ColliderTree.ts
 
-The collision system only reports hits. A bullet that hits is destroyed, and the hit entity gets a `Hit`. An entity can
+A system keeps the tree up to date, the same way as the tree of asteroids:
+
+<<< @/../examples/bullet-hell/systems/ColliderTreeSystem.ts
+
+A bullet of the player asks the tree for an enemy it touches, and the player asks for enemies and enemy bullets:
+
+<<< @/../examples/bullet-hell/systems/PlayerBulletCollisionSystem.ts
+
+<<< @/../examples/bullet-hell/systems/PlayerCollisionSystem.ts
+
+The player destroys enemy bullets, that hit it, and destroyed bullets leave the tree right away. That's why `findAll`
+collects entities first, and returns them after the search: the tree isn't changed while it's being searched.
+
+Collision systems only report hits. A bullet that hits is destroyed, and the hit entity gets a `Hit`. An entity can
 be hit several times in one update, so `Hit` is a linked component:
 
 <<< @/../examples/bullet-hell/components/Hit.ts
@@ -140,12 +162,14 @@ Systems are updated in the order they are added, so the constructor reads the sa
 1. Cooldowns are counted down, the player moves and fires, and new enemies appear.
 2. Everything that has a velocity moves. Swaying adds only the change of the swing to the horizontal position, so an
    enemy descends and sways at the same time.
-3. Every pattern fires while the cooldown of its enemy is over, adding the interval after every shot. A spiral fires
+3. Every pattern fires from the barrel while the cooldown of its enemy is over, adding the interval after every shot.
+   A ring turns the barrel by half of the gap between bullets, so the next ring flies between bullets of the previous
+   one. A spiral fires
    every 0.05 seconds, so on a slow frame it fires twice. Cooldowns of enemies and the player are counted down by
    the same `CooldownSystem` at the start of the update.
 4. The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
    player, that the game has created.
-5. Collisions are checked, and hits are resolved.
+5. Entities are moved in the tree of colliders, collisions are checked, and hits are resolved.
 6. Invulnerability is counted down, and the component is removed when the time is over.
 7. Entities with the `REMOVED_OFFSCREEN` tag are destroyed when they leave the screen. Bullets and enemies have this
    tag, and the player doesn't:

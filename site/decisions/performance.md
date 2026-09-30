@@ -22,12 +22,9 @@ See [Benchmarks](/benchmarks) for numbers.
 
 ## Many-to-many checks
 
-Checking every entity against every other one is O(n²). In the [Bullet hell](/tutorials/bullet-hell) hundreds of
-bullets are checked against one player, and a dozen of enemies against a few dozen of bullets, so plain loops are
-enough.
-
-Before reaching for a spatial structure, check whether the work can be done less often. Towers of the
-[Tower defense](/tutorials/tower-defense) keep their targets instead of looking for a target on every shot.
+Checking every entity against every other one is O(n²). Before reaching for a spatial structure, check whether the work
+can be done less often. Towers of the [Tower defense](/tutorials/tower-defense) keep their targets instead of looking
+for a target on every shot.
 
 When one side has to look for nearby entities of the other one, use a spatial index: entities in buckets by cells, and
 cells numbered, not keyed by strings. It's an index of a component, not a separate state to keep in sync by hand:
@@ -55,7 +52,9 @@ The [Tower defense](/tutorials/tower-defense) finds targets of towers and creeps
 
 Things that move freely, like asteroids, change their positions every frame. For them, use a **quad tree**, that
 divides the area finer where things are dense. A system inserts new things into it, removes the removed ones, and
-moves the rest after everything has moved: a thing that stays in its node only changes its point, so moving is cheap. [Asteroids](/tutorials/asteroids) find asteroids near bullets and the ship this way.
+moves the rest after everything has moved: a thing that stays in its node only changes its point, so moving is cheap.
+[Asteroids](/tutorials/asteroids) find asteroids near bullets and the ship this way, and the
+[Bullet hell](/tutorials/bullet-hell) finds enemies and bullets near the player and its bullets.
 
 Sometimes the shape of the game gives an even better index. Creeps of a tower defense follow one path, so the part of
 the path covered by a tower can be computed once, when the tower is built, and a tower compares the distance creeps

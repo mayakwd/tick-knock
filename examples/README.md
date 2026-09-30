@@ -43,10 +43,10 @@ game/
   mount.ts      the demo, that starts the game in a page
 ```
 
-A view is a component, that factories create together with entities, and the game adds views to the layer it
-receives. pixi.js creates display objects without a renderer, so tests play the games without a browser.
-[shared](shared) contains code used by all games: geometry helpers, the cooldown of weapons, the destroy system, the `GameOver` message,
-keyboard input, views and the demo loop, that lets the autopilot play until the player takes control.
+A view is a component, that factories create together with entities, and the game adds views to the layer it receives.
+pixi.js creates display objects without a renderer, so tests play the games without a browser. [shared](shared) contains
+code used by all games: geometry helpers, the cooldown of weapons, the destroy system, the `GameOver` message, keyboard
+input, views and the demo loop, that lets the autopilot play until the player takes control.
 
 # Snake
 
@@ -88,7 +88,9 @@ What it shows:
 
 - Hundreds of entities updated every frame by typed iterative systems.
 - Data-driven enemies: kinds of enemies and waves are data, turned into components when an enemy appears.
-- Firing patterns as separate components, every pattern has its own system.
+- Firing patterns as separate components, every pattern has its own system. A kind of enemies has one pattern, typed
+  as a union of pattern components.
+- A quad tree of colliders, kept up to date by a system: the player and its bullets find what they touch in it.
 - Collisions only report hits, systems of hit entities decide what a hit does.
 - Optional behaviour as an optional component: only some enemies sway.
 - Temporary state as a component: the player is invulnerable while it has the `Invulnerable` component.

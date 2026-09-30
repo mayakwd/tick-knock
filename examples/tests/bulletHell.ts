@@ -4,12 +4,11 @@ import {Enemy, Position} from '../bullet-hell/components';
 import {BulletHellGame} from '../bullet-hell/game';
 import {BulletHellAutopilot} from '../bullet-hell/input/autopilot';
 import {ENEMY_BULLET, PLAYER, PLAYER_BULLET} from '../bullet-hell/tags';
-import {seededRandom} from '../shared/random';
 import {assertViews} from './rendering';
 
 export function testBulletHell(): void {
   const layer = new Container();
-  const game = new BulletHellGame({layer, random: seededRandom(3)});
+  const game = new BulletHellGame({layer});
   const autopilot = new BulletHellAutopilot(game);
   const dt = 1 / 60;
   let seconds = 0;
