@@ -1,0 +1,85 @@
+name: pages
+
+# Builds the documentation site and deploys it to GitHub Pages.
+# The site is rebuilt after every push to the default branch, and after benchmarks of the default branch are done,
+# so the benchmarks page shows the latest results.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ develop ]
+  workflow_run:
+    workflows: [ bencher ]
+    types: [ completed ]
+    branches: [ develop ]
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build benchmarks
+        run: |
+          pnpm build
+          pnpm --filter tick-knock-bench build
+
+      - name: Download the latest benchmark report
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: bencher.yml
+          branch: develop
+          name: bencher-report
+          if_no_artifact_found: warn
+
+      # Without a report the site shows results committed to the repository
+      - name: Update benchmark results
+        continue-on-error: true
+        run: |
+          if [ -f bencher-report.json ]; then
+            node bench/dist/readme.js bencher-report.json site/benchmarks.md
+          fi
+
+      - name: Build site
+        run: pnpm --filter tick-knock-site build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

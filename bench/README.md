@@ -71,8 +71,10 @@ docker build -f bench/Dockerfile -t tick-knock-bench .                   # the i
 docker run --rm --network none -e BENCH_OUTPUT= tick-knock-bench      # results to stdout
 ```
 
-The comparison table in the [README](../README.md#performance) of the repository is generated from results of Bencher
-by [readme.ts](src/readme.ts), which accepts results in Bencher Metric Format:
+The comparison tables in the [README](../README.md#performance) of the repository and on the
+[benchmarks page](../site/benchmarks.md) of the site are generated from results of Bencher by [readme.ts](src/readme.ts),
+which accepts results in Bencher Metric Format or the report of `bencher run --format json`. Runs on `develop` save
+the report as an artifact, and the site workflow updates the table from the latest one before building the site:
 
 ```shell
 node bench/dist/readme.js results.json README.md

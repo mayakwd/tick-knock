@@ -64,7 +64,17 @@ jobs:
             --file /tmp/bencher.json \
             --image "$IMAGE" \
             --job-timeout 300 \
-            --error-on-alert
+            --quiet \
+            --format json \
+            --error-on-alert > bencher-report.json
+
+      # The report is used by the documentation site to show the latest results
+      - name: Upload report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bencher-report
+          path: bencher-report.json
 
       - name: Compare pull request
         if: github.event_name == 'pull_request'
