@@ -120,7 +120,7 @@ describe('System manipulation', () => {
   it(`Expected that removing not attached system will not throw an error`, () => {
     const engine = new Engine();
     const system = new TestSystem1();
-    expect(() => { engine.removeSystem(system);}).not.toThrowError();
+    expect(() => { engine.removeSystem(system);}).not.toThrow();
   });
 
   it('Engine updating', () => {
@@ -305,7 +305,7 @@ describe('System manipulation', () => {
     const TAG = 1;
     const query = new Query((entity: Entity) => entity.has(TAG));
     const engine = new Engine();
-    expect(() => {engine.removeQuery(query);}).not.toThrowError();
+    expect(() => {engine.removeQuery(query);}).not.toThrow();
   });
 
   it(`Expected that adding the same entity twice will add it only once`, () => {

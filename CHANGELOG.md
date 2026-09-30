@@ -71,6 +71,8 @@ Tooling:
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
 - Compilation target is ES2017, which the library already required at runtime (`Object.values`).
 - CI runs on Node.js 22 and 24. Stale Travis CI configuration is removed.
+- Development dependencies are updated: Jest 30, types of Node.js 22. The yarn lockfile, which had vulnerable
+  development dependencies, is replaced by the pnpm one.
 
 # 4.3.0
 

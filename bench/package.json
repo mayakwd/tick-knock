@@ -20,7 +20,7 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@types/node": "^18.11.17",
+    "@types/node": "^22.20.4",
     "typescript": "^7.0.2"
   }
 }

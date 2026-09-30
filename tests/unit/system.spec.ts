@@ -381,7 +381,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     }
 
     const system = new TestSystem();
-    expect(() => system.update(0)).toThrowError();
+    expect(() => system.update(0)).toThrow();
   });
 
   it(`Expected that message can't be sent if system is not attached to the engine`, () => {
@@ -395,7 +395,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     }
 
     const system = new TestSystem();
-    expect(() => system.update(0)).toThrowError();
+    expect(() => system.update(0)).toThrow();
   });
 
   it(`Expected that removing system from engine breaking the iteration`, () => {
@@ -424,7 +424,7 @@ describe('Failure on accessing engine if not attached to it', () => {
     engine.addEntity(new Entity().add(new Component()));
     expect(() => {
       engine.update(0);
-    }).not.toThrowError();
+    }).not.toThrow();
     expect(amountOfIterations).toBe(1);
   });
 

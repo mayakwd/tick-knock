@@ -304,7 +304,7 @@ describe('Components and Tags', () => {
     expect(() => {
       entity.append(damage);
       entity.append(damage);
-    }).toThrowError();
+    }).toThrow();
   });
 
   it(`Expected that specifying not ancestor as a resolve class for appended component throws an error`, () => {
@@ -335,7 +335,7 @@ describe('Components and Tags', () => {
         entity.append(new Damage(i));
       }
       entity.append(damage);
-    }).toThrowError();
+    }).toThrow();
   });
 
   it(`Expected that appending the two different instances of linked component will not throw an error`, () => {
@@ -343,7 +343,7 @@ describe('Components and Tags', () => {
     expect(() => {
       entity.append(new Damage(10));
       entity.append(new Damage(10));
-    }).not.toThrowError();
+    }).not.toThrow();
   });
 
   it(`Expected that appending the two different instances of linked component will trigger onComponentAdded only once`, () => {
@@ -624,7 +624,7 @@ describe('Snapshot', () => {
     class Component {}
 
     const snapshot = new EntitySnapshot();
-    expect(() => snapshot.previous.get(Component)).not.toThrowError();
+    expect(() => snapshot.previous.get(Component)).not.toThrow();
     expect(snapshot.previous.get(Component)).toBeUndefined();
   });
 
@@ -638,7 +638,7 @@ describe('Snapshot', () => {
 
     const snapshot = new EntitySnapshot();
     entity.takeSnapshot(snapshot, new Component());
-    expect(() => snapshot.previous.get(NotAComponent)).not.toThrowError();
+    expect(() => snapshot.previous.get(NotAComponent)).not.toThrow();
     expect(snapshot.previous.get(NotAComponent)).toBeUndefined();
   });
 
