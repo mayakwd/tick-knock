@@ -10,7 +10,10 @@
 # Table of contents
 
 - [Installing]
+- [What's new in 5.0]
 - [Migrating from 4.x]
+    - [Breaking changes]
+    - [Moving to the typed API]
 - [How it works?]
 - [Inside the Tick-Knock]
     - [Engine]
@@ -45,13 +48,63 @@
 - Yarn: `yarn add tick-knock`
 - NPM: `npm i --save tick-knock`
 
+# What's new in 5.0
+
+- **Faster.** Queries store entities and their components in dense arrays, so iteration, adding and removing entities
+  and component changes are several times faster, and entities take ~4x less memory. See [Performance].
+- **Typed queries.** `QueryBuilder` infers types of components, and `Query.forEach` passes them to the callback:
+
+  ```typescript
+  const movable = new QueryBuilder().contains(Position, Velocity).build(); // Query<[Position, Velocity]>
+  engine.addQuery(movable);
+  movable.forEach((entity, position, velocity) => {
+    position.x += velocity.x;
+  });
+  ```
+
+- **Typed systems.** `IterativeSystem.of` and `ReactionSystem.of` create base classes of systems, which receive
+  components of the entity with inferred types, no more `entity.get(Position)!`:
+
+  ```typescript
+  class MovementSystem extends IterativeSystem.of(Position, Velocity) {
+    protected updateEntity(entity: Entity, dt: number, position: Position, velocity: Velocity) {
+      position.x += velocity.x * dt;
+    }
+  }
+  ```
+
+- **Functional systems.** Small systems don't need a class at all:
+
+  ```typescript
+  engine
+    .iterative([Position, Velocity], (entity, dt, position, velocity) => {
+      position.x += velocity.x * dt;
+    })
+    .reactive([View, Position], {
+      added: (snapshot, view, position) => stage.addChild(view.sprite),
+      removed: (snapshot, view) => stage.removeChild(view.sprite),
+    });
+  ```
+
+- **System identifiers.** Systems are added with options `{priority, id}`, found with `engine.getSystemById(id)` and
+  removed with `engine.removeSystem(id)`.
+- **Safe removal by default.** Entities removed during the update are removed after all systems have been updated,
+  so systems never see half-removed entities.
+- **Examples and benchmarks.** The repository contains [Examples] of simple games and benchmarks comparing tick-knock
+  with other ECS libraries.
+
+See [CHANGELOG](CHANGELOG.md) for the full list of changes.
+
 # Migrating from 4.x
 
-Version 5.0 is much faster and has typed queries and systems, see [CHANGELOG](CHANGELOG.md) for all changes. Most of the
-code works as is, but there are a few breaking changes:
+Code written for 4.x mostly works as is: systems with `updateEntity(entity, dt)`, reaction systems with
+`entityAdded(snapshot)`, and queries built by `QueryBuilder` are still supported. So the project can be migrated
+step by step: first fix the breaking changes, then move systems to the typed API where it's convenient.
+
+## Breaking changes
 
 - `Engine.sharedConfig` and `System.sharedConfig` are removed. Data shared between systems doesn't need to be an
-  entity: pass it to systems in their constructors.
+  entity: pass it to systems in their constructors, or read it from the closure in functional systems.
 
   ```typescript
   // 4.x
@@ -62,6 +115,21 @@ code works as is, but there are a few breaking changes:
   // 5.0
   const config = {visuals: false};
   engine.addSystem(new ViewSystem(config));
+  // Inside of the system: this.config.visuals
+  ```
+
+- `Engine.removeEntity` doesn't have the `safe` argument anymore: entities removed during the update are always removed
+  after it, as `engine.removeEntity(entity, true)` did before. Outside of the update entities are removed immediately.
+  If the system relied on immediate removal during the update, for example to not process the entity again in the same
+  update, remove a component the other systems depend on, so the entity leaves their queries right away:
+
+  ```typescript
+  // 4.x: the bullet is removed immediately and can't hit another asteroid
+  engine.removeEntity(bullet);
+
+  // 5.0: the bullet leaves collision queries immediately and is removed after the update
+  bullet.remove(Collider);
+  engine.removeEntity(bullet);
   ```
 
 - `Query.entities` returns an array of entities at the moment of the call, which is rebuilt after the query changes.
@@ -69,11 +137,110 @@ code works as is, but there are a few breaking changes:
 - Entities added to the query during an update of `IterativeSystem` are updated starting from the next update, and
   entities removed from the query during the update are not updated anymore.
 - `EntitySnapshot.previous` is restored when it's accessed, so don't keep snapshots after handlers have returned.
-- `Engine.removeEntity` doesn't have the `safe` argument anymore: entities removed during the update are always removed
-  after it, as `engine.removeEntity(entity, true)` did before. Outside of the update entities are removed immediately.
 - `Query` and built-in systems are generic now: `Query<C>`, where `C` are types of components. `Query` without type
   arguments accepts any query, so existing code compiles, but types of components are lost.
 - The library is compiled to ES2017.
+
+## Moving to the typed API
+
+`IterativeSystem` with a query becomes `IterativeSystem.of` with components, which are passed to `updateEntity` after
+the entity and the delta time, in the same order. Tags are checked, but not passed.
+
+```typescript
+// 4.x
+class DamageSystem extends IterativeSystem {
+  public constructor() {
+    super(new QueryBuilder().contains(Health, Damage, ALIVE).build());
+  }
+
+  protected updateEntity(entity: Entity, dt: number) {
+    const health = entity.get(Health)!;
+    const damage = entity.get(Damage)!;
+    health.value -= damage.value;
+  }
+}
+
+// 5.0
+class DamageSystem extends IterativeSystem.of(Health, Damage, ALIVE) {
+  protected updateEntity(entity: Entity, dt: number, health: Health, damage: Damage) {
+    health.value -= damage.value;
+  }
+}
+```
+
+The base class has no constructor arguments, so the system can have its own:
+
+```typescript
+class ViewSystem extends IterativeSystem.of(View, Position) {
+  public constructor(private readonly config: {visuals: boolean}) {
+    super();
+  }
+}
+```
+
+`ReactionSystem` becomes `ReactionSystem.of` the same way. `entityRemoved` receives components the entity had before
+removing, including the removed one, so there's no need to read them from `snapshot.previous`:
+
+```typescript
+// 4.x
+class ViewSystem extends ReactionSystem {
+  public constructor(private readonly stage: Container) {
+    super(new QueryBuilder().contains(View).build());
+  }
+
+  protected entityAdded = ({current}: EntitySnapshot) => {
+    this.stage.addChild(current.get(View)!.sprite);
+  };
+
+  protected entityRemoved = ({previous}: EntitySnapshot) => {
+    this.stage.removeChild(previous.get(View)!.sprite);
+  };
+}
+
+// 5.0
+class ViewSystem extends ReactionSystem.of(View) {
+  public constructor(private readonly stage: Container) {
+    super();
+  }
+
+  protected entityAdded = (snapshot: EntitySnapshot, view: View) => {
+    this.stage.addChild(view.sprite);
+  };
+
+  protected entityRemoved = (snapshot: EntitySnapshot, view: View) => {
+    this.stage.removeChild(view.sprite);
+  };
+}
+```
+
+Systems that only update components can become [Functional systems], and priorities can be passed with identifiers:
+
+```typescript
+// 4.x
+engine.addSystem(new MovementSystem(), 1);
+
+// 5.0
+engine.iterative([Position, Velocity], (entity, dt, position, velocity) => {
+  position.x += velocity.x * dt;
+}, {priority: 1, id: 'movement'});
+```
+
+Queries infer types of components from the builder. Iterating with `forEach` is faster than getting components
+of every entity:
+
+```typescript
+// 4.x
+const query = new QueryBuilder().contains(Position, Velocity).build();
+for (const entity of query.entities) {
+  const position = entity.get(Position)!;
+}
+
+// 5.0
+const query = new QueryBuilder().contains(Position, Velocity).build();
+query.forEach((entity, position, velocity) => {
+  position.x += velocity.x;
+});
+```
 
 # How it works?
 
@@ -1021,7 +1188,10 @@ This software released under [MIT](LICENSE) license! Good luck, folks.
 
 [Development]: #development
 
+[What's new in 5.0]: #whats-new-in-50
 [Migrating from 4.x]: #migrating-from-4x
+[Breaking changes]: #breaking-changes
+[Moving to the typed API]: #moving-to-the-typed-api
 
 [Remove the system as it's done]: #remove-the-system-as-its-done
 
