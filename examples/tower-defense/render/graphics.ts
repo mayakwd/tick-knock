@@ -1,8 +1,7 @@
 import {Graphics, GraphicsContext} from 'pixi.js';
-import {Payload} from '../components';
 import {CELL} from '../config';
-import {TowerKind} from '../towers';
-import {TOWER_COLORS} from './colors';
+import {TowerKind} from '../data/towers';
+import {PROJECTILE_RADIUS, TOWER_COLORS} from './colors';
 
 /**
  * Draws a tower of the level: the core grows with the level, and dots at the bottom show it
@@ -24,27 +23,18 @@ export function drawTower(kind: TowerKind, level: number): Graphics {
 }
 
 /**
- * Projectiles that look the same share geometry: they are cached by color, separately for shells and bullets
+ * Projectiles of towers of one kind look the same, so they share geometry
  */
-const projectileContexts = {shell: new Map<number, GraphicsContext>(), bullet: new Map<number, GraphicsContext>()};
+const projectileContexts = new Map<TowerKind, GraphicsContext>();
 
 /**
- * Draws a projectile by its payload: it has the color of its effect, and an explosive shell is bigger
+ * Draws a projectile of the tower kind: it has the color of the tower, and a cannon fires bigger shells
  */
-export function drawProjectile(payload: Payload): Graphics {
-  const isShell = payload.splash > 0;
-  const color = projectileColor(payload);
-  const contexts = isShell ? projectileContexts.shell : projectileContexts.bullet;
-  let context = contexts.get(color);
+export function drawProjectile(kind: TowerKind): Graphics {
+  let context = projectileContexts.get(kind);
   if (context === undefined) {
-    context = new GraphicsContext().circle(0, 0, isShell ? 5 : 3).fill(color);
-    contexts.set(color, context);
+    context = new GraphicsContext().circle(0, 0, PROJECTILE_RADIUS[kind]).fill(TOWER_COLORS[kind]);
+    projectileContexts.set(kind, context);
   }
   return new Graphics(context);
-}
-
-function projectileColor({splash, slow, poison}: Payload): number {
-  if (poison !== undefined) return TOWER_COLORS.poison;
-  if (slow !== undefined) return TOWER_COLORS.frost;
-  return splash > 0 ? TOWER_COLORS.cannon : TOWER_COLORS.arrow;
 }

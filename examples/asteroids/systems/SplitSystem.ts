@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {Random} from '../../shared/random';
 import {Asteroid, Position} from '../components';
 import {AsteroidSize} from '../config';

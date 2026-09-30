@@ -1,7 +1,8 @@
-import {TowerKind} from '../towers';
+import {TowerKind} from '../data/towers';
 
 /**
- * What the tower is: its kind and level. Its cell and characteristics are separate components.
+ * What the tower is: its kind and level. It's immutable: an upgrade gives the tower a new `Tower`, and the tower gets
+ * components of the new level. Its cell and characteristics are separate components.
  */
 export class Tower {
   public constructor(

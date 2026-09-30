@@ -1,52 +1,36 @@
-import {QueryBuilder, System} from 'tick-knock';
-import {Creep} from '../components';
+import {ReactionSystem} from 'tick-knock';
+import {SPAWN_INTERVAL, WAVE_PAUSE} from '../config';
+import {creepOfWave, waveSize} from '../data/waves';
 import {createCreep} from '../entities';
-import {creepOfWave, SPAWN_INTERVAL, WAVE_PAUSE, waveSize} from '../waves';
+import {CREEP} from '../tags';
+import {TowerDefenseState} from '../TowerDefenseState';
 
 /**
- * Progress of waves, shared with the game, which shows the number of the wave
+ * Spawns creeps of waves. The next wave starts when all creeps of the current one are killed or have escaped: the query
+ * of creeps is empty. The time and the amount of spawned creeps are the state of the system, not of any entity.
  */
-export class WaveState {
-  /**
-   * Number of the current wave, starting from 1
-   */
-  public number = 1;
-}
-
-/**
- * Spawns creeps of waves. The next wave starts when all creeps of the current one are killed or have escaped.
- * The time and the amount of spawned creeps are the state of the system, not of any entity.
- */
-export class SpawnSystem extends System {
-  private readonly creeps = new QueryBuilder().contains(Creep).build();
+export class SpawnSystem extends ReactionSystem.of(CREEP) {
   private time = -WAVE_PAUSE;
   private spawned = 0;
 
-  public constructor(private readonly state: WaveState) {
+  public constructor(private readonly state: TowerDefenseState) {
     super();
-  }
-
-  public onAddedToEngine(): void {
-    this.engine.addQuery(this.creeps);
-  }
-
-  public onRemovedFromEngine(): void {
-    this.engine.removeQuery(this.creeps);
   }
 
   public update(dt: number): void {
     this.time += dt;
 
     // Creeps of the wave appear one after another
-    const size = waveSize(this.state.number);
+    const {wave} = this.state;
+    const size = waveSize(wave);
     while (this.spawned < size && this.time >= this.spawned * SPAWN_INTERVAL) {
-      this.engine.addEntity(createCreep(creepOfWave(this.state.number)));
+      this.engine.addEntity(createCreep(creepOfWave(wave)));
       this.spawned++;
     }
 
     // The next wave starts after a pause, when all creeps have appeared, and are gone
-    if (this.spawned === size && this.creeps.isEmpty) {
-      this.state.number++;
+    if (this.spawned === size && this.query.isEmpty) {
+      this.state.wave++;
       this.time = -WAVE_PAUSE;
       this.spawned = 0;
     }

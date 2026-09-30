@@ -1,25 +1,21 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
-import {GameOver} from '../../shared/GameOver';
+import {Cell} from '../../shared/components/Cell';
+import {Position} from '../../shared/components/Position';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {moveTowards} from '../../shared/geometry';
-import {Cell, Creep, PathFollower, Position, Slow} from '../components';
-import {Economy} from '../Economy';
-import {cellAt, isSameCell, PATH} from '../map';
+import {PathFollower, Slow} from '../components';
+import {cellAt, isSameCell, PATH} from '../data/map';
+import {CREEP, ESCAPED} from '../tags';
 
 /**
- * Moves creeps along the path. A creep that crosses into another cell gets a new `Cell`, so spatial indexes follow it.
- * A creep that has reached the exit escapes: it's destroyed, and the player loses a life. The game is over, when the last
- * life is lost.
+ * Moves creeps along the path. A creep that crosses into another cell gets a new `Cell`, so indexes follow it. A creep
+ * that has reached the exit escapes: it's destroyed, and `EscapeSystem` takes a life for it.
  */
-export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell, Creep) {
-  public constructor(private readonly economy: Economy) {
-    super();
-  }
-
-  protected updateEntity(entity: Entity, dt: number, position: Position, follower: PathFollower, cell: Cell): void {
+export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell, CREEP) {
+  protected updateEntity(creep: Entity, dt: number, position: Position, follower: PathFollower, cell: Cell): void {
     // The creep moves to the next turn of the path. When the turn is reached, the rest of the step is made towards
     // the next one.
-    let step = follower.speed * slowFactor(entity) * dt;
+    let step = follower.speed * slowFactor(creep) * dt;
     while (follower.waypoint < PATH.length) {
       const left = moveTowards(position, PATH[follower.waypoint], step);
       follower.distance += step - (left ?? 0);
@@ -29,19 +25,12 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell,
       step = left;
     }
 
-    // A creep crossing into another cell gets a new one, and spatial indexes follow it
+    // A creep crossing into another cell gets a new one, and indexes follow it
     const next = cellAt(position);
-    if (!isSameCell(next, cell)) entity.add(next);
+    if (!isSameCell(next, cell)) creep.add(next);
 
-    // The creep is still on the path
-    if (follower.waypoint < PATH.length) return;
-
-    // The creep has escaped, and takes a life, if there are lives left
-    entity.add(DESTROYED);
-    if (this.economy.lives === 0) return;
-
-    this.economy.lives--;
-    if (this.economy.lives === 0) this.dispatch(new GameOver());
+    // The creep has reached the exit
+    if (follower.waypoint === PATH.length) creep.add(ESCAPED).add(DESTROYED);
   }
 }
 

@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import {Vector} from '../shared/geometry';
-import {QuadTree} from '../shared/QuadTree';
+import {QuadTree} from '../shared/indexes/QuadTree';
 import {seededRandom} from '../shared/random';
 
 /**

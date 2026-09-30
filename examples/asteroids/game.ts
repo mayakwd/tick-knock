@@ -1,7 +1,8 @@
 import {Engine, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
-import {CooldownSystem} from '../shared/CooldownSystem';
-import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
+import {CooldownSystem} from '../shared/systems/CooldownSystem';
+import {DESTROYED} from '../shared/ecs/tags';
+import {DestroySystem} from '../shared/systems/DestroySystem';
 import {wrap} from '../shared/geometry';
 import {Random} from '../shared/random';
 import {Score} from '../shared/Score';

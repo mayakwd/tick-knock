@@ -1,5 +1,5 @@
 import {Entity} from 'tick-knock';
-import {Cooldown} from '../../shared/Cooldown';
+import {Cooldown} from '../../shared/components/Cooldown';
 import {View} from '../../shared/render/View';
 import {Barrel, Collider, Enemy, Health, Position, Reward, Sway, Velocity} from '../components';
 import {ENEMIES, EnemyKind} from '../enemies';

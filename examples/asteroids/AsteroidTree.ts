@@ -1,6 +1,6 @@
 import {Entity} from 'tick-knock';
 import {Size, wrappedDifference} from '../shared/geometry';
-import {QuadTree} from '../shared/QuadTree';
+import {QuadTree} from '../shared/indexes/QuadTree';
 import {Collider, Position} from './components';
 import {ASTEROIDS} from './config';
 

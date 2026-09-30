@@ -57,12 +57,12 @@ Numbers that tune the game are kept in one place:
 The ship has a **cooldown**: the interval between shots, and the time until the next shot. It's a component, shared by
 all examples, and it's data only:
 
-<<< @/../examples/shared/Cooldown.ts
+<<< @/../examples/shared/components/Cooldown.ts
 
 The logic is in systems. `CooldownSystem` counts down cooldowns of all entities that have one. The system that fires
 checks whether the cooldown is over, and adds the interval after a shot:
 
-<<< @/../examples/shared/CooldownSystem.ts
+<<< @/../examples/shared/systems/CooldownSystem.ts
 
 > 💡 The time passed after the cooldown is over is kept for the next shot, so the ship fires at the same rate on any
 > frame rate.
@@ -112,7 +112,7 @@ Asteroids move a little every frame, so most of the time an asteroid stays in it
 remembers the node it's in: when it moves within the node, only its point changes, and when it leaves the node, it's
 removed from it and inserted into the new place. Quarters, that became too empty, are merged back:
 
-<<< @/../examples/shared/QuadTree.ts
+<<< @/../examples/shared/indexes/QuadTree.ts
 
 The screen of Asteroids wraps around, so an asteroid at the right edge can hit the ship at the left edge. The tree of
 asteroids knows about it: near an edge, it looks for asteroids at the opposite edge too, and measures the distance

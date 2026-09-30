@@ -34,7 +34,7 @@ The map never changes. There is nothing to update, nothing to query, and nothing
 of the path in cells and in pixels, and functions that tell whether a cell is on the path, and whether a tower can be
 built in it.
 
-<<< @/../examples/tower-defense/map.ts
+<<< @/../examples/tower-defense/data/map.ts
 
 It's drawn once as a single picture. Entities are for things that change and are processed by systems.
 
@@ -42,7 +42,7 @@ It's drawn once as a single picture. Entities are for things that change and are
 
 Kinds of towers and their levels are described by data:
 
-<<< @/../examples/tower-defense/towers.ts
+<<< @/../examples/tower-defense/data/towers.ts
 
 The table is used when a tower is built or upgraded: the level is turned into components of the tower. From that
 moment, the tower owns its characteristics, and systems work only with its components. A tower can be upgraded, and a
@@ -54,42 +54,31 @@ The tower knows what it is:
 
 Where it is, is a separate component. Towers and creeps both have a cell of the map:
 
-<<< @/../examples/tower-defense/components/Cell.ts
+<<< @/../examples/shared/components/Cell.ts
 
 Every tower has a weapon, and fires when its [cooldown](/tutorials/asteroids#cooldown) is over:
 
 <<< @/../examples/tower-defense/components/Weapon.ts
 
-And a payload, that describes what a hit does: the damage, the splash, and optional effects. The same description is
-used by levels in the table and by the component, so the component is created from a level as is:
+And a payload, that describes what a hit does: the damage, the impact (only the target, or every creep around it), and
+effects. The component implements the description of the level, and it's immutable, so the tower shares it with its
+projectiles:
 
 <<< @/../examples/tower-defense/components/Payload.ts
 
-A cannon is a tower which payload has a splash, and a frost tower of the last level has a slow and a splash. Behaviour
+A cannon is a tower which payload has a splash impact, and a frost tower of the last level has a slow effect and a
+splash impact. Behaviour
 is composed from data. 🧩
 
-A new tower is an entity with its cell, position, target, and the `Tower` component of the first level:
+A new tower is an entity with its cell, position, and the `Tower` component of the first level:
 
 <<< @/../examples/tower-defense/entities/createTower.ts
 
-Its weapon, cooldown, payload, and view come from the level, and a reaction system of `Tower` adds them. It's called when a tower
-appears, and when an upgrade replaces its `Tower` with the next level, so building and upgrading are the same thing
-for it:
+Its weapon, cooldown, payload, and view come from the level: `equipTower` adds them, and a reaction system of `Tower`
+calls it. It's called when a tower appears, and when an upgrade replaces its `Tower` with the next level, so building
+and upgrading are the same thing for it:
 
-```typescript
-this.engine.reactive([Tower], {
-  added: ({current}, {kind, level}) => {
-    const {targeting, levels} = TOWERS[kind];
-    const {range, interval, projectileSpeed, payload} = levels[level];
-    current
-      .add(new Weapon(range, projectileSpeed))
-      .add(new Cooldown(interval))
-      .add(new Payload(payload))
-      .add(new View(drawTower(kind, level)))
-      .add(targeting);
-  },
-});
-```
+<<< @/../examples/tower-defense/systems/TowerLevelSystem.ts
 
 Adding a component, that the entity already has, replaces it, so the tower becomes exactly what the level describes.
 An upgrade is one line: `tower.add(new Tower(kind, level + 1))`. See
@@ -97,11 +86,13 @@ An upgrade is one line: `tower.add(new Tower(kind, level + 1))`. See
 
 ## Creeps and waves
 
-<<< @/../examples/tower-defense/components/Position.ts
+<<< @/../examples/shared/components/Position.ts
 
 <<< @/../examples/tower-defense/components/Health.ts
 
-<<< @/../examples/tower-defense/components/Creep.ts
+<<< @/../examples/shared/components/Reward.ts
+
+<<< @/../examples/tower-defense/tags.ts
 
 A creep follows the path. The follower keeps the index of the next turn, and the distance passed, which towers use
 to choose their target:
@@ -111,16 +102,18 @@ to choose their target:
 Waves are data too: the size of a wave and creeps of a wave are functions of its number. The balance is tuned in one
 place, and the spawn system only counts time:
 
-<<< @/../examples/tower-defense/waves.ts
+<<< @/../examples/tower-defense/data/waves.ts
 
 <<< @/../examples/tower-defense/systems/SpawnSystem.ts
 
 The path system moves creeps with `moveTowards` from the shared geometry helpers. It returns the part of the step left
 after a turn has been reached, so a fast creep turns the corner in the same update. When a creep crosses into another
-cell, it gets a new `Cell`. A creep, that has reached the exit, escapes: it takes a life of the player, and is
-destroyed:
+cell, it gets a new `Cell`. A creep, that has reached the exit, escapes: it gets the `ESCAPED` tag and is destroyed,
+and a reaction system to the tag takes a life of the player:
 
 <<< @/../examples/tower-defense/systems/PathSystem.ts
+
+<<< @/../examples/tower-defense/systems/EscapeSystem.ts
 
 ## Choosing a target
 
@@ -130,39 +123,40 @@ target is the state of the tower:
 <<< @/../examples/tower-defense/components/Target.ts
 
 When a tower looks for a target, it asks a **spatial index**: creeps indexed by cells of the map. The index gives only
-creeps in cells around the tower:
+creeps in cells around the tower. The grid is shared by the examples, and the index of creeps adds a search in range:
 
-<<< @/../examples/tower-defense/SpatialIndex.ts
+<<< @/../examples/shared/indexes/GridIndex.ts
 
-The index is kept by reaction systems of the `Cell` component. A creep is added when it gets a cell, and when the path
-system gives it a new cell, the reaction system sees the old cell removed and the new one added. A creep, that has lost
-its `Health`, leaves the index of targets right away. Towers are indexed the same way, so the game finds the tower in
-a cell with a lookup:
+<<< @/../examples/tower-defense/indexes/CreepIndex.ts
 
-```typescript
-this.engine
-  .reactive([Cell, Health, Creep], {
-    added: ({current}, cell) => this.creeps.add(cell, current),
-    removed: ({current}, cell) => this.creeps.remove(cell, current),
-  })
-  .reactive([Cell, Tower], {
-    added: ({current}, cell) => this.towers.add(cell, current),
-    removed: ({current}, cell) => this.towers.remove(cell, current),
-  });
-```
+The index stores entries with the components systems need, so a system that finds a creep doesn't look them up again:
+
+<<< @/../examples/tower-defense/indexes/CreepEntry.ts
+
+The index is kept by a reaction system of the `Cell` component. A creep is added when it gets a cell, and when the path
+system gives it a new cell, the reaction system sees the old cell removed and the new one added. The query excludes
+destroyed creeps with `without(DESTROYED)`, so a destroyed creep leaves the index of targets right away:
+
+<<< @/../examples/tower-defense/systems/CreepIndexSystem.ts
+
+Towers are indexed the same way, so the tower in a cell is found with a lookup.
 
 The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system,
 and both of them choose the creep with the best score in range: the distance passed or the health. A new rule is a new
 tag and a new system.
 
-<<< @/../examples/tower-defense/systems/TargetingSystem.ts
+<<< @/../examples/tower-defense/systems/chooseTarget.ts
+
+<<< @/../examples/tower-defense/systems/TargetFirstSystem.ts
 
 Distances are checked with `isWithin` from the shared geometry helpers: it compares squares of distances, and reads as
 what it means.
 
 ## Projectiles carry their payload
 
-When a tower fires, its payload is copied to the projectile:
+A tower fires at its target every time its cooldown is over, and the projectile shares the payload of the tower:
+
+<<< @/../examples/tower-defense/systems/FireSystem.ts
 
 <<< @/../examples/tower-defense/entities/createProjectile.ts
 
@@ -177,19 +171,13 @@ for every effect of the payload. Creeps around the target are found with the sam
 ## References between entities
 
 A projectile keeps a reference to its target, and a tower keeps a reference to its target too. What if the target dies
-or escapes? The projectile system checks it with `creeps.has(target)`: the target is still in the index of creeps with
-health. Towers check it the same way before they fire.
+or escapes? Both keep the entry of the target in the index of creeps, and `isAlive` tells whether the creep still takes
+part in the game.
 
 A creep dies or escapes, and is destroyed with the `DESTROYED` tag, as in the previous tutorials. It stays in the
-engine until the end of the update, but it must stop taking part in the game right away. Let's react to the tag:
-a destroyed creep loses its `Health`. It leaves the index of targets, and queries of damage and death, so it can't be
-hit or killed once again:
-
-```typescript
-this.engine
-  .reactive([Health, DESTROYED], {added: ({current}) => current.remove(Health)})
-  .addSystem(new DestroySystem());
-```
+engine until the end of the update, but it must stop taking part in the game right away. Queries of the index and of
+death exclude the tag with `without(DESTROYED)`, so a destroyed creep leaves them at once: it can't be targeted, hit or
+killed once again.
 
 > ❗ Keep references to entities only as long as you check that they still take part in the game. A query or an index
 > of the components you need is the simplest way to check it.
@@ -207,8 +195,13 @@ projectiles in one update. Every effect is its own component:
 
 What will happen, if `Poison` is a usual component? The second poison will replace the first one. That's what
 [linked components](/guide/linked-components) are for: an entity can have several components of the same class.
-`Slow` and `Poison` are created from the descriptions of the payload, the same way the payload is created from
-a level.
+`Slow` and `Poison` are created from effects of the payload, and every effect has its own system:
+
+<<< @/../examples/tower-defense/systems/DamageSystem.ts
+
+<<< @/../examples/tower-defense/systems/SlowSystem.ts
+
+<<< @/../examples/tower-defense/systems/PoisonSystem.ts
 
 Linked components are added with `append`, as the projectile system does on hit. They are processed with `iterate`,
 which visits every linked component of the class. Expired ones are removed with `pick`, which removes one particular
@@ -216,37 +209,45 @@ component and keeps the others.
 
 ## The game
 
-Here is the whole game. Its constructor adds indexes, the reaction to levels of towers, and systems in the order they
-are updated. Its methods are actions of the player:
+Here is the whole game. Its constructor creates indexes and the rules of building, and adds systems in the order they
+are updated:
 
-<<< @/../examples/tower-defense/game.ts
+<<< @/../examples/tower-defense/TowerDefenseGame.ts
 
 A few things to notice:
 
-- Every effect has its own small system, written right where it's added. Hits are dealt once and removed. Poisons
-  stack: every poison deals its damage. Slows don't: the path system applies the strongest one. Every effect is
-  a class, and every system processes its class.
-- The death system runs after all damage of the update has been dealt. A killed creep gives gold, and is destroyed.
-  Then it has no health, so it's killed only once.
-- Building and upgrading are actions of the player, so they are methods of the game. They check gold, the map, and the
-  index of towers, create a tower or replace its `Tower` with the next level.
+- Every effect has its own small system. Hits are dealt once and removed. Poisons stack: every poison deals its damage.
+  Slows don't: the path system applies the strongest one. Every effect is a class, and every system processes its
+  class.
+- The death system runs after all damage of the update has been dealt. A killed creep gets the `KILLED` and
+  `DESTROYED` tags, and the reward system gives gold for it. The death query excludes destroyed creeps, so a creep is
+  killed only once.
+- Building and upgrading are orders of the player or the autopilot. The rules check gold, the map, and the index of
+  towers, and the construction system carries out an order, that the rules allow:
+
+<<< @/../examples/tower-defense/Construction.ts
+
+<<< @/../examples/tower-defense/systems/ConstructionSystem.ts
 
 > 💡 A query of `[Poison, Health]` contains every creep that has at least one poison. The component passed to the
 > system is the first one, and `entity.iterate(Poison, ...)` visits all of them.
 
 ## Game state outside of entities
 
-Gold and lives belong to the player. There is only one player, and it's not an entity, so gold and lives are kept by
-the game:
+Gold and lives belong to the player. There is only one player, and it's not an entity, so gold and lives are kept in
+the state of the game:
 
-<<< @/../examples/tower-defense/Economy.ts
+<<< @/../examples/tower-defense/TowerDefenseState.ts
 
-Systems, that change them, receive the economy explicitly: the death system gives gold for a killed creep, and the path
-system takes a life, when a creep escapes.
+Systems, that change them, receive the state explicitly: the reward system gives gold for a killed creep, and the
+escape system takes a life, when a creep escapes.
 
-The game is over when there are no lives left, and the path system dispatches `GameOver` for the page, when the last
-life is lost. See [Where to keep game state?](/decisions/game-state) for more about
-this choice.
+The game is over when there are no lives left. The game over system writes the outcome, and dispatches `GameOver` for
+the page. The game stops updating when it's over, so the message is dispatched once:
+
+<<< @/../examples/tower-defense/systems/GameOverSystem.ts
+
+See [Where to keep game state?](/decisions/game-state) for more about this choice.
 
 ## Views and input
 
@@ -255,44 +256,43 @@ and a typed component besides `View`, so a system updates the health bar without
 
 <<< @/../examples/tower-defense/render/CreepView.ts
 
-<<< @/../examples/tower-defense/render/CreepViewRef.ts
+<<< @/../examples/tower-defense/render/HealthBar.ts
 
 <<< @/../examples/tower-defense/entities/createCreep.ts
 
-```typescript
-this.engine.iterative([CreepViewRef, Health], (creep, dt, {view}, health) => {
-  view.setHealth(health.value / health.max);
-  view.setEffects(creep.has(Slow), creep.has(Poison));
-});
-```
+<<< @/../examples/tower-defense/render/HealthBarSystem.ts
 
 A tower is drawn by its kind and level, so its view comes from the level, together with the weapon. An upgrade
-replaces the view, and the view system destroys the previous one. A projectile is drawn by its payload.
+replaces the view, and the view system destroys the previous one. A projectile is drawn by the kind of its tower.
 
-Towers are built and upgraded with the pointer. The placement shows the cell and the range the tower would have, and
-builds a tower in an empty cell or upgrades the tower on click. It asks the game what's possible, so the rules are in
-one place:
+Towers are built and upgraded with the pointer. The placement shows the cell and the range the tower would have. A
+click orders to build a tower in an empty cell or to upgrade the tower: the placement writes the order into the
+controls, and the construction system carries it out. The autopilot writes orders into the same controls when the
+player doesn't play:
 
-<<< @/../examples/tower-defense/input/pointer.ts
+<<< @/../examples/tower-defense/TowerDefenseControls.ts
 
-The page is the [demo](/tutorials/demo): it draws the map under the world once, and updates the placement every
-frame:
+<<< @/../examples/tower-defense/input/TowerPlacement.ts
 
-<<< @/../examples/tower-defense/mount.ts
+<<< @/../examples/tower-defense/systems/AutopilotSystem.ts
+
+The page describes the game for the [demo](/tutorials/demo): it draws the map under the world once, and updates the
+placement every frame:
+
+<<< @/../examples/tower-defense/TowerDefensePage.ts
 
 ## What we've learned
 
 - Static data is just data.
 - Kinds of things are data, but every entity owns its state: data is turned into components when an entity is created,
   and changing components changes the entity, for example on upgrade.
-- The same description can be data of a level and a component, so it's copied from a level to a tower and a projectile
-  as is.
+- An immutable component can be shared: a tower shares its payload with its projectiles.
 - Behaviour is composed from data and components, and systems don't depend on kinds.
 - Towers keep their targets, and look for new ones in a spatial index.
 - An index is kept by reaction systems of the component it indexes: an entity that moves gets a new `Cell`, and indexes
   follow it.
 - Linked components store several components of the same class, `iterate` visits them, and `pick` removes one of them.
-- Game state, that doesn't belong to entities, is kept by the game.
+- Game state, that doesn't belong to entities, is kept in the state of the game.
 - References to entities are checked with queries or indexes before use.
 - Damage from different systems is resolved by one system that runs after all of them.
 

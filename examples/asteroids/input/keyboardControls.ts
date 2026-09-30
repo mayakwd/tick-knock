@@ -1,4 +1,4 @@
-import {Keyboard} from '../../shared/Keyboard';
+import {Keyboard} from '../../shared/demo/Keyboard';
 import {Controls} from '../Controls';
 
 export const KEY_CODES = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'KeyA', 'KeyD', 'KeyW', 'Space'];

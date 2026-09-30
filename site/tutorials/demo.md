@@ -77,7 +77,7 @@ and the documentation start games with such functions.
 
 The keyboard is read only while the game is focused, so an embedded game doesn't steal arrows and space from the page:
 
-<<< @/../examples/shared/Keyboard.ts
+<<< @/../examples/shared/demo/Keyboard.ts
 
 ## The status line
 

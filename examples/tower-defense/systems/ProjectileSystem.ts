@@ -1,8 +1,10 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
+import {Position} from '../../shared/components/Position';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {moveTowards} from '../../shared/geometry';
-import {Hit, Payload, Poison, Position, Projectile, Slow} from '../components';
-import {SpatialIndex} from '../SpatialIndex';
+import {Hit, Payload, Poison, Projectile, Slow} from '../components';
+import {CreepEntry} from '../indexes/CreepEntry';
+import {CreepIndex} from '../indexes/CreepIndex';
 
 /**
  * Moves projectiles to their targets, and delivers their payload on hit: every hit creep gets a component for every
@@ -10,9 +12,9 @@ import {SpatialIndex} from '../SpatialIndex';
  */
 export class ProjectileSystem extends IterativeSystem.of(Position, Projectile, Payload) {
   /**
-   * @param creeps Spatial index of creeps, that can be hit
+   * @param creeps Index of creeps, that can be hit
    */
-  public constructor(private readonly creeps: SpatialIndex) {
+  public constructor(private readonly creeps: CreepIndex) {
     super();
   }
 
@@ -24,33 +26,39 @@ export class ProjectileSystem extends IterativeSystem.of(Position, Projectile, P
     payload: Payload,
   ): void {
     // The target has died or escaped, and the projectile has nothing to fly to
-    if (!this.creeps.has(target)) {
+    if (!target.isAlive) {
       projectile.add(DESTROYED);
       return;
     }
 
     // The projectile flies until it reaches the target
-    const targetPosition = target.get(Position)!;
-    if (moveTowards(position, targetPosition, speed * dt) === undefined) return;
-
-    // A bullet hits only the target
+    if (moveTowards(position, target.position, speed * dt) === undefined) return;
     projectile.add(DESTROYED);
-    if (payload.splash === 0) {
-      deliver(target, payload);
-      return;
-    }
 
-    // An explosion hits every creep around the target, the spatial index gives only creeps in nearby cells
-    this.creeps.forEachWithin(targetPosition, payload.splash, (creep) => deliver(creep, payload));
+    // A bullet hits only the target, an explosion hits every creep around it
+    switch (payload.impact.kind) {
+      case 'single':
+        return deliver(target, payload);
+      case 'splash':
+        return this.creeps.forEachInRange(target.position, payload.impact.radius, (creep) => deliver(creep, payload));
+    }
   }
 }
 
 /**
- * Adds effects of the payload to the creep. Effects are linked components: a creep can have several of them
- * at the same time.
+ * Adds the damage and effects of the payload to the creep. They are linked components: a creep can have several of
+ * them at the same time.
  */
-function deliver(creep: Entity, {damage, slow, poison}: Payload): void {
-  creep.append(new Hit(damage));
-  if (slow !== undefined) creep.append(new Slow(slow));
-  if (poison !== undefined) creep.append(new Poison(poison));
+function deliver({entity}: CreepEntry, {damage, effects}: Payload): void {
+  entity.append(new Hit(damage));
+  for (const effect of effects) {
+    switch (effect.kind) {
+      case 'slow':
+        entity.append(new Slow(effect));
+        break;
+      case 'poison':
+        entity.append(new Poison(effect));
+        break;
+    }
+  }
 }

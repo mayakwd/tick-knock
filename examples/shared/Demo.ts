@@ -1,7 +1,7 @@
 import {Engine} from 'tick-knock';
 import {Application, Container, Ticker} from 'pixi.js';
 import {GameOver} from './GameOver';
-import {Keyboard} from './Keyboard';
+import {Keyboard} from './demo/Keyboard';
 import {Hud} from './render/Hud';
 
 /**

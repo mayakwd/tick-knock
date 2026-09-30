@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {ColliderTree} from '../ColliderTree';
 import {Collider, Enemy, Hit, Invulnerable, Position} from '../components';
 import {ENEMY_BULLET, PLAYER} from '../tags';

@@ -9,17 +9,18 @@ It's tempting to make everything an entity: the score, the settings, the current
 systems query it. If there is always exactly one of something, and only a couple of places need it, an entity adds
 nothing but lookups.
 
-In the [Tower defense](/tutorials/tower-defense), gold and lives are kept by the game:
+In the [Tower defense](/tutorials/tower-defense), gold and lives are kept in the state of the game:
 
 ```typescript
-class Economy {
+class TowerDefenseState extends GameState {
   public gold = START_GOLD;
   public lives = START_LIVES;
+  public wave = 1;
 }
 ```
 
-Systems, that change gold and lives, receive the economy explicitly: the death of a creep gives gold, and the path
-system takes a life, when a creep escapes.
+Systems, that change gold and lives, receive the state explicitly: a killed creep gives gold, and the escape system
+takes a life, when a creep escapes.
 
 ## Dependencies are explicit
 

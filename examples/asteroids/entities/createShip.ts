@@ -1,5 +1,5 @@
 import {Entity} from 'tick-knock';
-import {Cooldown} from '../../shared/Cooldown';
+import {Cooldown} from '../../shared/components/Cooldown';
 import {View} from '../../shared/render/View';
 import {Collider, Position, Rotation, Velocity} from '../components';
 import {FIRE_INTERVAL, SHIP_RADIUS} from '../config';

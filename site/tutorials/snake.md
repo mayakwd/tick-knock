@@ -114,7 +114,9 @@ this.engine.reactive([Cell], {
 Food is eaten, segments expire. How do we remove them? Systems don't remove entities themselves, they **destroy** them
 with a tag, and the destroy system removes destroyed entities from the engine:
 
-<<< @/../examples/shared/DestroySystem.ts
+<<< @/../examples/shared/ecs/tags.ts
+
+<<< @/../examples/shared/systems/DestroySystem.ts
 
 The destroyed entity stays in the engine until the end of the update, so systems updated after can react to it. In
 Snake nobody needs it, but in the next tutorials destroyed asteroids will split, and destroyed creeps will give gold.

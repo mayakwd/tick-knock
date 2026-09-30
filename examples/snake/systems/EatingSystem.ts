@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {Body, Cell} from '../components';
 import {Grid} from '../Grid';
 import {FOOD, HEAD} from '../tags';

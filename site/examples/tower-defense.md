@@ -7,12 +7,12 @@ Keys 1-4 select a tower, a click builds it or upgrades the tower in the cell, R 
 What it shows:
 
 - Kinds of towers are data, but every tower owns its characteristics as components, so it can be upgraded.
-- Descriptions reused as components: the payload of a level is the component of the tower and its projectiles.
+- Immutable components shared by entities: the payload of a tower is shared by its projectiles.
 - A spatial index of creeps, maintained by reaction systems on the `Cell` component: towers find targets in it,
   and keep them while they are in range. Rules of targeting are tags.
 - Linked components for effects: a creep can be slowed and poisoned several times, every effect expires on its own.
-- Game state that doesn't belong to entities: gold and lives are kept by the game, and systems, that change them,
-  receive them in their constructors.
+- Game state that doesn't belong to entities: gold and lives are kept in the state of the game, and systems, that
+  change them, receive it in their constructors.
 - Entities referencing other entities: projectiles fly to their targets and disappear when targets die.
 - Static data outside of the engine: the map is a picture and a list of turns of the path, not entities.
 

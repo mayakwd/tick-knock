@@ -1,5 +1,5 @@
 import {Entity} from 'tick-knock';
-import {Cooldown} from '../../shared/Cooldown';
+import {Cooldown} from '../../shared/components/Cooldown';
 import {View} from '../../shared/render/View';
 import {Collider, Lives, Position} from '../components';
 import {PLAYER_FIRE_INTERVAL, PLAYER_LIVES, PLAYER_RADIUS} from '../config';

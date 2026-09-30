@@ -1,6 +1,7 @@
 import {Engine, Query, QueryBuilder} from 'tick-knock';
 import {Container} from 'pixi.js';
-import {DESTROYED, DestroySystem} from '../shared/DestroySystem';
+import {DESTROYED} from '../shared/ecs/tags';
+import {DestroySystem} from '../shared/systems/DestroySystem';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
 import {Body, Cell, Heading, Lifetime} from './components';

@@ -1,8 +1,9 @@
 import {Container} from 'pixi.js';
 
 /**
- * Visual representation of the entity. Game logic never adds it: render systems attach views to entities,
- * so the same game runs without rendering in tests.
+ * Visual representation of the entity. Entity factories create it together with the other components, and render
+ * systems added after all game systems show it. pixi.js creates display objects without a renderer, so the same game
+ * runs in tests without a browser.
  */
 export class View {
   public constructor(public readonly display: Container) {}

@@ -1,6 +1,6 @@
 import {Entity} from 'tick-knock';
 import {isWithin} from '../shared/geometry';
-import {QuadTree} from '../shared/QuadTree';
+import {QuadTree} from '../shared/indexes/QuadTree';
 import {Collider, Position} from './components';
 import {ENEMY_BULLET_RADIUS, HEIGHT, PLAYER_BULLET_RADIUS, PLAYER_RADIUS, SCREEN_MARGIN, WIDTH} from './config';
 import {MAX_ENEMY_RADIUS} from './enemies';

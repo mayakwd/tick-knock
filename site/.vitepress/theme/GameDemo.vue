@@ -3,33 +3,56 @@ import {onBeforeUnmount, onMounted, ref} from 'vue';
 
 type Game = 'snake' | 'asteroids' | 'bullet-hell' | 'tower-defense';
 
+/**
+ * A game started in the element, destroyed when the page is left
+ */
+interface RunningGame {
+  destroy(): void;
+}
+
+type StartGame = (element: HTMLElement) => Promise<RunningGame>;
+
 const props = defineProps<{ game: Game }>();
 const container = ref<HTMLElement>();
-let destroy: (() => void) | undefined;
+let running: RunningGame | undefined;
 let unmounted = false;
+
+/**
+ * Games that are not migrated to pages yet export a function, that starts the game and returns a function stopping it
+ */
+function fromMount(mount: (element: HTMLElement) => Promise<() => void>): StartGame {
+  return async (element) => ({destroy: await mount(element)});
+}
 
 /**
  * Games are loaded only in the browser and only on pages that show them
  */
-const games: Record<Game, () => Promise<(element: HTMLElement) => Promise<() => void>>> = {
-  'snake': () => import('@examples/snake/mount').then((module) => module.mountSnake),
-  'asteroids': () => import('@examples/asteroids/mount').then((module) => module.mountAsteroids),
-  'bullet-hell': () => import('@examples/bullet-hell/mount').then((module) => module.mountBulletHell),
-  'tower-defense': () => import('@examples/tower-defense/mount').then((module) => module.mountTowerDefense),
+const games: Record<Game, () => Promise<StartGame>> = {
+  'snake': () => import('@examples/snake/mount').then((module) => fromMount(module.mountSnake)),
+  'asteroids': () => import('@examples/asteroids/mount').then((module) => fromMount(module.mountAsteroids)),
+  'bullet-hell': () => import('@examples/bullet-hell/mount').then((module) => fromMount(module.mountBulletHell)),
+  'tower-defense': async () => {
+    const [{Demo}, {TowerDefensePage}] = await Promise.all([
+      import('@examples/shared/demo/Demo'),
+      import('@examples/tower-defense/TowerDefensePage'),
+    ]);
+    return (element) => Demo.mount(element, new TowerDefensePage());
+  },
 };
 
 onMounted(async () => {
   // The element is taken before loading, because Vue clears the reference when the page is left
-  const element = container.value!;
+  const element = container.value;
+  if (element === undefined) return;
   try {
-    const mount = await games[props.game]();
+    const start = await games[props.game]();
     // The page could be left while the game was loading
     if (unmounted) return;
-    const stop = await mount(element);
+    const game = await start(element);
     if (unmounted) {
-      stop();
+      game.destroy();
     } else {
-      destroy = stop;
+      running = game;
     }
   } catch (error) {
     console.error(`Failed to start the ${props.game} example`, error);
@@ -38,7 +61,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   unmounted = true;
-  destroy?.();
+  running?.destroy();
 });
 </script>
 

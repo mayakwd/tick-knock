@@ -6,14 +6,17 @@
  */
 import {testAsteroids} from './asteroids';
 import {testBulletHell} from './bulletHell';
+import {testCircleIndex} from './circleIndex';
 import {testQuadTree} from './quadTree';
 import {testSnake} from './snake';
-import {testTowerDefense, testTowerUpgrades} from './towerDefense';
+import {testTowerDefense, testTowerDefenseGameOver, testTowerUpgrades} from './towerDefense';
 
 testQuadTree();
+testCircleIndex();
 testSnake();
 testAsteroids();
 testBulletHell();
 testTowerDefense();
 testTowerUpgrades();
+testTowerDefenseGameOver();
 console.log('Examples work');

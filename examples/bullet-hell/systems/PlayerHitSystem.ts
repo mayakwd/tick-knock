@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {DESTROYED} from '../../shared/DestroySystem';
+import {DESTROYED} from '../../shared/ecs/tags';
 import {GameOver} from '../../shared/GameOver';
 import {Hit, Invulnerable, Lives} from '../components';
 import {INVULNERABILITY_TIME} from '../config';

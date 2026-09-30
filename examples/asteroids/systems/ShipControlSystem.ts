@@ -1,5 +1,5 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {Cooldown} from '../../shared/Cooldown';
+import {Cooldown} from '../../shared/components/Cooldown';
 import {Position, Rotation, Velocity} from '../components';
 import {DRAG, THRUST, TURN_SPEED} from '../config';
 import {Controls} from '../Controls';

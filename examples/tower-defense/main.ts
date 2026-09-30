@@ -1,3 +1,5 @@
-import {mountTowerDefense} from './mount';
+import {Demo} from '../shared/demo/Demo';
+import {requireElement} from '../shared/demo/requireElement';
+import {TowerDefensePage} from './TowerDefensePage';
 
-void mountTowerDefense(document.getElementById('game')!);
+void Demo.mount(requireElement('game'), new TowerDefensePage());

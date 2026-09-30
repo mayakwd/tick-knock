@@ -1,6 +1,6 @@
 import {Entity, IterativeSystem} from 'tick-knock';
 import {clamp} from '../../shared/geometry';
-import {Cooldown} from '../../shared/Cooldown';
+import {Cooldown} from '../../shared/components/Cooldown';
 import {Position} from '../components';
 import {HEIGHT, PLAYER_EDGE, PLAYER_FOCUS_SPEED, PLAYER_GUN_BARRELS, PLAYER_SPEED, WIDTH} from '../config';
 import {Controls} from '../Controls';

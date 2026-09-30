@@ -1,4 +1,4 @@
-import {Keyboard} from '../../shared/Keyboard';
+import {Keyboard} from '../../shared/demo/Keyboard';
 import {Controls, Direction} from '../Controls';
 
 const KEYS: Record<string, Direction> = {

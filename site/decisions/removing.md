@@ -16,7 +16,9 @@ removed immediately.
 Systems of the examples don't remove entities themselves. They add the `DESTROYED` tag, and the destroy system reacts
 to it:
 
-<<< @/../examples/shared/DestroySystem.ts
+<<< @/../examples/shared/ecs/tags.ts
+
+<<< @/../examples/shared/systems/DestroySystem.ts
 
 Why not just remove the entity? Because destruction often has consequences. A destroyed asteroid splits into smaller
 ones, a destroyed creep gives gold. The destroyed entity stays in the engine until the end of the update, so systems
@@ -35,8 +37,9 @@ engine.reactive([Collider, DESTROYED], {added: ({current}) => current.remove(Col
 ```
 
 The queries of collisions and the tree of asteroids contain `Collider`, so the destroyed entity leaves them
-immediately. The same way a destroyed creep of the [Tower defense](/tutorials/tower-defense) loses its `Health`, and
-destroyed food of [Snake](/tutorials/snake) loses its `Cell`, and leaves the grid.
+immediately. The same way destroyed food of [Snake](/tutorials/snake) loses its `Cell`, and leaves the grid. The
+[Tower defense](/tutorials/tower-defense) excludes the tag from queries instead: its index of creeps is kept by a system
+of `ReactionSystem.of(Cell, ..., CREEP, without(DESTROYED))`, so a destroyed creep leaves the index at once.
 
 ## Removing a component instead of the entity
 
@@ -50,5 +53,5 @@ Sometimes the entity is not gone, only one of its aspects is:
 
 If you keep a reference to an entity, like a projectile keeps its target in the
 [Tower defense](/tutorials/tower-defense), check that it still takes part in the game before using it. A query of the
-components you need is the simplest way: `creeps.has(target)`. A destroyed creep has lost its `Health`, so it's not in
-the query of creeps anymore, even before it's removed from the engine.
+components you need is the simplest way. In the Tower defense a target is an entry of the index of creeps, and
+`isAlive` checks that the creep hasn't been destroyed, even before it's removed from the engine.
