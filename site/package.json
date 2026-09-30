@@ -1,0 +1,21 @@
+{
+  "name": "tick-knock-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Documentation site of tick-knock",
+  "license": "MIT",
+  "scripts": {
+    "api": "typedoc",
+    "dev": "typedoc && vitepress dev",
+    "build": "typedoc && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "typedoc": "0.28.20",
+    "typedoc-plugin-markdown": "4.13.1",
+    "typedoc-vitepress-theme": "1.1.4",
+    "typescript": "~6.0.3",
+    "vitepress": "2.0.0-alpha.20",
+    "vue": "3.5.43"
+  }
+}

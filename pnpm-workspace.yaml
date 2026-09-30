@@ -1,6 +1,7 @@
 packages:
   - bench
   - examples
+  - site
 
 # Dependencies that are allowed to run install scripts
 onlyBuiltDependencies:
