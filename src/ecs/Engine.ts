@@ -25,7 +25,8 @@ export class Engine {
   private _queries: Query[] = [];
   // Queries built by QueryBuilder are indexed by their components and tags,
   // so component changes validate only the queries that depend on them.
-  private _queriesByComponent: Map<number, Query[]> = new Map();
+  // Indexed by component id, ids are small sequential numbers
+  private _queriesByComponent: Array<Query[] | undefined> = [];
   private _queriesByTag: Map<Tag, Query[]> = new Map();
   private _predicateQueries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
@@ -187,7 +188,7 @@ export class Engine {
   public removeAllQueries(): void {
     const queries = this._queries;
     this._queries = [];
-    this._queriesByComponent.clear();
+    this._queriesByComponent = [];
     this._queriesByTag.clear();
     this._predicateQueries = [];
     for (const query of queries) {
@@ -369,7 +370,7 @@ export class Engine {
       return;
     }
     for (const id of query.componentIds) {
-      addToIndex(this._queriesByComponent, id, query);
+      (this._queriesByComponent[id] ??= []).push(query);
     }
     for (const tag of query.tags) {
       addToIndex(this._queriesByTag, tag, query);
@@ -382,7 +383,7 @@ export class Engine {
       return;
     }
     for (const id of query.componentIds) {
-      removeFromList(this._queriesByComponent.get(id), query);
+      removeFromList(this._queriesByComponent[id], query);
     }
     for (const tag of query.tags) {
       removeFromList(this._queriesByTag.get(tag), query);
@@ -394,7 +395,7 @@ export class Engine {
       return this._queriesByTag.get(componentOrTag);
     }
     const id = getComponentId(componentClass ?? getComponentClass(componentOrTag as NonNullable<unknown>));
-    return id === undefined ? undefined : this._queriesByComponent.get(id);
+    return id === undefined ? undefined : this._queriesByComponent[id];
   }
 
   private removeAllEntitiesInternal(silently: boolean): void {

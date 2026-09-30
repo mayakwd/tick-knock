@@ -72,7 +72,7 @@ export class Query<C extends unknown[] = any[]> {
   // Components of the entities, aligned with the dense list, one array per component type of the query
   private _columns: unknown[][] = [];
   private _columnIds: ReadonlyArray<number> = [];
-  private readonly _slots: Map<Entity, number> = new Map();
+  private _size: number = 0;
   private _holes: number = 0;
   private _iterations: number = 0;
   private _entitiesCache: Entity[] | undefined;
@@ -125,14 +125,14 @@ export class Query<C extends unknown[] = any[]> {
    * @returns {Entity | undefined}
    */
   public get length(): number {
-    return this._slots.size;
+    return this._size;
   }
 
   /**
    * Gets a value indicating that query is empty
    */
   public get isEmpty(): boolean {
-    return this._slots.size === 0;
+    return this._size === 0;
   }
 
   /**
@@ -245,7 +245,7 @@ export class Query<C extends unknown[] = any[]> {
    * @returns {boolean}
    */
   public has(entity: Entity): boolean {
-    return this._slots.has(entity);
+    return entity.getQuerySlot(this) !== -1;
   }
 
   /**
@@ -264,9 +264,12 @@ export class Query<C extends unknown[] = any[]> {
    * Clears the list of entities of the query
    */
   public clear(): void {
+    for (const entity of this._dense) {
+      entity?.deleteQuerySlot(this);
+    }
     this._dense = [];
     this._columns = this._columnIds.map(() => []);
-    this._slots.clear();
+    this._size = 0;
     this._holes = 0;
     this._entitiesCache = undefined;
   }
@@ -320,7 +323,7 @@ export class Query<C extends unknown[] = any[]> {
    * @internal
    */
   public entityAdded = (entity: Entity) => {
-    if (!this._slots.has(entity) && this._predicate(entity)) {
+    if (entity.getQuerySlot(this) === -1 && this._predicate(entity)) {
       this.add(entity);
     }
   };
@@ -329,7 +332,7 @@ export class Query<C extends unknown[] = any[]> {
    * @internal
    */
   public entityRemoved = (entity: Entity) => {
-    if (this._slots.has(entity)) {
+    if (entity.getQuerySlot(this) !== -1) {
       this.delete(entity);
     }
   };
@@ -352,9 +355,9 @@ export class Query<C extends unknown[] = any[]> {
   private readonly emitRemoved = (snapshot: EntitySnapshot) => this.onEntityRemoved.emit(snapshot);
 
   private revalidate<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
-    const slot = this._slots.get(entity);
+    const slot = entity.getQuerySlot(this);
     const isMatch = this._predicate(entity);
-    if (slot === undefined) {
+    if (slot === -1) {
       if (isMatch) this.add(entity, changed, changedClass);
     } else if (!isMatch) {
       this.delete(entity, changed, changedClass);
@@ -371,7 +374,8 @@ export class Query<C extends unknown[] = any[]> {
     for (let i = 0; i < columns.length; i++) {
       columns[i].push(entity.components[this._columnIds[i]]);
     }
-    this._slots.set(entity, slot);
+    entity.setQuerySlot(this, slot);
+    this._size++;
     this._entitiesCache = undefined;
     if (this.onEntityAdded.hasHandlers) {
       entity.takeSnapshot(this._snapshot, changed, changedClass);
@@ -380,13 +384,14 @@ export class Query<C extends unknown[] = any[]> {
   }
 
   private delete<T>(entity: Entity, changed?: NonNullable<T>, changedClass?: Class<NonNullable<T>>): void {
-    const slot = this._slots.get(entity)!;
+    const slot = entity.getQuerySlot(this);
     this._dense[slot] = undefined;
     const columns = this._columns;
     for (let i = 0; i < columns.length; i++) {
       columns[i][slot] = undefined;
     }
-    this._slots.delete(entity);
+    entity.deleteQuerySlot(this);
+    this._size--;
     this._holes++;
     this._entitiesCache = undefined;
     // Keep memory bounded if the query is changed much more often than iterated
@@ -421,7 +426,7 @@ export class Query<C extends unknown[] = any[]> {
         for (let i = 0; i < columns.length; i++) {
           columns[i][target] = columns[i][source];
         }
-        this._slots.set(entity, target);
+        entity.setQuerySlot(this, target);
       }
       target++;
     }

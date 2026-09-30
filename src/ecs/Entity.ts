@@ -268,14 +268,19 @@ export class Entity implements ReadonlyEntity {
    */
   public readonly id = entityId++;
 
-  private _components: Record<number, unknown> = {};
+  // Indexed by component id. The array grows exactly to the largest id, see setComponentValue
+  private _components: unknown[] = [];
   // Linked components, tags, signals and observers are created lazily to keep entities lightweight
   private _linkedComponents?: Record<number, LinkedComponentList<ILinkedComponent>>;
   private _tags?: Set<Tag>;
   private _onComponentAdded?: Signal<ComponentUpdateHandler>;
   private _onComponentRemoved?: Signal<ComponentUpdateHandler>;
   private _onInvalidationRequested?: Signal<(entity: Entity) => void>;
-  private _observers?: EntityObserver[];
+  // Usually the only observer is the engine, so it's stored without allocating an array
+  private _observer?: EntityObserver;
+  private _extraObservers?: EntityObserver[];
+  // Pairs of queries the entity belongs to and its positions in them: [query, slot, query, slot, ...]
+  private _querySlots?: unknown[];
 
   /**
    * Returns components map, where key is component identifier, and value is a component itself
@@ -482,7 +487,7 @@ export class Entity implements ReadonlyEntity {
     if (linkedComponent) {
       this.append(component as ILinkedComponent, resolveClass as Class<ILinkedComponent>);
     } else {
-      this._components[id] = component;
+      this.setComponentValue(id, component);
       this.dispatchOnComponentAdded(component, componentClass);
     }
     return this;
@@ -525,7 +530,7 @@ export class Entity implements ReadonlyEntity {
     const componentList = this.getLinkedComponentList(componentId)!;
     componentList.add(component);
     if (this._components[componentId] === undefined) {
-      this._components[componentId] = componentList.head;
+      this.setComponentValue(componentId, componentList.head);
     }
     this.dispatchOnComponentAdded(component, componentClass);
     return this;
@@ -799,7 +804,7 @@ export class Entity implements ReadonlyEntity {
    */
   public clear(): void {
     beforeChange();
-    this._components = {};
+    this._components = [];
     this._linkedComponents = undefined;
     this._tags?.clear();
   }
@@ -814,7 +819,7 @@ export class Entity implements ReadonlyEntity {
    * @return {this}
    */
   public copyFrom(entity: Entity): this {
-    this._components = Object.assign({}, entity._components);
+    this._components = entity._components.slice();
     this._linkedComponents = entity._linkedComponents === undefined ? undefined : Object.assign({}, entity._linkedComponents);
     this._tags = entity._tags === undefined ? undefined : new Set(entity._tags);
     return this;
@@ -912,9 +917,13 @@ export class Entity implements ReadonlyEntity {
    * Components properties are not tracking by Engine itself, because it's too expensive.
    */
   public invalidate(): void {
-    const observers = this._observers;
-    if (observers !== undefined) {
-      for (let i = 0; i < observers.length; i++) observers[i].entityInvalidated(this);
+    const observer = this._observer;
+    if (observer !== undefined) {
+      observer.entityInvalidated(this);
+      const extra = this._extraObservers;
+      if (extra !== undefined) {
+        for (let i = 0; i < extra.length; i++) extra[i].entityInvalidated(this);
+      }
     }
     const signal = this._onInvalidationRequested;
     if (signal !== undefined && signal.hasHandlers) {
@@ -926,10 +935,67 @@ export class Entity implements ReadonlyEntity {
    * @internal
    */
   public addObserver(observer: EntityObserver): void {
-    if (this._observers === undefined) {
-      this._observers = [observer];
-    } else if (this._observers.indexOf(observer) === -1) {
-      this._observers.push(observer);
+    if (this._observer === undefined) {
+      this._observer = observer;
+    } else if (this._observer !== observer) {
+      if (this._extraObservers === undefined) {
+        this._extraObservers = [observer];
+      } else if (this._extraObservers.indexOf(observer) === -1) {
+        this._extraObservers.push(observer);
+      }
+    }
+  }
+
+  /**
+   * @internal
+   * Gets position of the entity in the query, or -1 if the entity doesn't belong to the query
+   */
+  public getQuerySlot(query: object): number {
+    const slots = this._querySlots;
+    if (slots === undefined) return -1;
+    for (let i = 0; i < slots.length; i += 2) {
+      if (slots[i] === query) return slots[i + 1] as number;
+    }
+    return -1;
+  }
+
+  /**
+   * @internal
+   * Sets position of the entity in the query
+   */
+  public setQuerySlot(query: object, slot: number): void {
+    const slots = this._querySlots;
+    if (slots === undefined) {
+      // Array literal is allocated with exact capacity, while push to an empty array reserves space for 17 elements
+      this._querySlots = [query, slot];
+      return;
+    }
+    for (let i = 0; i < slots.length; i += 2) {
+      if (slots[i] === query) {
+        slots[i + 1] = slot;
+        return;
+      }
+    }
+    // Concatenation allocates exact capacity, while push reserves space for 16 more elements
+    this._querySlots = slots.length === 0 ? [query, slot] : slots.concat(query, slot);
+  }
+
+  /**
+   * @internal
+   * Forgets position of the entity in the query
+   */
+  public deleteQuerySlot(query: object): void {
+    const slots = this._querySlots;
+    if (slots === undefined) return;
+    for (let i = 0; i < slots.length; i += 2) {
+      if (slots[i] === query) {
+        // Move the last pair to the place of the removed one
+        const last = slots.length - 2;
+        slots[i] = slots[last];
+        slots[i + 1] = slots[last + 1];
+        slots.length = last;
+        return;
+      }
     }
   }
 
@@ -937,10 +1003,14 @@ export class Entity implements ReadonlyEntity {
    * @internal
    */
   public removeObserver(observer: EntityObserver): void {
-    if (this._observers === undefined) return;
-    const index = this._observers.indexOf(observer);
-    if (index !== -1) this._observers.splice(index, 1);
-    if (this._observers.length === 0) this._observers = undefined;
+    const extra = this._extraObservers;
+    if (this._observer === observer) {
+      this._observer = extra?.shift();
+    } else if (extra !== undefined) {
+      const index = extra.indexOf(observer);
+      if (index !== -1) extra.splice(index, 1);
+    }
+    if (extra !== undefined && extra.length === 0) this._extraObservers = undefined;
   }
 
   /**
@@ -1007,7 +1077,7 @@ export class Entity implements ReadonlyEntity {
       delete this._components[componentId];
       delete this._linkedComponents![componentId];
     } else {
-      this._components[componentId] = componentList.head;
+      this.setComponentValue(componentId, componentList.head);
     }
     if (result !== undefined) {
       this.dispatchOnComponentRemoved(result, componentClass);
@@ -1015,14 +1085,36 @@ export class Entity implements ReadonlyEntity {
     return result;
   }
 
+  /**
+   * Stores the component by its id. If the id is out of the storage, the storage is reallocated with exact length,
+   * because growing an array by assignment reserves much more space than needed.
+   */
+  private setComponentValue(id: number, value: unknown): void {
+    const components = this._components;
+    if (id < components.length) {
+      components[id] = value;
+      return;
+    }
+    const grown = new Array(id + 1);
+    for (let i = 0; i < components.length; i++) {
+      if (i in components) grown[i] = components[i];
+    }
+    grown[id] = value;
+    this._components = grown;
+  }
+
   private dispatchOnComponentAdded<T>(component: NonNullable<T>, componentClass?: Class<any>): void {
     const signal = this._onComponentAdded;
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, component, componentClass);
     }
-    const observers = this._observers;
-    if (observers !== undefined) {
-      for (let i = 0; i < observers.length; i++) observers[i].entityComponentAdded(this, component, componentClass);
+    const observer = this._observer;
+    if (observer !== undefined) {
+      observer.entityComponentAdded(this, component, componentClass);
+      const extra = this._extraObservers;
+      if (extra !== undefined) {
+        for (let i = 0; i < extra.length; i++) extra[i].entityComponentAdded(this, component, componentClass);
+      }
     }
   }
 
@@ -1031,9 +1123,13 @@ export class Entity implements ReadonlyEntity {
     if (signal !== undefined && signal.hasHandlers) {
       signal.emit(this, value, componentClass);
     }
-    const observers = this._observers;
-    if (observers !== undefined) {
-      for (let i = 0; i < observers.length; i++) observers[i].entityComponentRemoved(this, value, componentClass);
+    const observer = this._observer;
+    if (observer !== undefined) {
+      observer.entityComponentRemoved(this, value, componentClass);
+      const extra = this._extraObservers;
+      if (extra !== undefined) {
+        for (let i = 0; i < extra.length; i++) extra[i].entityComponentRemoved(this, value, componentClass);
+      }
     }
   }
 }

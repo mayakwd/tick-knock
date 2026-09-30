@@ -20,9 +20,11 @@ Performance (existing API is unchanged):
 - `Signal.emit` no longer allocates arguments twice per handler.
 - Component class id is stored in symbol properties of the class instead of being checked with `hasOwnProperty`.
   `Entity.get`/`has` are several times faster.
-- Entities are ~3x lighter in memory (≈430 bytes instead of ≈1430 bytes for an entity with two components):
-  signals, tags and linked components are allocated lazily, and Engine tracks entity changes directly instead of
-  connecting three signal handlers to every entity. Iteration over large queries is faster due to better cache locality.
+- Entities are ~4x lighter in memory (≈370 bytes instead of ≈1470 bytes for an entity with two components):
+  signals, tags and linked components are allocated lazily, components are stored in an array of exact length,
+  Engine tracks entity changes directly instead of connecting three signal handlers to every entity, and positions of
+  the entity in queries are stored in the entity itself. Iteration over large queries is faster due to better cache
+  locality.
 - `EntitySnapshot.previous` is restored lazily, only when it's accessed. If the entity is changed while a snapshot
   is being dispatched, previous state is restored before the change.
 
