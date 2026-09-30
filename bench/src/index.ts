@@ -11,11 +11,14 @@
  *   pnpm bench --libraries bitecs,miniplex    - benchmark only specified other libraries
  *   pnpm bench --filter iterate --time 2000   - run only scenarios which ids match the regular expression,
  *                                               2 seconds per scenario
+ *   pnpm bench --format json                  - print results in Bencher Metric Format instead of markdown
+ *   pnpm bench --baseline 4.3.0 --prepare     - only install baselines, used to prepare the benchmark image
  */
 import {execFileSync} from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import {createLibrary, isOtherLibraryId, LibraryDescriptor, otherLibraries} from './libraries';
+import {BencherReport} from './BencherMetricFormat';
 import {Report} from './Report';
 import {scenarios} from './Scenario';
 import {WorkerResult} from './worker';
@@ -26,15 +29,23 @@ interface Options {
   libraries: string;
   filter?: string;
   time: number;
+  format: 'markdown' | 'json';
+  prepare: boolean;
 }
 
 const ROOT = path.join(__dirname, '..');
 const CURRENT_BUILD = path.join(ROOT, '..', 'lib');
 
 function parseOptions(args: ReadonlyArray<string>): Options {
-  const options: Options = {libraries: 'all', time: 1000};
+  const options: Options = {libraries: 'all', time: 1000, format: 'markdown', prepare: false};
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i].replace(/^--/, '');
+    if (key === 'prepare') {
+      options.prepare = true;
+      // Flag without a value
+      i--;
+      continue;
+    }
     const value = args[i + 1];
     if (value === undefined) throw new Error(`Option ${args[i]} requires a value`);
     switch (key) {
@@ -48,6 +59,10 @@ function parseOptions(args: ReadonlyArray<string>): Options {
         break;
       case 'time':
         options.time = Number(value);
+        break;
+      case 'format':
+        if (value !== 'markdown' && value !== 'json') throw new Error(`Unknown format "${value}", use markdown or json`);
+        options.format = value;
         break;
       default:
         throw new Error(`Unknown option ${args[i]}`);
@@ -71,7 +86,8 @@ function resolveBaseline(baseline: string, name?: string): LibraryDescriptor {
   const directory = path.join(ROOT, '.baseline', baseline);
   const buildPath = path.join(directory, 'node_modules', 'tick-knock', 'lib');
   if (!fs.existsSync(buildPath)) {
-    console.log(`Installing tick-knock@${baseline}...`);
+    // Standard output is reserved for results
+    console.error(`Installing tick-knock@${baseline}...`);
     fs.mkdirSync(directory, {recursive: true});
     // Baseline is installed as a standalone package, outside of the workspace
     execFileSync('pnpm', ['add', '--ignore-workspace', '--dir', directory, `tick-knock@${baseline}`], {stdio: 'ignore'});
@@ -117,17 +133,36 @@ function runWorker(library: LibraryDescriptor, scenarioId: string, time: number)
   return JSON.parse(output);
 }
 
+/**
+ * Gets a stable name of the library for tracking results over time: versions of other libraries are omitted,
+ * so updating a library continues its history
+ */
+function getTrackingName(descriptor: LibraryDescriptor, name: string): string {
+  if (descriptor.id !== 'tick-knock') return name;
+  return descriptor.path === CURRENT_BUILD ? 'tick-knock' : name.replace(/^tick-knock /, 'tick-knock@');
+}
+
 function main(): void {
   const options = parseOptions(process.argv.slice(2));
   const libraries = resolveLibraries(options);
+  if (options.prepare) return;
   const filter = options.filter !== undefined ? new RegExp(options.filter) : undefined;
   const selectedScenarios = scenarios.filter((scenario) => filter === undefined || filter.test(scenario.id));
-  const columns = libraries.map((descriptor) => {
-    const library = createLibrary(descriptor);
-    return {title: `${library.name} ${descriptor.id === 'tick-knock' ? '' : library.version}`.trim()};
-  });
+  const created = libraries.map((descriptor) => ({descriptor, library: createLibrary(descriptor)}));
 
-  const report = new Report(columns);
+  if (options.format === 'json') {
+    const report = new BencherReport(created.map(({descriptor, library}) => getTrackingName(descriptor, library.name)));
+    for (const scenario of selectedScenarios) {
+      report.add(scenario, libraries.map((library) => runWorker(library, scenario.id, options.time).measurement));
+      console.error(`Measured ${scenario.id}`);
+    }
+    console.log(JSON.stringify(report, undefined, 2));
+    return;
+  }
+
+  const report = new Report(created.map(({descriptor, library}) => ({
+    title: `${library.name} ${descriptor.id === 'tick-knock' ? '' : library.version}`.trim(),
+  })));
   console.log(report.header);
   for (const scenario of selectedScenarios) {
     const measurements = libraries.map((library) => runWorker(library, scenario.id, options.time).measurement);

@@ -891,6 +891,9 @@ pnpm bench --baseline 4.3.0         # also benchmark a published tick-knock vers
 pnpm bench --filter iterate         # run only matching scenarios
 ```
 
+Benchmarks also run in CI on dedicated hardware with [Bencher](https://bencher.dev), so every pull request shows how
+it affects performance.
+
 See [bench/README.md](bench/README.md) for the list of scenarios and details.
 
 # Restrictions

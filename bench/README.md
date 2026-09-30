@@ -6,6 +6,7 @@ Benchmarks of tick-knock and other TypeScript ECS libraries.
 
 - [Running]
 - [How it works]
+- [Continuous benchmarking]
 - [Scenarios]
 - [Libraries]
 - [Adding a scenario]
@@ -46,6 +47,28 @@ The result is printed as a markdown table, the best result in every scenario is 
   so every library does the same amount of work.
 - Scenarios can verify their result after the first run, for example that every change was reported to a reactive
   system. The benchmark fails if the result is wrong, so a library can't win by doing less work.
+
+# Continuous benchmarking
+
+Results on a developer machine are noisy and can't be compared between machines, so benchmarks also run in CI
+on every push to `develop` and every pull request. [Bencher](https://bencher.dev) runs the whole benchmark, including other libraries and the baseline, on a dedicated
+bare metal machine. The benchmark is packed into an image by [Dockerfile](Dockerfile): dependencies and the baseline
+are installed when the image is built, because the machine has no network access. The image runs
+[bencher.ts](src/bencher.ts), which prints results in
+[Bencher Metric Format](https://bencher.dev/docs/reference/bencher-metric-format/): `throughput` for speed scenarios
+and `memory-per-entity` for the memory scenario. Pull requests get a comment with the comparison to `develop`.
+
+The same output can be produced locally:
+
+```shell
+pnpm --filter tick-knock-bench build
+node bench/dist/index.js --format json --baseline 4.3.0 > results.json  # Bencher Metric Format
+docker build -f bench/Dockerfile -t tick-knock-bench .                   # the image for Bencher
+docker run --rm --network none tick-knock-bench
+```
+
+The workflow is [bencher.yml](../.github/workflows/bencher.yml), it requires the `BENCHER_PROJECT` variable
+and the `BENCHER_API_KEY` secret.
 
 # Scenarios
 
@@ -101,6 +124,7 @@ optional `reset` method is invoked after every run without measuring.
 [Running]: #running
 
 [How it works]: #how-it-works
+[Continuous benchmarking]: #continuous-benchmarking
 
 [Scenarios]: #scenarios
 

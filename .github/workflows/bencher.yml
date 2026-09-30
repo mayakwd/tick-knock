@@ -1,0 +1,76 @@
+name: bencher
+
+# Runs the benchmark image on Bencher Bare Metal: a dedicated machine, so results are comparable between runs.
+# Runs on the default branch build the history, runs on pull requests are compared with it.
+#
+# Requires the `BENCHER_PROJECT` variable (project slug) and the `BENCHER_API_KEY` secret (project key).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+concurrency:
+  group: bencher-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    # Secrets are not available to pull requests from forks
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      BENCHER_PROJECT: ${{ vars.BENCHER_PROJECT }}
+      BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
+      IMAGE: ${{ vars.BENCHER_PROJECT }}:${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bencher CLI
+        uses: bencherdev/bencher@main
+
+      - name: Build benchmark image
+        run: docker build -f bench/Dockerfile -t "registry.bencher.dev/$IMAGE" .
+
+      - name: Push benchmark image
+        run: |
+          echo "$BENCHER_API_KEY" | docker login registry.bencher.dev -u "$BENCHER_PROJECT" --password-stdin
+          docker push "registry.bencher.dev/$IMAGE"
+
+      - name: Track default branch
+        if: github.event_name != 'pull_request'
+        run: |
+          bencher run \
+            --branch "${{ github.ref_name }}" \
+            --testbed bare-metal \
+            --threshold-measure throughput \
+            --threshold-test t_test \
+            --threshold-max-sample-size 64 \
+            --threshold-lower-boundary 0.99 \
+            --thresholds-reset \
+            --adapter json \
+            --image "$IMAGE" \
+            --job-timeout 300 \
+            --error-on-alert
+
+      - name: Compare pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          bencher run \
+            --branch "$GITHUB_HEAD_REF" \
+            --start-point "$GITHUB_BASE_REF" \
+            --start-point-hash "${{ github.event.pull_request.base.sha }}" \
+            --start-point-clone-thresholds \
+            --start-point-reset \
+            --testbed bare-metal \
+            --adapter json \
+            --image "$IMAGE" \
+            --job-timeout 300 \
+            --github-actions "${{ secrets.GITHUB_TOKEN }}" \
+            --error-on-alert

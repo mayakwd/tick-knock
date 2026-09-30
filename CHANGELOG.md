@@ -61,6 +61,8 @@ Fixes:
 
 Tooling:
 
+- Continuous benchmarking: Bencher runs the benchmark on bare metal on every push and pull request.
+  `pnpm bench` gained `--format json` (Bencher Metric Format) and `--prepare` options.
 - Migrated from yarn to pnpm. The repository is a pnpm workspace with the library, benchmarks and examples.
 - Migrated to TypeScript 7. Tests are transpiled with `@swc/jest`, because TypeScript 7 has no JavaScript API
   for `ts-jest`; types of sources and tests are checked by `pnpm typecheck`.
