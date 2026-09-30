@@ -44,12 +44,16 @@ export class Engine {
   private _queries: Query[] = [];
   // Queries built by QueryBuilder are indexed by their components and tags,
   // so component changes validate only the queries that depend on them.
+  // Lists of queries are replaced instead of being changed, so adding or removing a query from a handler
+  // doesn't affect the notification in progress.
   // Indexed by component id, ids are small sequential numbers
   private _queriesByComponent: Array<Query[] | undefined> = [];
   private _queriesByTag: Map<Tag, Query[]> = new Map();
   private _predicateQueries: Query[] = [];
   private _subscriptions: Subscription<any>[] = [];
+  // Identifiers are kept by the engine, so systems don't need a property for them
   private _systemsById: Map<string, System> = new Map();
+  private _systemIds: Map<System, string> = new Map();
   private _removalRequested: Set<number> = new Set();
   private _isUpdating: boolean = false;
 
@@ -89,10 +93,9 @@ export class Engine {
    * @see onEntityAdded
    */
   public addEntity(entity: Entity): Engine {
-    if (this._entityMap.has(entity.id)) {
-      this._removalRequested.delete(entity.id);
-      return this;
-    }
+    // Adding an entity cancels its removal requested during the update
+    this._removalRequested.delete(entity.id);
+    if (this._entityMap.has(entity.id)) return this;
     this._entityMap.set(entity.id, entity);
     // The entity is observed before handlers are called, so components added by handlers update queries
     this.connectEntity(entity);
@@ -134,9 +137,8 @@ export class Engine {
   }
 
   /**
-   * Removes a system from engine
-   * Avoid remove the system during update cycle, do it only if your sure what you are doing.
-   * Note: {@link IterativeSystem} has aware guard during update loop, if system removed - updating is being stopped.
+   * Removes a system from engine.
+   * A system removed during the update is not updated anymore, starting from the moment of removal.
    *
    * @param systemOrId System to remove, or its identifier
    */
@@ -145,10 +147,12 @@ export class Engine {
     if (system === undefined) return this;
     const index = this._systems.indexOf(system);
     if (index === -1) return this;
-    this._systems.splice(index, 1);
-    if (system.id !== undefined) {
-      this._systemsById.delete(system.id);
-      system.setId(undefined);
+    // The list is replaced instead of being changed, so the update in progress iterates the list it has started with
+    this._systems = [...this._systems.slice(0, index), ...this._systems.slice(index + 1)];
+    const id = this._systemIds.get(system);
+    if (id !== undefined) {
+      this._systemsById.delete(id);
+      this._systemIds.delete(system);
     }
     system.onRemovedFromEngine();
     system.setEngine(undefined);
@@ -156,14 +160,29 @@ export class Engine {
   }
 
   /**
+   * Gets an identifier of the system, if it was added to the engine with one
+   *
+   * @param system System added to the engine
+   * @see SystemOptions
+   */
+  public getSystemId(system: System): string | undefined {
+    return this._systemIds.get(system);
+  }
+
+  /**
    * Updates the engine. This cause updating all the systems in the engine in the order of priority they've been added.
+   *
+   * Systems added during the update are updated starting from the next update. Systems removed during the update
+   * are not updated anymore. Entities removed during the update are removed after all systems have been updated.
    *
    * @param dt Delta time in seconds
    */
   public update(dt: number): void {
     this._isUpdating = true;
     try {
+      // Adding and removing systems replace the list, so this loop is not affected by them
       for (const system of this._systems) {
+        if (!system.isAttachedTo(this)) continue;
         system.update(dt);
         if (system.isRemovalRequested) {
           this.removeSystem(system);
@@ -171,15 +190,7 @@ export class Engine {
       }
     } finally {
       this._isUpdating = false;
-    }
-    if (this._removalRequested.size > 0) {
-      for (const id of this._removalRequested) {
-        const entity = this._entityMap.get(id);
-        if (entity) {
-          this.removeEntityNow(entity);
-        }
-      }
-      this._removalRequested.clear();
+      this.removeRequestedEntities();
     }
   }
 
@@ -211,8 +222,8 @@ export class Engine {
    *   }, {priority: 10, id: 'damage'});
    * ```
    */
-  public iterative<T extends Array<ComponentType | Tag>>(
-    componentsOrTags: [...T],
+  public iterative<T extends ReadonlyArray<ComponentType | Tag>>(
+    componentsOrTags: readonly [...T],
     update: IterativeUpdate<ComponentsOf<T>>,
     options?: SystemOptions,
   ): Engine {
@@ -238,8 +249,8 @@ export class Engine {
    * });
    * ```
    */
-  public reactive<T extends Array<ComponentType | Tag>>(
-    componentsOrTags: [...T],
+  public reactive<T extends ReadonlyArray<ComponentType | Tag>>(
+    componentsOrTags: readonly [...T],
     handlers: ReactionHandlers<ComponentsOf<T>>,
     options?: SystemOptions,
   ): Engine {
@@ -262,10 +273,10 @@ export class Engine {
     const systems = this._systems;
     this._systems = [];
     this._systemsById.clear();
+    this._systemIds.clear();
     for (const system of systems) {
       system.onRemovedFromEngine();
       system.setEngine(undefined);
-      system.setId(undefined);
     }
   }
 
@@ -288,13 +299,20 @@ export class Engine {
   /**
    * Remove all entities.
    * onEntityRemoved will be fired for every entity.
+   *
+   * If the engine is being updated, entities are removed after all systems have been updated,
+   * the same way as {@link removeEntity} does.
    */
   public removeAllEntities(): void {
+    if (this._isUpdating) {
+      for (const id of this._entityMap.keys()) this._removalRequested.add(id);
+      return;
+    }
     this.removeAllEntitiesInternal(false);
   }
 
   /**
-   * Removes all entities, queries and systems.
+   * Removes all entities, queries and systems immediately, even if the engine is being updated.
    * All entities will be removed silently, {@link onEntityRemoved} event will not be fired.
    * Queries will be cleared.
    */
@@ -302,6 +320,16 @@ export class Engine {
     this.removeAllEntitiesInternal(true);
     this.removeAllSystems();
     this.removeAllQueries();
+  }
+
+  private removeRequestedEntities(): void {
+    if (this._removalRequested.size === 0) return;
+    const ids = Array.from(this._removalRequested);
+    this._removalRequested.clear();
+    for (const id of ids) {
+      const entity = this._entityMap.get(id);
+      if (entity !== undefined) this.removeEntityNow(entity);
+    }
   }
 
   private removeEntityNow(entity: Entity): Engine {
@@ -322,9 +350,10 @@ export class Engine {
    * @param query Entity match query
    */
   public addQuery(query: Query): Engine {
+    if (this._queries.includes(query)) return this;
     this.connectQuery(query);
     query.matchEntities(this._entityMap.values());
-    this._queries[this._queries.length] = query;
+    this._queries = [...this._queries, query];
     this.indexQuery(query);
     return this;
   }
@@ -343,19 +372,14 @@ export class Engine {
         throw new Error(`System with id "${id}" is already added to the engine`);
       }
       this._systemsById.set(id, system);
-      system.setId(id);
+      this._systemIds.set(system, id);
     }
     system.setPriority(priority);
-    if (this._systems.length === 0) {
-      this._systems[0] = system;
-    } else {
-      const index = this._systems.findIndex(value => value.priority > priority);
-      if (index === -1) {
-        this._systems[this._systems.length] = system;
-      } else {
-        this._systems.splice(index, 0, system);
-      }
-    }
+    // The list is replaced instead of being changed, so the update in progress iterates the list it has started with
+    const index = this._systems.findIndex(value => value.priority > priority);
+    this._systems = index === -1
+      ? [...this._systems, system]
+      : [...this._systems.slice(0, index), system, ...this._systems.slice(index)];
     system.setEngine(this);
     system.onAddedToEngine();
 
@@ -368,9 +392,8 @@ export class Engine {
    * @param query Entity match query
    */
   public removeQuery(query: Query) {
-    const index = this._queries.indexOf(query);
-    if (index == -1) return undefined;
-    this._queries.splice(index, 1);
+    if (!this._queries.includes(query)) return undefined;
+    this._queries = this._queries.filter((value) => value !== query);
     this.unindexQuery(query);
     this.disconnectQuery(query);
     query.clear();
@@ -463,27 +486,33 @@ export class Engine {
 
   private indexQuery(query: Query) {
     if (query.componentIds === undefined || query.tags === undefined) {
-      this._predicateQueries.push(query);
+      this._predicateQueries = [...this._predicateQueries, query];
       return;
     }
     for (const id of query.componentIds) {
-      (this._queriesByComponent[id] ??= []).push(query);
+      this._queriesByComponent[id] = [...(this._queriesByComponent[id] ?? []), query];
     }
     for (const tag of query.tags) {
-      addToIndex(this._queriesByTag, tag, query);
+      this._queriesByTag.set(tag, [...(this._queriesByTag.get(tag) ?? []), query]);
     }
   }
 
   private unindexQuery(query: Query) {
     if (query.componentIds === undefined || query.tags === undefined) {
-      removeFromList(this._predicateQueries, query);
+      this._predicateQueries = this._predicateQueries.filter((value) => value !== query);
       return;
     }
     for (const id of query.componentIds) {
-      removeFromList(this._queriesByComponent[id], query);
+      const queries = this._queriesByComponent[id]?.filter((value) => value !== query);
+      this._queriesByComponent[id] = queries?.length ? queries : undefined;
     }
     for (const tag of query.tags) {
-      removeFromList(this._queriesByTag.get(tag), query);
+      const queries = this._queriesByTag.get(tag)?.filter((value) => value !== query);
+      if (queries?.length) {
+        this._queriesByTag.set(tag, queries);
+      } else {
+        this._queriesByTag.delete(tag);
+      }
     }
   }
 
@@ -498,6 +527,7 @@ export class Engine {
   private removeAllEntitiesInternal(silently: boolean): void {
     const entities = Array.from(this._entityMap.values());
     this._entityMap.clear();
+    this._removalRequested.clear();
     for (const entity of entities) {
       if (!silently) {
         this.onEntityRemoved.emit(entity);
@@ -532,19 +562,4 @@ export class Engine {
     entityComponentRemoved: this.onComponentRemoved,
     entityInvalidated: this.onInvalidationRequested,
   };
-}
-
-function addToIndex<K>(index: Map<K, Query[]>, key: K, query: Query) {
-  const queries = index.get(key);
-  if (queries === undefined) {
-    index.set(key, [query]);
-  } else {
-    queries.push(query);
-  }
-}
-
-function removeFromList(queries: Query[] | undefined, query: Query) {
-  if (queries === undefined) return;
-  const index = queries.indexOf(query);
-  if (index !== -1) queries.splice(index, 1);
 }

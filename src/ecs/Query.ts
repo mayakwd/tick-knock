@@ -18,15 +18,18 @@ export type ComponentType<T = unknown> = abstract new (...args: any[]) => T;
 
 /**
  * Converts a list of component classes and tags to the tuple of component types. Tags are skipped.
+ * An array, which length is not known at compile time, is converted to `unknown[]`.
  * @example
  * ```ts
  * type Components = ComponentsOf<[typeof Position, 'hero', typeof Velocity]>; // [Position, Velocity]
  * ```
  */
 export type ComponentsOf<T extends ReadonlyArray<unknown>> =
-  T extends readonly [infer Head, ...infer Tail]
-    ? Head extends ComponentType<infer Instance> ? [Instance, ...ComponentsOf<Tail>] : ComponentsOf<Tail>
-    : [];
+  number extends T['length']
+    ? unknown[]
+    : T extends readonly [infer Head, ...infer Tail]
+      ? Head extends ComponentType<infer Instance> ? [Instance, ...ComponentsOf<Tail>] : ComponentsOf<Tail>
+      : [];
 
 /**
  * Callback that receives an entity of the query and its components.
@@ -270,10 +273,17 @@ export class Query<C extends unknown[] = any[]> {
     for (const entity of this._dense) {
       entity?.deleteQuerySlot(this);
     }
-    this._dense = [];
-    this._columns = this._columnIds.map(() => []);
+    if (this._iterations > 0) {
+      // The iteration in progress holds the lists, so entities are removed from them in place, and skipped by it.
+      // The lists are compacted when the next iteration starts.
+      this._dense.fill(undefined);
+      this._holes = this._dense.length;
+    } else {
+      this._dense = [];
+      this._columns = this._columnIds.map(() => []);
+      this._holes = 0;
+    }
     this._size = 0;
-    this._holes = 0;
     this._entitiesCache = undefined;
   }
 

@@ -1,4 +1,4 @@
-import {Engine, Entity, EntitySnapshot, IterativeSystem} from '../../src';
+import {Engine, Entity, EntitySnapshot, IterativeSystem, QueryBuilder} from '../../src';
 
 class Position {
   public constructor(public x: number = 0, public y: number = 0) {}
@@ -86,12 +86,12 @@ describe('System identifiers', () => {
       .addSystem(system, {id: 'counter', priority: 5})
       .iterative([Position], () => undefined, {id: 'movement'});
     expect(engine.getSystemById('counter')).toBe(system);
-    expect(system.id).toBe('counter');
+    expect(engine.getSystemId(system)).toBe('counter');
     expect(system.priority).toBe(5);
     engine.removeSystem('counter').removeSystem('movement');
     expect(engine.systems.length).toBe(0);
     expect(engine.getSystemById('counter')).toBeUndefined();
-    expect(system.id).toBeUndefined();
+    expect(engine.getSystemId(system)).toBeUndefined();
   });
 
   it('Removing a system by instance releases its identifier', () => {
@@ -136,7 +136,29 @@ describe('Removing all systems', () => {
     })();
     const engine = new Engine().addSystem(system, {id: 'system'});
     engine.removeAllSystems();
-    expect(system.id).toBeUndefined();
+    expect(engine.getSystemId(system)).toBeUndefined();
     expect(() => system.engine).toThrow();
+  });
+});
+
+describe('Lists of components', () => {
+  it('Expected that a readonly tuple of components can be passed to functional systems', () => {
+    const components = [Position] as const;
+    const seen: number[] = [];
+    const engine = new Engine().iterative(components, (entity, dt, position) => seen.push(position.x));
+    engine.addEntity(new Entity().add(new Position(3)));
+    engine.update(1);
+    expect(seen).toEqual([3]);
+  });
+
+  it('Expected that a list of components of unknown length passes components to forEach', () => {
+    const list: Array<typeof Position> = [Position];
+    const query = new QueryBuilder().contains(...list).build();
+    const engine = new Engine().addQuery(query);
+    engine.addEntity(new Entity().add(new Position(5)));
+    const seen: unknown[] = [];
+    query.forEach((entity, ...components) => seen.push(...components));
+    expect(seen.length).toBe(1);
+    expect((seen[0] as Position).x).toBe(5);
   });
 });

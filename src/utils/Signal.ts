@@ -2,7 +2,9 @@
  * Lightweight implementation of Signal
  */
 export class Signal<Handler extends (...args: any[]) => any> {
-  private readonly handlers: SignalHandler<Handler>[] = [];
+  // The list is replaced instead of being changed, so connecting and disconnecting handlers from a handler
+  // doesn't affect the emit in progress
+  private handlers: SignalHandler<Handler>[] = [];
 
   /**
    * Gets a value that indicates whether signal has handlers
@@ -27,18 +29,11 @@ export class Signal<Handler extends (...args: any[]) => any> {
    */
   public connect(handler: Handler, priority: number = 0): void {
     const existingHandler = this.handlers.find((it) => it.equals(handler));
-    let needResort: boolean;
-    if (existingHandler !== undefined) {
-      needResort = existingHandler.priority !== priority;
-      existingHandler.priority = priority;
-    } else {
-      const lastHandler = this.handlers[this.handlers.length - 1];
-      this.handlers.push(new SignalHandler(handler, priority));
-      needResort = (lastHandler !== undefined && lastHandler.priority > priority);
-    }
-    if (needResort) {
-      this.handlers.sort((a, b) => a.priority - b.priority);
-    }
+    if (existingHandler !== undefined && existingHandler.priority === priority) return;
+    const handlers = this.handlers.filter((it) => it !== existingHandler);
+    const index = handlers.findIndex((it) => it.priority > priority);
+    handlers.splice(index === -1 ? handlers.length : index, 0, new SignalHandler(handler, priority));
+    this.handlers = handlers;
   }
 
   /**
@@ -46,9 +41,8 @@ export class Signal<Handler extends (...args: any[]) => any> {
    * @param {Handler} handler
    */
   public disconnect(handler: Handler): void {
-    const existingHandlerIndex = this.handlers.findIndex((it) => it.equals(handler));
-    if (existingHandlerIndex >= 0) {
-      this.handlers.splice(existingHandlerIndex, 1);
+    if (this.handlers.some((it) => it.equals(handler))) {
+      this.handlers = this.handlers.filter((it) => !it.equals(handler));
     }
   }
 
@@ -56,7 +50,7 @@ export class Signal<Handler extends (...args: any[]) => any> {
    * Disconnects all signal handlers
    */
   public disconnectAll(): void {
-    this.handlers.length = 0;
+    this.handlers = [];
   }
 
   /**

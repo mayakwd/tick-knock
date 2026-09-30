@@ -838,7 +838,7 @@ class RenderBoardSystem extends System {
 }
 ```
 
-That's it. Your system will be removed right after update cycle.
+That's it. Your system will be removed right after its update, and the next systems are updated as usual.
 
 #### Functional systems
 

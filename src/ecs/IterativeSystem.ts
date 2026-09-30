@@ -173,7 +173,7 @@ export class FunctionalIterativeSystem<C extends unknown[]> extends IterativeSys
   // The function replaces the method, so it's called by the update loop directly, without an additional call
   protected readonly updateEntity: IterativeUpdate<C>;
 
-  public constructor(componentsOrTags: Array<ComponentType | Tag>, update: IterativeUpdate<C>) {
+  public constructor(componentsOrTags: ReadonlyArray<ComponentType | Tag>, update: IterativeUpdate<C>) {
     super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
     this.updateEntity = update;
   }

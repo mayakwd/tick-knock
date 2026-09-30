@@ -7,7 +7,6 @@ import {Entity} from './Entity';
  */
 export abstract class System {
   private _priority: number = 0;
-  private _id: string | undefined = undefined;
   private _engine?: Engine;
   private _isRemovalRequested: boolean = false;
 
@@ -28,14 +27,6 @@ export abstract class System {
    */
   public get isRemovalRequested(): boolean {
     return this._isRemovalRequested;
-  }
-
-  /**
-   * Gets an identifier of the system, if it was added to the engine with one
-   * @see Engine.addSystem
-   */
-  public get id(): string | undefined {
-    return this._id;
   }
 
   /**
@@ -109,13 +100,16 @@ export abstract class System {
    */
   public setEngine(engine: Engine | undefined): void {
     this._engine = engine;
+    // A removed system can be added again, and it must not be removed right after its first update
+    this._isRemovalRequested = false;
   }
 
   /**
+   * Returns a value indicating whether the system is added to the engine
    * @internal
    */
-  public setId(id: string | undefined): void {
-    this._id = id;
+  public isAttachedTo(engine: Engine): boolean {
+    return this._engine === engine;
   }
 
   /**

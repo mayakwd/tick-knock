@@ -14,8 +14,11 @@ Features:
 - Examples: Snake in the terminal and Asteroids in the browser, see `examples` folder.
 - Functional systems: `engine.iterative([Position, Velocity], (entity, dt, position, velocity) => ...)` and
   `engine.reactive([View], {added, removed})` create systems from functions with inferred types of components.
-- Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.removeSystem`
-  accepts a system or its identifier.
+- Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.getSystemId`
+  returns the identifier of a system, `Engine.removeSystem` accepts a system or its identifier. Identifiers are kept
+  by the engine, so they don't conflict with properties of systems.
+- `Entity.iterate`, `Entity.getAll` and `Entity.lengthOf` work for standard components, as it was documented:
+  the single instance is visited.
 
 Breaking changes:
 
@@ -27,9 +30,24 @@ Breaking changes:
 - `EntitySnapshot.previous` is restored when it's accessed. A snapshot kept after its handler has returned reflects the
   state of the entity at the moment of access.
 - `Query` is generic: `Query<C>`, where `C` are types of components. `Query` without type arguments accepts any query.
+  Components of a list, which length is not known at compile time, like `contains(...list)`, are typed as `unknown[]`.
 - `Engine.removeEntity` removes entities safely by default, as promised in 4.3.0: entities removed during the update are
   removed after all systems have been updated, the `safe` argument is removed. Outside of the update entities are
-  removed immediately.
+  removed immediately. Until the end of the update removed entities stay in `Engine.entities` and queries, but
+  `Engine.getEntityById` doesn't find them. `Engine.removeAllEntities` works the same way during the update, while
+  `Engine.clear` removes everything immediately.
+- Systems added during the update are updated starting from the next update, systems removed during the update are
+  not updated anymore. Before, adding or removing a system during the update could skip the next system or update
+  a system twice.
+- Handlers connected to a `Signal` during `emit` are called starting from the next `emit`. Before, they were called in
+  the same `emit`, and disconnecting a handler during `emit` skipped the next one.
+- Replacing a component with `entity.add` removes the entity from queries and adds it again, as before, so the entity
+  moves to the end of queries. During `Query.forEach` or `IterativeSystem` update such an entity is visited in the next
+  iteration, as any other entity added to the query during iteration.
+- `QueryBuilder.contains` accepts only component classes and tags, instead of any values.
+- `Entity.components` is an array indexed by component ids instead of an object.
+- Component ids are stored in symbol properties of component classes. The `__componentClassId__` property is not
+  used anymore.
 
 Performance:
 
@@ -61,6 +79,15 @@ Fixes:
 - Components added to an entity by handlers of `Engine.onEntityAdded` or `Query.onEntityAdded`, for example in
   `entityAdded` of a reaction system, update all queries. Before, queries that had already received the entity
   missed such changes. Changes made by handlers of removed entities no longer add them back to queries.
+- Removing a query while the engine notifies queries, for example when a reaction system removes itself, no longer
+  makes other queries miss the change.
+- `Query.forEach` stops visiting entities when the query is cleared or removed from the engine during iteration.
+- Adding the same query to the engine twice no longer adds it twice.
+- An entity removed during the update and added back is kept, even if all entities were removed in between.
+  Entities removed during the update are removed even if a system throws an error.
+- A system removed after requesting removal and added again is not removed after its first update.
+- Engine doesn't keep index entries of tags and components, that no query depends on anymore.
+- `Engine.iterative` and `Engine.reactive` accept readonly tuples of components, for example declared with `as const`.
 
 Tooling:
 

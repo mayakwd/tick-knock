@@ -720,3 +720,34 @@ describe('Snapshot', () => {
     expect(removedNumber).toBe(3);
   });
 });
+
+describe('Iterating standard components', () => {
+  class Health {
+    public constructor(public value: number) {}
+  }
+
+  it('Expected that iterate, getAll and lengthOf work for a standard component', () => {
+    const health = new Health(10);
+    const entity = new Entity().add(health);
+    const iterated: Health[] = [];
+    entity.iterate(Health, (it) => iterated.push(it));
+    expect(iterated).toEqual([health]);
+    expect(Array.from(entity.getAll(Health))).toEqual([health]);
+    expect(entity.lengthOf(Health)).toBe(1);
+  });
+
+  it('Expected that iterating a standard component doesn\'t create a list of linked components', () => {
+    const entity = new Entity().add(new Health(10));
+    entity.iterate(Health, () => undefined);
+    expect(entity.getLinkedComponentList(Health, false)).toBeUndefined();
+  });
+
+  it('Expected that iterate, getAll and lengthOf find nothing without the component', () => {
+    const entity = new Entity();
+    let called = false;
+    entity.iterate(Health, () => called = true);
+    expect(called).toBe(false);
+    expect(Array.from(entity.getAll(Health))).toEqual([]);
+    expect(entity.lengthOf(Health)).toBe(0);
+  });
+});

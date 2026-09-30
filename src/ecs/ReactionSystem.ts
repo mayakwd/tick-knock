@@ -191,7 +191,7 @@ export interface ReactionHandlers<C extends unknown[]> {
  * Reaction system, which reacts with functions instead of overridden handlers
  */
 export class FunctionalReactionSystem<C extends unknown[]> extends ReactionSystem<C> {
-  public constructor(componentsOrTags: Array<ComponentType | Tag>, handlers: ReactionHandlers<C>) {
+  public constructor(componentsOrTags: ReadonlyArray<ComponentType | Tag>, handlers: ReactionHandlers<C>) {
     super(new QueryBuilder().contains(...componentsOrTags) as unknown as QueryBuilder<C>);
     if (handlers.added !== undefined) this.entityAdded = handlers.added;
     if (handlers.removed !== undefined) this.entityRemoved = handlers.removed;

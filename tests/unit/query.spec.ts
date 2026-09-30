@@ -840,3 +840,38 @@ describe('Lazy snapshot', () => {
     expect(log).toEqual(['added false false', 'removed true true']);
   });
 });
+
+describe('Clearing a query during iteration', () => {
+  class A {}
+
+  it('Expected that forEach stops visiting entities after the query is removed from the engine', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(A).build();
+    engine.addQuery(query);
+    for (let i = 0; i < 3; i++) engine.addEntity(new Entity().add(new A()));
+    let calls = 0;
+    query.forEach(() => {
+      calls++;
+      engine.removeQuery(query);
+    });
+    expect(calls).toBe(1);
+    expect(query.isEmpty).toBe(true);
+  });
+
+  it('Expected that the query works after it was cleared during iteration', () => {
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(A).build();
+    engine.addQuery(query);
+    engine.addEntity(new Entity().add(new A()));
+    query.forEach(() => query.clear());
+    engine.removeQuery(query);
+    engine.addQuery(query);
+    const entity = new Entity().add(new A());
+    engine.addEntity(entity);
+    const visited: Entity[] = [];
+    query.forEach((it) => visited.push(it));
+    expect(visited.length).toBe(2);
+    expect(query.length).toBe(2);
+    expect(query.entities).toContain(entity);
+  });
+});

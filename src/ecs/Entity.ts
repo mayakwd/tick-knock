@@ -147,7 +147,7 @@ export interface ReadonlyEntity {
 
   /**
    * Iterates over instances of linked component appended to the Entity and performs the action over each.<br>
-   * Works and for standard components (action will be called for a single instance in this case).
+   * Works for standard components too: the action is called for the single instance.
    *
    * @param {Class<T>} componentClass Component`s class
    * @param {(component: T) => void} action Action to perform over every component instance.
@@ -174,7 +174,8 @@ export interface ReadonlyEntity {
   iterate<T>(componentClass: Class<T>, action: (component: T) => void): void;
 
   /**
-   * Returns generator with all instances of specified linked component class
+   * Returns generator with all instances of specified linked component class.
+   * Works for standard components too: the generator yields the single instance.
    *
    * @param {Class<T>} componentClass Component`s class
    * @example
@@ -190,7 +191,7 @@ export interface ReadonlyEntity {
 
   /**
    * Searches a component instance of specified linked component class.
-   * Works and for standard components (predicate will be called for a single instance in this case).
+   * Works for standard components too: the predicate is called for the single instance.
    *
    * @param {Class<T>} componentClass
    * @param {(component: T) => boolean} predicate
@@ -199,7 +200,8 @@ export interface ReadonlyEntity {
   find<T>(componentClass: Class<T>, predicate: (component: T) => boolean): T | undefined;
 
   /**
-   * Returns number of components of specified class.
+   * Returns number of components of specified class: the number of linked components, 1 for a standard component,
+   * or 0 if the entity doesn't have the component.
    *
    * @param {Class<T>} componentClass
    * @return {number}
@@ -828,7 +830,7 @@ export class Entity implements ReadonlyEntity {
 
   /**
    * Iterates over instances of linked component appended to the Entity and performs the action over each.<br>
-   * Works and for standard components (action will be called for a single instance in this case).
+   * Works for standard components too: the action is called for the single instance.
    *
    * @param {Class<T>} componentClass Component`s class
    * @param {(component: T) => void} action Action to perform over every component instance.
@@ -853,12 +855,21 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public iterate<T>(componentClass: Class<T>, action: (component: T) => void): void {
-    if (!this.hasComponent(componentClass)) return;
-    this.getLinkedComponentList(componentClass)?.iterate(action);
+    const id = getComponentId(componentClass, false);
+    if (id === undefined) return;
+    const component = this._components[id];
+    if (component === undefined) return;
+    const list = this.getLinkedComponentList(id, false);
+    if (list !== undefined) {
+      list.iterate(action);
+    } else {
+      action(component as T);
+    }
   }
 
   /**
-   * Returns generator with all instances of specified linked component class
+   * Returns generator with all instances of specified linked component class.
+   * Works for standard components too: the generator yields the single instance.
    *
    * @param {Class<T>} componentClass Component`s class
    * @example
@@ -871,15 +882,21 @@ export class Entity implements ReadonlyEntity {
    * ```
    */
   public* getAll<T>(componentClass: Class<T>): Generator<T, void, T | undefined> {
-    if (!this.hasComponent(componentClass)) return;
-    const list = this.getLinkedComponentList(componentClass, false);
-    if (list === undefined) return undefined;
-    yield* list.nodes();
+    const id = getComponentId(componentClass, false);
+    if (id === undefined) return;
+    const component = this._components[id];
+    if (component === undefined) return;
+    const list = this.getLinkedComponentList(id, false);
+    if (list !== undefined) {
+      yield* list.nodes();
+    } else {
+      yield component as T;
+    }
   }
 
   /**
    * Searches a component instance of specified linked component class.
-   * Works and for standard components (predicate will be called for a single instance in this case).
+   * Works for standard components too: the predicate is called for the single instance.
    *
    * @param {Class<T>} componentClass
    * @param {(component: T) => boolean} predicate
