@@ -65,6 +65,7 @@ export default defineConfig({
           text: 'Tutorials',
           items: [
             {text: 'Overview', link: '/tutorials/'},
+            {text: 'Demo skeleton', link: '/tutorials/demo'},
             {text: 'Snake', link: '/tutorials/snake'},
             {text: 'Asteroids', link: '/tutorials/asteroids'},
             {text: 'Bullet hell', link: '/tutorials/bullet-hell'},

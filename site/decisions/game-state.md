@@ -36,9 +36,6 @@ engine
 
 It's explicit: looking at the closure or at the constructor, you see everything the system depends on.
 
-> 💡 Before 5.0, there was `Engine.sharedConfig`, an entity shared by all systems. It was removed: passing data
-> explicitly is simpler and typed.
-
 ## State of an entity stays in the entity
 
 Lives of the player in the [Bullet hell](/tutorials/bullet-hell) are a component of the player, and the game doesn't

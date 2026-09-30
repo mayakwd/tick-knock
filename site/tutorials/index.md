@@ -5,6 +5,7 @@ features of Tick-Knock and new ways of thinking in ECS, so it's better to read t
 
 | Tutorial | You will learn |
 | :--- | :--- |
+| [Demo skeleton](/tutorials/demo) | How every game is started in a page, played by an autopilot and controlled by the player |
 | [Snake](/tutorials/snake) | Components, tags, entities, the first systems, messages and rendering |
 | [Asteroids](/tutorials/asteroids) | Continuous movement, functional systems, collisions and safe removal |
 | [Bullet hell](/tutorials/bullet-hell) | Hundreds of entities, data-driven design and temporary components |
