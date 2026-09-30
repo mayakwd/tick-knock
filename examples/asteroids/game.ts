@@ -1,7 +1,8 @@
-import {Engine} from 'tick-knock';
+import {Engine, Entity} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {CooldownSystem} from '../shared/CooldownSystem';
 import {wrap} from '../shared/geometry';
+import {QuadTree} from '../shared/QuadTree';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
@@ -10,7 +11,7 @@ import {ASTEROIDS, AsteroidSize} from './config';
 import {Controls} from './Controls';
 import {createAsteroid, createShip} from './entities';
 import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {CollisionSystem, ShipControlSystem} from './systems';
+import {AsteroidTreeSystem, CollisionSystem, ShipControlSystem} from './systems';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -31,6 +32,10 @@ export class AsteroidsGame {
   public readonly width: number;
   public readonly height: number;
   private readonly random: Random;
+  /**
+   * Asteroids at their positions, collisions look for asteroids near bullets and the ship in it
+   */
+  private readonly asteroids: QuadTree<Entity>;
   private _score = 0;
   private _wave = 0;
   private _isOver = false;
@@ -40,6 +45,7 @@ export class AsteroidsGame {
     this.width = width;
     this.height = height;
     this.random = random;
+    this.asteroids = new QuadTree({x: 0, y: 0, width, height});
 
     this.engine
       // The ship is controlled first, so it moves in the same update. Its gun cools down before it fires.
@@ -63,8 +69,10 @@ export class AsteroidsGame {
         if (lifetime.seconds <= 0) this.engine.removeEntity(entity);
       })
 
-      // Collisions are checked after everything has moved
-      .addSystem(new CollisionSystem({width, height}))
+      // Collisions are checked after everything has moved: asteroids are put into the quad tree, and bullets and the
+      // ship look for asteroids near them
+      .addSystem(new AsteroidTreeSystem(this.asteroids))
+      .addSystem(new CollisionSystem(this.asteroids, {width, height}))
 
       // The next wave starts when the last asteroid is gone
       .reactive([Asteroid], {

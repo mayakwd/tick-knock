@@ -6,9 +6,11 @@
  */
 import {testAsteroids} from './asteroids';
 import {testBulletHell} from './bulletHell';
+import {testQuadTree} from './quadTree';
 import {testSnake} from './snake';
 import {testTowerDefense, testTowerUpgrades} from './towerDefense';
 
+testQuadTree();
 testSnake();
 testAsteroids();
 testBulletHell();

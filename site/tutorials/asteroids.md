@@ -106,14 +106,30 @@ A few things to notice:
 
 ## Collisions and safe removal
 
-Collisions are the heart of the game. The collision system checks every asteroid against every bullet and the ship.
-It uses typed queries with `forEach`: components of every entity are passed to the callback right away, and that is
-both convenient and fast.
+Collisions are the heart of the game. A bullet or the ship can only hit asteroids near it, so let's find them without
+checking every asteroid. We will use a **quad tree**: it divides the screen into four quarters, and every quarter,
+that has too many asteroids, into four more, and so on. Finding asteroids near a point looks only into quarters around
+it:
+
+<<< @/../examples/shared/QuadTree.ts
+
+Asteroids move every frame, so the tree is filled again every update, after everything has moved. It's a system with
+its own query:
+
+<<< @/../examples/asteroids/systems/AsteroidTreeSystem.ts
+
+The collision system goes through bullets and the ship with typed queries, and asks the tree for asteroids near each of
+them:
 
 <<< @/../examples/asteroids/systems/CollisionSystem.ts
 
-The screen wraps around, so an asteroid at the right edge can hit the ship at the left edge. The distance is measured
-across the edges with `wrappedDifference` from the shared geometry helpers.
+The screen wraps around, so an asteroid at the right edge can hit the ship at the left edge. Near an edge, the system
+looks for asteroids at the opposite edge too, and measures the distance across the edges with `wrappedDifference` from
+the shared geometry helpers.
+
+> 💡 A quad tree suits things that move freely, and are spread unevenly over the screen. When entities live in cells,
+> an index of cells is simpler: see the grid of [Snake](/tutorials/snake) and the spatial index of the
+> [Tower defense](/tutorials/tower-defense).
 
 Now, there is a subtle problem. A bullet hits an asteroid and is removed. Entities removed during the update are removed
 after it, so the bullet stays in its query until the end of the update. Could it hit one more asteroid in the same
@@ -121,7 +137,8 @@ update?
 
 **Remove the component that queries depend on.** The hit bullet loses its `Collider`, and leaves the query of bullets
 immediately, because the query contains `Collider`. The bullet is removed from the engine after the update, but it
-can't collide anymore. The same happens to destroyed asteroids and the ship.
+can't collide anymore. The same happens to destroyed asteroids and the ship: a destroyed asteroid is still in the tree
+until the next update, but the collision system skips asteroids without a collider.
 
 > 💡 Removal is deferred, so every system of the update sees the removed entity, and nobody breaks iteration of anybody
 > else. Added entities and changed components are seen right away. See
@@ -145,7 +162,7 @@ Systems are updated in the order they are added, so the constructor reads the sa
    of entities: the ship, asteroids, and bullets share the same components.
 3. Everything that has an angular velocity spins. Only asteroids have one, so only they spin.
 4. Bullets disappear when their lifetime is over.
-5. Collisions are checked after everything has moved.
+5. Asteroids are put into the quad tree, and collisions are checked after everything has moved.
 6. A reaction system counts asteroids: it's notified when an asteroid appears and when it's removed. When the last one
    is removed, the next wave begins.
 
@@ -179,5 +196,6 @@ doesn't care who plays it. The page is the [demo](/tutorials/demo), that reads t
 - Removed entities stay in queries until the end of the update. To take an entity out of queries immediately, remove
   the component they depend on.
 - Reaction systems notice when things appear and disappear, like the last asteroid of a wave.
+- A quad tree, filled every update by a system, finds things near a point without checking all of them.
 
 Next, in the [Bullet hell](/tutorials/bullet-hell), there will be hundreds of entities on the screen at once. 💥

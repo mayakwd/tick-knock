@@ -53,6 +53,10 @@ creeps.forEachWithin(tower, range, (creep) => {
 The [Tower defense](/tutorials/tower-defense) finds targets of towers and creeps hit by explosions this way, and
 [Snake](/tutorials/snake) finds what occupies a cell with a grid built the same way.
 
+Things that move freely, like asteroids, change their positions every frame. For them, use a **quad tree**, that
+divides the area finer where things are dense, and fill it again every update with a system, after everything has
+moved. [Asteroids](/tutorials/asteroids) find asteroids near bullets and the ship this way.
+
 Sometimes the shape of the game gives an even better index. Creeps of a tower defense follow one path, so the part of
 the path covered by a tower can be computed once, when the tower is built, and a tower compares the distance creeps
 have passed with it, without any geometry per frame.
