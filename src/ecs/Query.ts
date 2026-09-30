@@ -3,6 +3,7 @@ import {Entity, EntitySnapshot} from './Entity';
 import {isTag, Tag} from './Tag';
 import {Signal} from '../utils/Signal';
 import {Class} from '../utils/Class';
+import {forEachRow, RowCallback} from '../utils/rows';
 
 /**
  * Query Predicate is the type that describes a function that compares Entities with the conditions it sets.
@@ -158,48 +159,10 @@ export class Query<C extends unknown[] = any[]> {
    */
   public forEach(callback: QueryCallback<C>): void {
     // Components are stored untyped, their types are guaranteed by QueryBuilder
-    const call = callback as unknown as (entity: Entity, ...components: unknown[]) => void;
+    const call = callback as unknown as RowCallback;
     const dense = this.beginIteration();
-    const columns = this._columns;
-    const length = dense.length;
     try {
-      switch (columns.length) {
-        case 0:
-          for (let i = 0; i < length; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) call(entity);
-          }
-          break;
-        case 1: {
-          const [a] = columns;
-          for (let i = 0; i < length; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) call(entity, a[i]);
-          }
-          break;
-        }
-        case 2: {
-          const [a, b] = columns;
-          for (let i = 0; i < length; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) call(entity, a[i], b[i]);
-          }
-          break;
-        }
-        case 3: {
-          const [a, b, c] = columns;
-          for (let i = 0; i < length; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) call(entity, a[i], b[i], c[i]);
-          }
-          break;
-        }
-        default:
-          for (let i = 0; i < length; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) call(entity, ...columns.map((column) => column[i]));
-          }
-      }
+      forEachRow(dense, this._columns, call);
     } finally {
       this.endIteration();
     }

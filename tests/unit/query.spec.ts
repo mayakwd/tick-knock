@@ -731,6 +731,24 @@ describe('Query forEach', () => {
     return result;
   }
 
+  it.each([4, 5, 10, 11])('Passes %i components of every entity', (count) => {
+    const classes = Array.from({length: count}, () => class {
+      public constructor(public value: number) {}
+    });
+    const engine = new Engine();
+    const query = new QueryBuilder().contains(...classes).build();
+    engine.addQuery(query);
+    const entities = [0, 1, 2].map((i) => {
+      const entity = new Entity();
+      classes.forEach((Class, index) => entity.add(new Class(i * 10 + index)));
+      engine.addEntity(entity);
+      return entity;
+    });
+    const result: unknown[][] = [];
+    query.forEach((entity: Entity, ...components: unknown[]) => result.push([entity, ...components]));
+    expect(result).toEqual(entities.map((entity) => [entity, ...classes.map((Class) => entity.get(Class))]));
+  });
+
   it('Passes entity and its components in the order they were specified, skipping tags', () => {
     const {query, entities} = setup();
     expect(collect(query)).toEqual(entities.map((entity) => [entity, entity.get(Position), entity.get(Health)]));

@@ -162,3 +162,23 @@ describe('Lists of components', () => {
     expect((seen[0] as Position).x).toBe(5);
   });
 });
+
+describe('Iterative systems with many components', () => {
+  it.each([4, 5, 10, 11])('Passes delta time and %i components of every entity', (count) => {
+    const classes = Array.from({length: count}, () => class {
+      public constructor(public value: number) {}
+    });
+    const result: unknown[][] = [];
+    const engine = new Engine().iterative(classes, (entity: Entity, dt: number, ...components: unknown[]) => {
+      result.push([entity, dt, ...components]);
+    });
+    const entities = [0, 1].map((i) => {
+      const entity = new Entity();
+      classes.forEach((Class, index) => entity.add(new Class(i * 10 + index)));
+      engine.addEntity(entity);
+      return entity;
+    });
+    engine.update(0.5);
+    expect(result).toEqual(entities.map((entity) => [entity, 0.5, ...classes.map((Class) => entity.get(Class))]));
+  });
+});

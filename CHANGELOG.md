@@ -5,7 +5,8 @@ Features:
 - Typed queries: `QueryBuilder` infers types of components, `Query.forEach((entity, position, velocity) => ...)`
   passes components of every entity in the order they were specified.
 - `IterativeSystem.of(Position, Velocity)` creates a base class of the system, which `updateEntity` receives components
-  of the entity with inferred types. It's several times faster than `entity.get` for every entity.
+  of the entity with inferred types. It's several times faster than `entity.get` for every entity. Components are
+  passed without allocations for any number of components.
 - `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
   receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
   removing, including the removed one.

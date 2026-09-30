@@ -2,6 +2,7 @@ import {ComponentsOf, ComponentType, Query, QueryBuilder, QueryPredicate} from '
 import {Tag} from './Tag';
 import {Entity} from './Entity';
 import {ReactionSystem} from './ReactionSystem';
+import {RowSystem, updateRows} from '../utils/rows';
 
 /**
  * Iterative system made for iterating over entities that matches its query.
@@ -48,6 +49,15 @@ import {ReactionSystem} from './ReactionSystem';
  */
 export abstract class IterativeSystem<C extends unknown[] = any[]> extends ReactionSystem<C> {
   private _removed: boolean = false;
+
+  /**
+   * @internal
+   * Returns a value indicating whether the system has been removed from the engine during its update,
+   * then the rest of entities are not updated
+   */
+  public get isIterationStopped(): boolean {
+    return this._removed;
+  }
 
   protected constructor(query: Query<C> | QueryBuilder<C> | QueryPredicate) {
     super(query);
@@ -100,49 +110,10 @@ export abstract class IterativeSystem<C extends unknown[] = any[]> extends React
    */
   protected updateEntities(dt: number) {
     const query = this.query;
-    // Components are stored untyped, their types are guaranteed by QueryBuilder
-    const system = this as unknown as { updateEntity(entity: Entity, dt: number, ...components: unknown[]): void };
     const dense = query.beginIteration();
-    const columns = query.columns;
-    const length = dense.length;
     try {
-      switch (columns.length) {
-        case 0:
-          for (let i = 0; i < length && !this._removed; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) system.updateEntity(entity, dt);
-          }
-          break;
-        case 1: {
-          const [a] = columns;
-          for (let i = 0; i < length && !this._removed; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) system.updateEntity(entity, dt, a[i]);
-          }
-          break;
-        }
-        case 2: {
-          const [a, b] = columns;
-          for (let i = 0; i < length && !this._removed; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) system.updateEntity(entity, dt, a[i], b[i]);
-          }
-          break;
-        }
-        case 3: {
-          const [a, b, c] = columns;
-          for (let i = 0; i < length && !this._removed; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) system.updateEntity(entity, dt, a[i], b[i], c[i]);
-          }
-          break;
-        }
-        default:
-          for (let i = 0; i < length && !this._removed; i++) {
-            const entity = dense[i];
-            if (entity !== undefined) system.updateEntity(entity, dt, ...columns.map((column) => column[i]));
-          }
-      }
+      // Components are stored untyped, their types are guaranteed by QueryBuilder
+      updateRows(this as unknown as RowSystem, dense, query.columns, dt);
     } finally {
       query.endIteration();
     }
