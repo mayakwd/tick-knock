@@ -1,6 +1,6 @@
 /**
- * Timer of a repeated action, like firing a gun. It's data only: `CooldownSystem` counts it down, and systems that
- * perform the action check and restart it.
+ * Timer of a repeated action, like firing a gun. An entity, that performs the action, has the cooldown: `CooldownSystem`
+ * counts it down, and the system that performs the action checks and restarts it.
  */
 export class Cooldown {
   /**

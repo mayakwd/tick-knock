@@ -1,17 +1,17 @@
-import {Engine, Entity} from 'tick-knock';
+import {Engine} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {CooldownSystem} from '../shared/CooldownSystem';
 import {wrap} from '../shared/geometry';
-import {QuadTree} from '../shared/QuadTree';
 import {Random} from '../shared/random';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {AngularVelocity, Asteroid, Gun, Lifetime, Position, Rotation, Velocity} from './components';
+import {AsteroidTree} from './AsteroidTree';
+import {AngularVelocity, Asteroid, Lifetime, Position, Rotation, Velocity} from './components';
 import {ASTEROIDS, AsteroidSize} from './config';
 import {Controls} from './Controls';
 import {createAsteroid, createShip} from './entities';
 import {AsteroidDestroyed, ShipDestroyed} from './messages';
-import {AsteroidTreeSystem, CollisionSystem, ShipControlSystem} from './systems';
+import {AsteroidTreeSystem, BulletCollisionSystem, ShipCollisionSystem, ShipControlSystem} from './systems';
 
 export interface AsteroidsGameOptions {
   width: number;
@@ -35,7 +35,7 @@ export class AsteroidsGame {
   /**
    * Asteroids at their positions, collisions look for asteroids near bullets and the ship in it
    */
-  private readonly asteroids: QuadTree<Entity>;
+  private readonly asteroids: AsteroidTree;
   private _score = 0;
   private _wave = 0;
   private _isOver = false;
@@ -45,11 +45,11 @@ export class AsteroidsGame {
     this.width = width;
     this.height = height;
     this.random = random;
-    this.asteroids = new QuadTree({x: 0, y: 0, width, height});
+    this.asteroids = new AsteroidTree({width, height});
 
     this.engine
-      // The ship is controlled first, so it moves in the same update. Its gun cools down before it fires.
-      .addSystem(new CooldownSystem(Gun))
+      // Cooldowns are counted down, and the ship is controlled, so it moves and fires in the same update
+      .addSystem(new CooldownSystem())
       .addSystem(new ShipControlSystem(this.controls))
 
       // Everything that has a velocity moves, and wraps around the edges of the screen
@@ -69,10 +69,11 @@ export class AsteroidsGame {
         if (lifetime.seconds <= 0) this.engine.removeEntity(entity);
       })
 
-      // Collisions are checked after everything has moved: asteroids are put into the quad tree, and bullets and the
-      // ship look for asteroids near them
+      // Collisions are checked after everything has moved: asteroids are put into the tree, and bullets and the ship
+      // look for asteroids near them
       .addSystem(new AsteroidTreeSystem(this.asteroids))
-      .addSystem(new CollisionSystem(this.asteroids, {width, height}))
+      .addSystem(new BulletCollisionSystem(this.asteroids))
+      .addSystem(new ShipCollisionSystem(this.asteroids))
 
       // The next wave starts when the last asteroid is gone
       .reactive([Asteroid], {

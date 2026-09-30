@@ -56,7 +56,7 @@ Where it is, is a separate component. Towers and creeps both have a cell of the 
 
 <<< @/../examples/tower-defense/components/Cell.ts
 
-Every tower has a weapon, which fires when its [cooldown](/tutorials/asteroids#the-gun-and-its-cooldown) is over:
+Every tower has a weapon, and fires when its [cooldown](/tutorials/asteroids#cooldown) is over:
 
 <<< @/../examples/tower-defense/components/Weapon.ts
 
@@ -72,7 +72,7 @@ A new tower is an entity with its cell, position, target, and the `Tower` compon
 
 <<< @/../examples/tower-defense/entities/createTower.ts
 
-Its weapon, payload, and view come from the level, and a reaction system of `Tower` adds them. It's called when a tower
+Its weapon, cooldown, payload, and view come from the level, and a reaction system of `Tower` adds them. It's called when a tower
 appears, and when an upgrade replaces its `Tower` with the next level, so building and upgrading are the same thing
 for it:
 
@@ -82,7 +82,8 @@ this.engine.reactive([Tower], {
     const {targeting, levels} = TOWERS[kind];
     const {range, interval, projectileSpeed, payload} = levels[level];
     current
-      .add(new Weapon(range, interval, projectileSpeed))
+      .add(new Weapon(range, projectileSpeed))
+      .add(new Cooldown(interval))
       .add(new Payload(payload))
       .add(new View(drawTower(kind, level)))
       .add(targeting);
@@ -149,15 +150,14 @@ this.engine
   });
 ```
 
-The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system:
-the same class with the tag of the rule and a score of creeps, the distance passed or the health. A new rule is a new
+The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system,
+and both of them choose the creep with the best score in range: the distance passed or the health. A new rule is a new
 tag and a new system.
 
 <<< @/../examples/tower-defense/systems/TargetingSystem.ts
 
-The query of the system is built in the constructor with the tag of the rule, so one class serves all rules. Distances
-are checked with `isWithin` from the shared geometry helpers: it compares squares of distances, and reads as what it
-means.
+Distances are checked with `isWithin` from the shared geometry helpers: it compares squares of distances, and reads as
+what it means.
 
 ## Projectiles carry their payload
 

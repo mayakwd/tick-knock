@@ -75,7 +75,7 @@ What it shows:
 - Safe removal: collided entities lose their colliders immediately, and are removed after the update.
 - A reaction system that starts the next wave when the last asteroid is destroyed.
 - Collisions reported by messages: the game splits asteroids and counts the score.
-- Frame rate independence: movement, drag and the cooldown of the gun.
+- Frame rate independence: movement, drag and the cooldown of firing.
 
 # Bullet hell
 
@@ -85,7 +85,7 @@ What it shows:
 
 - Hundreds of entities updated every frame by typed iterative systems.
 - Data-driven enemies: kinds of enemies and waves are data, turned into components when an enemy appears.
-- Firing patterns as separate components: an enemy fires with every pattern it has.
+- Firing patterns as separate components, every pattern has its own system.
 - Collisions only report hits, systems of hit entities decide what a hit does.
 - Optional behaviour as an optional component: only some enemies sway.
 - Temporary state as a component: the player is invulnerable while it has the `Invulnerable` component.

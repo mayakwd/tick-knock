@@ -1,49 +1,57 @@
-import {Entity, IterativeSystem, QueryBuilder, Tag} from 'tick-knock';
+import {Entity, IterativeSystem} from 'tick-knock';
 import {isWithin} from '../../shared/geometry';
-import {Position, Target, Weapon} from '../components';
+import {Health, PathFollower, Position, Target, Weapon} from '../components';
 import {SpatialIndex} from '../SpatialIndex';
+import {TARGET_FIRST, TARGET_STRONGEST} from '../tags';
 
 /**
- * Score of a creep as a target, the creep with the highest score is chosen
+ * Towers with the `TARGET_FIRST` tag choose the creep in range, that is the closest to the exit
  */
-export type TargetScore = (creep: Entity) => number;
-
-/**
- * Chooses targets of towers with the rule. A tower keeps its target while it's alive and in range, and looks for
- * a new one in the spatial index of creeps only when the target is lost.
- *
- * Every rule is a tag of towers, and has its own targeting system.
- */
-export class TargetingSystem extends IterativeSystem<[Position, Weapon, Target]> {
-  /**
-   * @param rule Tag of towers, that choose targets with this system
-   * @param creeps Spatial index of creeps, that can be targeted
-   * @param score Score of a creep as a target
-   */
-  public constructor(rule: Tag, private readonly creeps: SpatialIndex, private readonly score: TargetScore) {
-    super(new QueryBuilder().contains(Position, Weapon, Target, rule) as QueryBuilder<[Position, Weapon, Target]>);
+export class TargetFirstSystem extends IterativeSystem.of(Position, Weapon, Target, TARGET_FIRST) {
+  public constructor(private readonly creeps: SpatialIndex) {
+    super();
   }
 
   protected updateEntity(tower: Entity, dt: number, position: Position, {range}: Weapon, target: Target): void {
-    if (this.keepsTarget(target, position, range)) return;
+    chooseTarget(this.creeps, position, range, target, (creep) => creep.get(PathFollower)!.distance);
+  }
+}
 
-    // Only creeps in cells around the tower are checked
-    let best: Entity | undefined;
-    let bestScore = -Infinity;
-    this.creeps.forEachWithin(position, range, (creep) => {
-      const score = this.score(creep);
-      if (score <= bestScore) return;
-
-      best = creep;
-      bestScore = score;
-    });
-    target.entity = best;
+/**
+ * Towers with the `TARGET_STRONGEST` tag choose the creep in range, that has the most health
+ */
+export class TargetStrongestSystem extends IterativeSystem.of(Position, Weapon, Target, TARGET_STRONGEST) {
+  public constructor(private readonly creeps: SpatialIndex) {
+    super();
   }
 
-  /**
-   * Returns a value indicating whether the target is still alive and in range
-   */
-  private keepsTarget({entity}: Target, position: Position, range: number): boolean {
-    return entity !== undefined && this.creeps.has(entity) && isWithin(position, entity.get(Position)!, range);
+  protected updateEntity(tower: Entity, dt: number, position: Position, {range}: Weapon, target: Target): void {
+    chooseTarget(this.creeps, position, range, target, (creep) => creep.get(Health)!.value);
   }
+}
+
+/**
+ * Keeps the target while it's alive and in range. Otherwise chooses the creep in range with the highest score, only
+ * creeps in cells around the tower are checked.
+ */
+function chooseTarget(
+  creeps: SpatialIndex,
+  position: Position,
+  range: number,
+  target: Target,
+  score: (creep: Entity) => number,
+): void {
+  const {entity} = target;
+  if (entity !== undefined && creeps.has(entity) && isWithin(position, entity.get(Position)!, range)) return;
+
+  let best: Entity | undefined;
+  let bestScore = -Infinity;
+  creeps.forEachWithin(position, range, (creep) => {
+    const value = score(creep);
+    if (value <= bestScore) return;
+
+    best = creep;
+    bestScore = value;
+  });
+  target.entity = best;
 }

@@ -1,14 +1,15 @@
 import {Entity, IterativeSystem} from 'tick-knock';
-import {Gun, Position, Rotation, Velocity} from '../components';
+import {Cooldown} from '../../shared/Cooldown';
+import {Position, Rotation, Velocity} from '../components';
 import {DRAG, THRUST, TURN_SPEED} from '../config';
 import {Controls} from '../Controls';
 import {createBullet} from '../entities';
 import {SHIP} from '../tags';
 
 /**
- * Turns and accelerates the ship, and fires its gun according to the controls
+ * Turns and accelerates the ship, and fires according to the controls
  */
-export class ShipControlSystem extends IterativeSystem.of(Position, Velocity, Rotation, Gun, SHIP) {
+export class ShipControlSystem extends IterativeSystem.of(Position, Velocity, Rotation, Cooldown, SHIP) {
   public constructor(private readonly controls: Controls) {
     super();
   }
@@ -19,7 +20,7 @@ export class ShipControlSystem extends IterativeSystem.of(Position, Velocity, Ro
     position: Position,
     velocity: Velocity,
     rotation: Rotation,
-    gun: Gun,
+    cooldown: Cooldown,
   ): void {
     const {left, right, thrust, fire} = this.controls;
 
@@ -36,8 +37,7 @@ export class ShipControlSystem extends IterativeSystem.of(Position, Velocity, Ro
     velocity.x *= drag;
     velocity.y *= drag;
 
-    // The gun fires while the fire control is pressed, when its cooldown is over
-    const {cooldown} = gun;
+    // The ship fires while the fire control is pressed, when its cooldown is over
     if (!fire || cooldown.remaining > 0) return;
 
     cooldown.remaining += cooldown.interval;

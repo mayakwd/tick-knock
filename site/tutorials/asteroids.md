@@ -14,7 +14,7 @@ What data do we have?
 - The ship and asteroids have a **rotation**, and asteroids spin, so they have an **angular velocity**.
 - Things that can collide have a **collider**, a circle of some radius.
 - Bullets live for a second, so they have a **lifetime**.
-- The ship has a **gun**, that fires not more often than its cooldown allows.
+- The ship fires not more often than its **cooldown** allows.
 - An asteroid has a **size**, and its own outline, so every asteroid looks different.
 
 And what happens to it?
@@ -52,22 +52,19 @@ Numbers that tune the game are kept in one place:
 
 <<< @/../examples/asteroids/config.ts
 
-## The gun and its cooldown
+## Cooldown
 
-The gun of the ship keeps a **cooldown**: the interval between shots, and the time until the next shot. The cooldown
-is shared by all examples, and it's data only:
-
-<<< @/../examples/asteroids/components/Gun.ts
+The ship has a **cooldown**: the interval between shots, and the time until the next shot. It's a component, shared by
+all examples, and it's data only:
 
 <<< @/../examples/shared/Cooldown.ts
 
-The logic is in systems. `CooldownSystem` counts down cooldowns of all components of a class, for example
-`new CooldownSystem(Gun)`. The system that fires checks whether the cooldown is over, and adds the interval after
-a shot:
+The logic is in systems. `CooldownSystem` counts down cooldowns of all entities that have one. The system that fires
+checks whether the cooldown is over, and adds the interval after a shot:
 
 <<< @/../examples/shared/CooldownSystem.ts
 
-> 💡 The time passed after the cooldown is over is kept for the next shot, so the gun fires at the same rate on any
+> 💡 The time passed after the cooldown is over is kept for the next shot, so the ship fires at the same rate on any
 > frame rate.
 
 ## Entities
@@ -91,7 +88,7 @@ a seeded generator and get the same game every time.
 ## Controlling the ship
 
 The ship control is more than a few lines, so it's a class. It receives the controls of the game in the constructor.
-`IterativeSystem.of(Position, Velocity, Rotation, Gun, SHIP)` passes four components to `updateEntity`, all with their
+`IterativeSystem.of(Position, Velocity, Rotation, Cooldown, SHIP)` passes four components to `updateEntity`, all with their
 types, and the tag only filters entities:
 
 <<< @/../examples/asteroids/systems/ShipControlSystem.ts
@@ -113,19 +110,21 @@ it:
 
 <<< @/../examples/shared/QuadTree.ts
 
-Asteroids move every frame, so the tree is filled again every update, after everything has moved. It's a system with
-its own query:
+The screen of Asteroids wraps around, so an asteroid at the right edge can hit the ship at the left edge. The tree of
+asteroids knows about it: near an edge, it looks for asteroids at the opposite edge too, and measures the distance
+across the edges with `wrappedDifference` from the shared geometry helpers:
+
+<<< @/../examples/asteroids/AsteroidTree.ts
+
+Asteroids move every frame, so the tree is filled again every update, after everything has moved:
 
 <<< @/../examples/asteroids/systems/AsteroidTreeSystem.ts
 
-The collision system goes through bullets and the ship with typed queries, and asks the tree for asteroids near each of
-them:
+Then every bullet and the ship ask the tree for an asteroid they touch. Each of them has its own system:
 
-<<< @/../examples/asteroids/systems/CollisionSystem.ts
+<<< @/../examples/asteroids/systems/BulletCollisionSystem.ts
 
-The screen wraps around, so an asteroid at the right edge can hit the ship at the left edge. Near an edge, the system
-looks for asteroids at the opposite edge too, and measures the distance across the edges with `wrappedDifference` from
-the shared geometry helpers.
+<<< @/../examples/asteroids/systems/ShipCollisionSystem.ts
 
 > 💡 A quad tree suits things that move freely, and are spread unevenly over the screen. When entities live in cells,
 > an index of cells is simpler: see the grid of [Snake](/tutorials/snake) and the spatial index of the
@@ -138,14 +137,16 @@ update?
 **Remove the component that queries depend on.** The hit bullet loses its `Collider`, and leaves the query of bullets
 immediately, because the query contains `Collider`. The bullet is removed from the engine after the update, but it
 can't collide anymore. The same happens to destroyed asteroids and the ship: a destroyed asteroid is still in the tree
-until the next update, but the collision system skips asteroids without a collider.
+until the next update, but the tree skips asteroids without a collider.
+
+<<< @/../examples/asteroids/entities/destroy.ts
 
 > 💡 Removal is deferred, so every system of the update sees the removed entity, and nobody breaks iteration of anybody
 > else. Added entities and changed components are seen right away. See
 > [Remove the entity or the component?](/decisions/removing).
 
-The collision system only reports what has happened: it dispatches `AsteroidDestroyed` with the destroyed asteroid,
-and `ShipDestroyed`:
+Collision systems only report what has happened: they dispatch `AsteroidDestroyed` with the destroyed asteroid, and
+`ShipDestroyed`:
 
 <<< @/../examples/asteroids/messages.ts
 
@@ -157,12 +158,12 @@ Let's put it all together:
 
 Systems are updated in the order they are added, so the constructor reads the same way the update goes:
 
-1. The gun cools down, and the ship is controlled.
+1. Cooldowns are counted down, and the ship is controlled.
 2. Everything that has a velocity moves, and wraps around the edges of the screen with `wrap`. One system, three kinds
    of entities: the ship, asteroids, and bullets share the same components.
 3. Everything that has an angular velocity spins. Only asteroids have one, so only they spin.
 4. Bullets disappear when their lifetime is over.
-5. Asteroids are put into the quad tree, and collisions are checked after everything has moved.
+5. Asteroids are put into the tree, and collisions of bullets and the ship are checked after everything has moved.
 6. A reaction system counts asteroids: it's notified when an asteroid appears and when it's removed. When the last one
    is removed, the next wave begins.
 

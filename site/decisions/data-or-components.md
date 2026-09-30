@@ -27,7 +27,8 @@ engine.reactive([Tower], {
   added: ({current}, {kind, level}) => {
     const {range, interval, projectileSpeed, payload} = TOWERS[kind].levels[level];
     current
-      .add(new Weapon(range, interval, projectileSpeed))
+      .add(new Weapon(range, projectileSpeed))
+      .add(new Cooldown(interval))
       .add(new Payload(payload));
   },
 });

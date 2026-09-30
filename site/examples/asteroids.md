@@ -11,7 +11,7 @@ What it shows:
 - Safe removal: collided entities lose their colliders immediately, and are removed after the update.
 - A reaction system that starts the next wave when the last asteroid is destroyed.
 - Collisions reported by messages: the game splits asteroids and counts the score.
-- Frame rate independence: movement, drag and the cooldown of the gun.
+- Frame rate independence: movement, drag and the cooldown of firing.
 
 - [Sources](https://github.com/mayakwd/tick-knock/tree/develop/examples/asteroids)
 - [Tutorial](/tutorials/asteroids), that builds this game step by step

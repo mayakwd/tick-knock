@@ -2,7 +2,7 @@ export type EnemyKind = 'drone' | 'spinner' | 'turret' | 'warden';
 
 /**
  * Description of an enemy kind. It's a template: the factory turns it into components of the enemy, and systems work
- * with the components. An enemy fires with every pattern it has, so kinds of enemies are combinations of patterns.
+ * with the components. An enemy fires with one pattern, every `fireInterval` seconds.
  */
 export interface EnemyDescription {
   readonly health: number;
@@ -12,33 +12,36 @@ export interface EnemyDescription {
    */
   readonly speed: number;
   readonly reward: number;
+  /**
+   * Time in seconds between shots
+   */
+  readonly fireInterval: number;
   readonly sway?: { amplitude: number; frequency: number };
-  readonly ring?: { interval: number; count: number; speed: number };
-  readonly spiral?: { interval: number; count: number; speed: number; step: number };
-  readonly aimed?: { interval: number; count: number; speed: number; spread: number };
+  readonly ring?: { count: number; speed: number };
+  readonly spiral?: { count: number; speed: number; step: number };
+  readonly aimed?: { count: number; speed: number; spread: number };
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDescription> = {
   drone: {
-    health: 3, radius: 12, speed: 70, reward: 100,
+    health: 3, radius: 12, speed: 70, reward: 100, fireInterval: 1.2,
     sway: {amplitude: 60, frequency: 0.5},
-    aimed: {interval: 1.2, count: 3, speed: 170, spread: 0.5},
+    aimed: {count: 3, speed: 170, spread: 0.5},
   },
   spinner: {
-    health: 12, radius: 16, speed: 35, reward: 300,
+    health: 12, radius: 16, speed: 35, reward: 300, fireInterval: 0.05,
     sway: {amplitude: 30, frequency: 0.2},
-    spiral: {interval: 0.05, count: 4, speed: 110, step: 0.35},
+    spiral: {count: 4, speed: 110, step: 0.35},
   },
   turret: {
-    health: 25, radius: 22, speed: 20, reward: 500,
-    ring: {interval: 0.9, count: 36, speed: 90},
+    health: 25, radius: 22, speed: 20, reward: 500, fireInterval: 0.9,
+    ring: {count: 36, speed: 90},
   },
-  // The warden combines two patterns: a slow spiral and fans aimed at the player
+  // The warden fires wide fans at the player, and sways widely
   warden: {
-    health: 40, radius: 26, speed: 15, reward: 1000,
+    health: 40, radius: 26, speed: 15, reward: 1000, fireInterval: 0.6,
     sway: {amplitude: 80, frequency: 0.1},
-    spiral: {interval: 0.12, count: 3, speed: 100, step: 0.25},
-    aimed: {interval: 1.5, count: 5, speed: 180, spread: 0.7},
+    aimed: {count: 9, speed: 160, spread: 1.2},
   },
 };
 

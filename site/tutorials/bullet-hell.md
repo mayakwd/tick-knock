@@ -30,12 +30,9 @@ Most components are familiar: position, velocity, collider, and health.
 
 <<< @/../examples/bullet-hell/components/Health.ts
 
-The player has lives and a gun. The gun keeps a [cooldown](/tutorials/asteroids#the-gun-and-its-cooldown), as in
-Asteroids:
+The player has lives, and a [cooldown](/tutorials/asteroids#cooldown) of firing, as in Asteroids:
 
 <<< @/../examples/bullet-hell/components/Lives.ts
-
-<<< @/../examples/bullet-hell/components/Gun.ts
 
 An enemy keeps its kind, which is used to draw it:
 
@@ -43,7 +40,7 @@ An enemy keeps its kind, which is used to draw it:
 
 ## Patterns are components
 
-Enemies fire bullets in patterns. Every pattern is a component with its own parameters and its own cooldown:
+Enemies fire bullets in patterns. Every pattern is a component with its own parameters:
 
 <<< @/../examples/bullet-hell/components/RingPattern.ts
 
@@ -51,8 +48,8 @@ Enemies fire bullets in patterns. Every pattern is a component with its own para
 
 <<< @/../examples/bullet-hell/components/AimedPattern.ts
 
-An enemy fires with every pattern it has, and patterns of one enemy fire independently. A boss, that fires a spiral
-and aimed fans at the same time, is an entity with two components. 😈
+An enemy has one of them, and a cooldown, that tells how often it fires. Every pattern has its own system, and
+the system fires only for enemies with its pattern. A new pattern is a new component and a new system. 😈
 
 ## Enemies are data
 
@@ -89,7 +86,7 @@ removed. The presence of the component is the state.
 
 ## Controlling the player
 
-The player control moves the player and fires its gun according to the controls. `clamp` from the shared geometry
+The player control moves the player, and fires according to the controls. `clamp` from the shared geometry
 helpers keeps the player on the screen:
 
 <<< @/../examples/bullet-hell/systems/PlayerControlSystem.ts
@@ -134,11 +131,12 @@ game can show it.
 
 Systems are updated in the order they are added, so the constructor reads the same way the update goes:
 
-1. The gun cools down, the player moves and fires, and new enemies appear.
+1. Cooldowns are counted down, the player moves and fires, and new enemies appear.
 2. Everything that has a velocity moves. Swaying adds only the change of the swing to the horizontal position, so an
    enemy descends and sways at the same time.
-3. Cooldowns of patterns are counted down, and every pattern fires while its cooldown is over, adding the interval
-   after every shot. A spiral fires every 0.05 seconds, so on a slow frame it fires twice.
+3. Every pattern fires while the cooldown of its enemy is over, adding the interval after every shot. A spiral fires
+   every 0.05 seconds, so on a slow frame it fires twice. Cooldowns of enemies and the player are counted down by
+   the same `CooldownSystem` at the start of the update.
 4. The aimed pattern needs the position of the player. The system is a closure, so it simply uses the query of the
    player, that the game has created.
 5. Collisions are checked, and hits are resolved.

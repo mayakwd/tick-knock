@@ -1,7 +1,6 @@
 export * from './AimedPattern';
 export * from './Collider';
 export * from './Enemy';
-export * from './Gun';
 export * from './Health';
 export * from './Hit';
 export * from './Invulnerable';

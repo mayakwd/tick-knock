@@ -1,9 +1,10 @@
 import {Engine, Entity} from 'tick-knock';
 import {Container} from 'pixi.js';
+import {Cooldown} from '../shared/Cooldown';
 import {CooldownSystem} from '../shared/CooldownSystem';
 import {addViews} from '../shared/render/addViews';
 import {View} from '../shared/render/View';
-import {Cell, Creep, Health, Hit, Payload, PathFollower, Poison, Position, Slow, Target, Tower, Weapon} from './components';
+import {Cell, Creep, Health, Hit, Payload, Poison, Position, Slow, Target, Tower, Weapon} from './components';
 import {Economy} from './Economy';
 import {createProjectile, createTower} from './entities';
 import {isBuildable} from './map';
@@ -11,8 +12,7 @@ import {CreepEscaped, CreepKilled, GameOver} from './messages';
 import {CreepViewRef} from './render/CreepViewRef';
 import {drawTower} from './render/graphics';
 import {SpatialIndex} from './SpatialIndex';
-import {PathSystem, ProjectileSystem, SpawnSystem, TargetingSystem, WaveState} from './systems';
-import {TARGET_FIRST, TARGET_STRONGEST} from './tags';
+import {PathSystem, ProjectileSystem, SpawnSystem, TargetFirstSystem, TargetStrongestSystem, WaveState} from './systems';
 import {TowerKind, TowerLevel, TOWERS} from './towers';
 
 export interface TowerDefenseGameOptions {
@@ -59,7 +59,8 @@ export class TowerDefenseGame {
         const {targeting, levels} = TOWERS[kind];
         const {range, interval, projectileSpeed, payload} = levels[level];
         current
-          .add(new Weapon(range, interval, projectileSpeed))
+          .add(new Weapon(range, projectileSpeed))
+          .add(new Cooldown(interval))
           .add(new Payload(payload))
           .add(new View(drawTower(kind, level)))
           .add(targeting);
@@ -72,18 +73,20 @@ export class TowerDefenseGame {
       .addSystem(new PathSystem())
 
       // Towers choose targets: every rule of choosing a target is a tag with its own system
-      .addSystem(new TargetingSystem(TARGET_FIRST, this.creeps, (creep) => creep.get(PathFollower)!.distance))
-      .addSystem(new TargetingSystem(TARGET_STRONGEST, this.creeps, (creep) => creep.get(Health)!.value))
+      .addSystem(new TargetFirstSystem(this.creeps))
+      .addSystem(new TargetStrongestSystem(this.creeps))
 
-      // A tower fires at its target, when the cooldown of its weapon is over
-      .addSystem(new CooldownSystem(Weapon))
-      .iterative([Position, Weapon, Target, Payload], (tower, dt, position, weapon, {entity}, payload) => {
-        const {cooldown} = weapon;
-        if (entity === undefined || cooldown.remaining > 0) return;
+      // A tower fires at its target, when its cooldown is over
+      .addSystem(new CooldownSystem())
+      .iterative(
+        [Position, Weapon, Target, Payload, Cooldown],
+        (tower, dt, position, weapon, target, payload, cooldown) => {
+          if (target.entity === undefined || cooldown.remaining > 0) return;
 
-        cooldown.remaining += cooldown.interval;
-        this.engine.addEntity(createProjectile(position, entity, weapon.projectileSpeed, payload));
-      })
+          cooldown.remaining += cooldown.interval;
+          this.engine.addEntity(createProjectile(position, target.entity, weapon.projectileSpeed, payload));
+        },
+      )
 
       // Projectiles fly to their targets, and hit creeps with their payload
       .addSystem(new ProjectileSystem(this.creeps))
