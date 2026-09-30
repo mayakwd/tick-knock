@@ -131,7 +131,7 @@ export const scenarios: ReadonlyArray<Scenario> = [
     id: ScenarioId.Memory,
     name: 'memory per entity',
     kind: 'memory',
-    description: `heap size per entity with 2 components, for ${Sizes.memoryEntities} entities in a world with 3 queries`,
+    description: `memory per entity with 2 components, for ${Sizes.memoryEntities} entities in a world with 3 queries`,
   },
 ];
 
@@ -139,7 +139,7 @@ export const scenarios: ReadonlyArray<Scenario> = [
  * Benchmark of the scenario, created by a library.
  *
  * Speed scenarios measure the time of {@link run}, {@link reset} is invoked after every run and is not measured.
- * Memory scenarios measure the heap growth caused by a single {@link run}.
+ * Memory scenarios measure the memory growth caused by a single {@link run}.
  */
 export interface Benchmark {
   run(): void | Promise<void>;

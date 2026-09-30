@@ -1,6 +1,9 @@
 import {createApeEcsLibrary} from './ApeEcs';
+import {createBecsyLibrary} from './Becsy';
 import {createBitEcsLibrary} from './BitEcs';
 import {createEcsyLibrary} from './Ecsy';
+import {createGeoticLibrary} from './Geotic';
+import {createKootaLibrary} from './Koota';
 import {Library} from './Library';
 import {createMiniplexLibrary} from './Miniplex';
 import {createSimEcsLibrary} from './SimEcs';
@@ -11,8 +14,11 @@ import {createTickKnockLibrary} from './TickKnock';
  */
 export const otherLibraries = {
   'ape-ecs': createApeEcsLibrary,
+  'becsy': createBecsyLibrary,
   'bitecs': createBitEcsLibrary,
   'ecsy': createEcsyLibrary,
+  'geotic': createGeoticLibrary,
+  'koota': createKootaLibrary,
   'miniplex': createMiniplexLibrary,
   'sim-ecs': createSimEcsLibrary,
 };

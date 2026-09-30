@@ -33,6 +33,9 @@ importers:
 
   bench:
     dependencies:
+      '@lastolivegames/becsy':
+        specifier: 0.15.5
+        version: 0.15.5
       ape-ecs:
         specifier: 1.3.1
         version: 1.3.1
@@ -42,6 +45,12 @@ importers:
       ecsy:
         specifier: 0.4.3
         version: 0.4.3
+      geotic:
+        specifier: 4.3.2
+        version: 4.3.2
+      koota:
+        specifier: 0.6.6
+        version: 0.6.6
       miniplex:
         specifier: 2.0.0
         version: 2.0.0
@@ -337,6 +346,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lastolivegames/becsy@0.15.5':
+    resolution: {integrity: sha512-RZEL52er3eH+zpczz2xPyVIxVId+tx0pfTRxYjvE4Vi14plgHzqX7q+4TTJvJDmaxR9pdVjGwFnrY0Oe23fN7Q==}
+    engines: {node: '>=12'}
 
   '@miniplex/bucket@2.0.0':
     resolution: {integrity: sha512-jdAW0vG0tLel0dD0lyQqkQ4g4G9CscbVtenu35jB48fnVK3zmfFmQKIxXHsUvFs4KAN44UESAgaVOroTetFSRw==}
@@ -699,6 +712,10 @@ packages:
     resolution: {integrity: sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==}
     engines: {node: '>=6'}
 
+  camelcase@6.0.0:
+    resolution: {integrity: sha512-8KMDF1Vz2gzOq54ONPJS65IvTUaB1cHJ2DMM7MbPmLZljDH1qpzzLsWdiN9pHh6qvkRVDTi/07+eNGch/oLU4w==}
+    engines: {node: '>=10'}
+
   camelcase@6.3.0:
     resolution: {integrity: sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==}
     engines: {node: '>=10'}
@@ -859,6 +876,9 @@ packages:
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
+
+  geotic@4.3.2:
+    resolution: {integrity: sha512-kZrQXqY9ulqs15i/0qRbjJ/szPJEQ/AdNAdHqgMAKlxuEBG4FHpxTZW04BGNO9dfx0fry9YzTcdyJADHjhIKmA==}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -1119,6 +1139,17 @@ packages:
   kleur@3.0.3:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
+
+  koota@0.6.6:
+    resolution: {integrity: sha512-Fn8lSooH3u9TIP+eAMugFrOju40Ec70+sB7x1eZBB3H0Lki2hyIbFAodk3NDB/RIRzoMs54O4422BVN6SbtWfw==}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      react: '>=18.0.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
 
   leven@3.1.0:
     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
@@ -1839,6 +1870,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@lastolivegames/becsy@0.15.5': {}
+
   '@miniplex/bucket@2.0.0':
     dependencies:
       eventery: 0.0.4
@@ -2145,6 +2178,8 @@ snapshots:
 
   camelcase@5.3.1: {}
 
+  camelcase@6.0.0: {}
+
   camelcase@6.3.0: {}
 
   caniuse-lite@1.0.30001813: {}
@@ -2280,6 +2315,10 @@ snapshots:
   function-bind@1.1.2: {}
 
   gensync@1.0.0-beta.2: {}
+
+  geotic@4.3.2:
+    dependencies:
+      camelcase: 6.0.0
 
   get-caller-file@2.0.5: {}
 
@@ -2705,6 +2744,8 @@ snapshots:
   jsonc-parser@3.3.1: {}
 
   kleur@3.0.3: {}
+
+  koota@0.6.6: {}
 
   leven@3.1.0: {}
 

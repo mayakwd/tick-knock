@@ -9,8 +9,8 @@ Features:
 - `ReactionSystem.of(View, Position)` creates a base class of the system, which `entityAdded` and `entityRemoved`
   receive components of the entity with inferred types. `entityRemoved` receives components the entity had before
   removing, including the removed one.
-- Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, bitecs, ecsy,
-  miniplex, sim-ecs): `yarn bench [--baseline <version>]`, see `bench` folder.
+- Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
+  geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
 
 Performance (existing API is unchanged):
 

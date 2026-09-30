@@ -47,7 +47,8 @@ export async function measureSpeed(benchmark: Benchmark, time: number): Promise<
 }
 
 /**
- * Measures heap growth caused by a single run of the benchmark.
+ * Measures memory growth caused by a single run of the benchmark: JavaScript heap and memory of array buffers,
+ * which is allocated outside of the heap, but used by libraries that store components in typed arrays.
  * Requires node to be started with `--expose-gc` flag.
  *
  * @param benchmark Benchmark to measure
@@ -58,10 +59,10 @@ export async function measureMemory(benchmark: Benchmark, count: number): Promis
     throw new Error('Memory measurement requires --expose-gc flag');
   }
   global.gc();
-  const before = process.memoryUsage().heapUsed;
+  const before = usedMemory();
   await benchmark.run();
   global.gc();
-  const after = process.memoryUsage().heapUsed;
+  const after = usedMemory();
   return {value: (after - before) / count, deviation: 0, samples: 1};
 }
 
@@ -77,6 +78,11 @@ async function runOnce(benchmark: Benchmark): Promise<number> {
   const time = now() - start;
   if (benchmark.reset !== undefined) await benchmark.reset();
   return time;
+}
+
+function usedMemory(): number {
+  const {heapUsed, arrayBuffers} = process.memoryUsage();
+  return heapUsed + arrayBuffers;
 }
 
 function now(): number {

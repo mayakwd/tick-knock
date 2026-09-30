@@ -9,9 +9,12 @@
     "bench": "tsc && node dist/index.js"
   },
   "dependencies": {
+    "@lastolivegames/becsy": "0.15.5",
     "ape-ecs": "1.3.1",
     "bitecs": "0.4.0",
     "ecsy": "0.4.3",
+    "geotic": "4.3.2",
+    "koota": "0.6.6",
     "miniplex": "2.0.0",
     "sim-ecs": "0.6.4",
     "tslib": "^2.4.0"

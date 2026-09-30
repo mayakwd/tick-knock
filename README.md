@@ -832,7 +832,7 @@ class RegenerationSystem extends IterativeSystem {
 # Performance
 
 The repository contains benchmarks in the [bench](bench) folder. They compare tick-knock with its previous versions
-and with other TypeScript ECS libraries: Ape-ECS, bitecs, ecsy, miniplex and sim-ecs.
+and with other TypeScript ECS libraries: Ape-ECS, becsy, bitecs, ecsy, geotic, koota, miniplex and sim-ecs.
 
 ```shell
 pnpm bench                          # benchmark current sources and other ECS libraries
