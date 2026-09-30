@@ -55,6 +55,7 @@ jobs:
             --threshold-lower-boundary 0.99 \
             --thresholds-reset \
             --adapter json \
+            --file /tmp/bencher.json \
             --image "$IMAGE" \
             --job-timeout 300 \
             --error-on-alert
@@ -70,6 +71,7 @@ jobs:
             --start-point-reset \
             --testbed bare-metal \
             --adapter json \
+            --file /tmp/bencher.json \
             --image "$IMAGE" \
             --job-timeout 300 \
             --github-actions "${{ secrets.GITHUB_TOKEN }}" \
