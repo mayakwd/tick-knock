@@ -66,7 +66,7 @@ export class CircleIndex {
   public find(center: Readonly<Vector>, radius: number): CircleEntry | undefined {
     let found: CircleEntry | undefined;
     this.tree.forEachNear(center, radius + this.maxRadius, (entry) => {
-      if (found === undefined && touches(entry, center, radius)) found = entry;
+      if (found === undefined && this.touches(entry, center, radius)) found = entry;
     });
     return found;
   }
@@ -78,7 +78,7 @@ export class CircleIndex {
   public forEachTouching(center: Readonly<Vector>, radius: number, callback: (entry: CircleEntry) => void): void {
     const found: CircleEntry[] = [];
     this.tree.forEachNear(center, radius + this.maxRadius, (entry) => {
-      if (touches(entry, center, radius)) found.push(entry);
+      if (this.touches(entry, center, radius)) found.push(entry);
     });
     for (const entry of found) callback(entry);
   }
@@ -105,13 +105,13 @@ export class CircleIndex {
       if (radius === maxDistance) return undefined;
     }
   }
+
+  private touches({position, collider}: CircleEntry, center: Readonly<Vector>, radius: number): boolean {
+    return isWithin(position, center, collider.radius + radius);
+  }
 }
 
 /**
  * Radius of the first area the search for the nearest entity looks into
  */
 const FIRST_SEARCH_RADIUS = 64;
-
-function touches({position, collider}: CircleEntry, center: Readonly<Vector>, radius: number): boolean {
-  return isWithin(position, center, collider.radius + radius);
-}

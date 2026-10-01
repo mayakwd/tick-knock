@@ -15,7 +15,7 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell,
   protected updateEntity(creep: Entity, dt: number, position: Position, follower: PathFollower, cell: Cell): void {
     // The creep moves to the next turn of the path. When the turn is reached, the rest of the step is made towards
     // the next one.
-    let step = follower.speed * slowFactor(creep) * dt;
+    let step = follower.speed * this.slowFactor(creep) * dt;
     while (follower.waypoint < PATH.length) {
       const left = moveTowards(position, PATH[follower.waypoint], step);
       follower.distance += step - (left ?? 0);
@@ -32,15 +32,15 @@ export class PathSystem extends IterativeSystem.of(Position, PathFollower, Cell,
     // The creep has reached the exit
     if (follower.waypoint === PATH.length) creep.add(ESCAPED).add(DESTROYED);
   }
-}
 
-/**
- * Returns the multiplier of the speed of the creep. Several slows don't stack: the strongest one is applied.
- */
-function slowFactor(creep: Entity): number {
-  let factor = 1;
-  creep.iterate(Slow, (slow) => {
-    factor = Math.min(factor, slow.factor);
-  });
-  return factor;
+  /**
+   * Returns the multiplier of the speed of the creep. Several slows don't stack: the strongest one is applied.
+   */
+  private slowFactor(creep: Entity): number {
+    let factor = 1;
+    creep.iterate(Slow, (slow) => {
+      factor = Math.min(factor, slow.factor);
+    });
+    return factor;
+  }
 }

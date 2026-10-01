@@ -15,6 +15,7 @@ export * from './RewardSystem';
 export * from './SlowSystem';
 export * from './SpawnSystem';
 export * from './TargetFirstSystem';
+export * from './TargetingSystem';
 export * from './TargetStrongestSystem';
 export * from './TowerIndexSystem';
 export * from './TowerLevelSystem';

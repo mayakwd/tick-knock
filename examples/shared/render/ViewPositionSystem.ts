@@ -8,14 +8,14 @@ import {View} from './View';
  */
 export class ViewPositionSystem extends IterativeSystem.of(View, Position) {
   protected entityAdded = (snapshot: EntitySnapshot, view: View, position: Position): void => {
-    place(view, position);
+    this.place(view, position);
   };
 
   protected updateEntity(entity: Entity, dt: number, view: View, position: Position): void {
-    place(view, position);
+    this.place(view, position);
   }
-}
 
-function place({display}: View, {x, y}: Position): void {
-  display.position.set(x, y);
+  private place({display}: View, {x, y}: Position): void {
+    display.position.set(x, y);
+  }
 }

@@ -21,29 +21,31 @@ export class HitSystem extends IterativeSystem.of(Hit, Position, CREEP, without(
     creep.iterate(Hit, ({payload}) => {
       switch (payload.impact.kind) {
         case 'single':
-          return apply(creep, payload);
+          return this.apply(creep, payload);
         case 'splash':
-          return this.creeps.forEachInRange(position, payload.impact.radius, ({entity}) => apply(entity, payload));
+          return this.creeps.forEachInRange(position, payload.impact.radius, ({entity}) => {
+            this.apply(entity, payload);
+          });
       }
     });
     creep.remove(Hit);
   }
-}
 
-/**
- * Gives the creep the damage and the effects of the payload. They are linked components: a creep can have several of
- * them at the same time.
- */
-function apply(creep: Entity, {damage, effects}: Payload): void {
-  creep.append(new Damage(damage));
-  for (const effect of effects) {
-    switch (effect.kind) {
-      case 'slow':
-        creep.append(new Slow(effect));
-        break;
-      case 'poison':
-        creep.append(new Poison(effect));
-        break;
+  /**
+   * Gives the creep the damage and the effects of the payload. They are linked components: a creep can have several
+   * of them at the same time.
+   */
+  private apply(creep: Entity, {damage, effects}: Payload): void {
+    creep.append(new Damage(damage));
+    for (const effect of effects) {
+      switch (effect.kind) {
+        case 'slow':
+          creep.append(new Slow(effect));
+          break;
+        case 'poison':
+          creep.append(new Poison(effect));
+          break;
+      }
     }
   }
 }

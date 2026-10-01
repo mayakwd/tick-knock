@@ -154,12 +154,16 @@ destroyed creeps with `without(DESTROYED)`, so a destroyed creep leaves the inde
 Towers are indexed the same way, so the tower in a cell is found with a lookup.
 
 The rule of choosing a target is a tag: `TARGET_FIRST` or `TARGET_STRONGEST`. Every rule has its own targeting system,
-and both of them choose the creep with the best score in range: the distance passed or the health. A new rule is a new
-tag and a new system.
+and both of them do the same: keep the target while it can be fired at, and otherwise choose the creep with the best
+score in range. So the common part is an abstract system, and a rule only tells its tag and how a creep is scored:
 
-<<< @/../examples/tower-defense/systems/chooseTarget.ts
+<<< @/../examples/tower-defense/systems/TargetingSystem.ts
 
 <<< @/../examples/tower-defense/systems/TargetFirstSystem.ts
+
+<<< @/../examples/tower-defense/systems/TargetStrongestSystem.ts
+
+A new rule is a new tag and a new subclass with its score.
 
 Distances are checked with `isWithin` from the shared geometry helpers: it compares squares of distances, and reads as
 what it means.
