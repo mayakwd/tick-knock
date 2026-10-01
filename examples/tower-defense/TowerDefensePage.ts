@@ -33,7 +33,7 @@ export class TowerDefensePage extends GamePage<TowerDefenseGame, TowerDefenseCon
     return new TowerDefenseGame({layer: world, controls: this.controls, random: Math.random});
   }
 
-  public status({state: {gold, lives, wave}, construction}: TowerDefenseGame): string {
+  public status({state: {gold, lives}, wave, construction}: TowerDefenseGame): string {
     return `Gold: ${gold}   Lives: ${lives}   Wave: ${wave}   ${this.placement.describe(construction)}`;
   }
 

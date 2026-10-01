@@ -15,3 +15,8 @@ export const TARGET_FIRST = 'target-first';
 export const TARGET_STRONGEST = 'target-strongest';
 
 export type Targeting = typeof TARGET_FIRST | typeof TARGET_STRONGEST;
+
+/**
+ * The entity, that spawns creeps of waves. There is one in the game.
+ */
+export const SPAWNER = 'spawner';

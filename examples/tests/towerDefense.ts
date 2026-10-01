@@ -7,7 +7,7 @@ import {seededRandom} from '../shared/random';
 import {View} from '../shared/render/View';
 import {Payload, Projectile, Target, Tower, Weapon} from '../tower-defense/components';
 import {TOWERS} from '../tower-defense/data/towers';
-import {CREEP} from '../tower-defense/tags';
+import {CREEP, SPAWNER} from '../tower-defense/tags';
 import {BuildOrder, TowerDefenseControls, UpgradeOrder} from '../tower-defense/TowerDefenseControls';
 import {TowerDefenseGame} from '../tower-defense/TowerDefenseGame';
 import {play} from './play';
@@ -40,11 +40,12 @@ export function testTowerDefense(): void {
     assert.equal(entity.get(Payload)?.damage, payload.damage, 'payloads match levels of towers');
   }
 
-  const {wave, lives, gold} = game.state;
+  const {lives, gold} = game.state;
+  const {wave} = game;
   assert.ok(wave >= 5, `waves are defended, wave ${wave}`);
   assert.ok(lives > 0 && !game.isOver, 'the autopilot survives first waves');
   for (const entity of game.engine.entities) {
-    assert.ok(entity.hasAny(Tower, CREEP, Projectile), 'there are no unknown entities');
+    assert.ok(entity.hasAny(Tower, CREEP, Projectile, SPAWNER), 'there are no unknown entities');
   }
   console.log(`tower defense: wave ${wave}, ${towers.length} towers, ${lives} lives, ${gold} gold`);
 }

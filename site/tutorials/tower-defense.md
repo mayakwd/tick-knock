@@ -100,11 +100,23 @@ to choose their target:
 <<< @/../examples/tower-defense/components/PathFollower.ts
 
 Waves are data too: the size of a wave and creeps of a wave are functions of its number. The balance is tuned in one
-place, and the spawn system only counts time:
+place:
 
 <<< @/../examples/tower-defense/data/waves.ts
 
+Who releases creeps? A spawner! It's an entity like any other: it has a `Cooldown`, the time until the next creep, and
+the progress of the current wave:
+
+<<< @/../examples/tower-defense/components/WaveStats.ts
+
+<<< @/../examples/tower-defense/entities/createSpawner.ts
+
+The spawn system releases creeps while the wave has them, and the next wave system starts the next wave after a pause,
+when all creeps are gone. Neither of them keeps any state: everything they need is in components of the spawner.
+
 <<< @/../examples/tower-defense/systems/SpawnSystem.ts
+
+<<< @/../examples/tower-defense/systems/NextWaveSystem.ts
 
 The path system moves creeps with `moveTowards` from the shared geometry helpers. It returns the part of the step left
 after a turn has been reached, so a fast creep turns the corner in the same update. When a creep crosses into another

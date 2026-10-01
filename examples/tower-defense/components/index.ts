@@ -8,3 +8,4 @@ export * from './Slow';
 export * from './Target';
 export * from './Tower';
 export * from './Weapon';
+export * from './WaveStats';

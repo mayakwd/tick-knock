@@ -52,10 +52,16 @@ public get isOver(): boolean {
 }
 ```
 
-## State of a system stays in the system
+## State of a process is an entity
 
-The spawn system in the [Bullet hell](/tutorials/bullet-hell) keeps the time of the current wave and the list of
-enemies to spawn. Nobody else needs them, so they are fields of the system.
+Waves of the [Tower defense](/tutorials/tower-defense) have a timer and progress: the time until the next creep, and
+creeps left to release. Is it the state of the spawn system? It's tempting to keep it in fields of the system, but then
+the system isn't a pure function of components anymore, and nobody else can see the progress.
+
+Make the process an entity instead. The spawner is an entity with the `SPAWNER` tag, a `Cooldown` and `WaveStats`.
+The spawn system releases creeps when the cooldown is over, the next wave system starts the next wave, and the game
+reads the number of the wave from the same component to show it. Systems keep no state, and the shared
+`CooldownSystem` counts down the spawner together with the towers.
 
 ## Static data is just data
 

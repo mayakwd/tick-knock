@@ -1,3 +1,4 @@
+import {Query, QueryBuilder} from 'tick-knock';
 import {Game, GameOptions} from '../shared/ecs/Game';
 import {GridIndex} from '../shared/indexes/GridIndex';
 import {ViewPositionSystem} from '../shared/render/ViewPositionSystem';
@@ -5,7 +6,9 @@ import {ViewSystem} from '../shared/render/ViewSystem';
 import {CooldownSystem} from '../shared/systems/CooldownSystem';
 import {DestroySystem} from '../shared/systems/DestroySystem';
 import {CELL, COLUMNS, ROWS} from './config';
+import {WaveStats} from './components';
 import {Construction} from './Construction';
+import {createSpawner} from './entities';
 import {CreepIndex} from './indexes/CreepIndex';
 import {TowerEntry} from './indexes/TowerEntry';
 import {HealthBarSystem} from './render/HealthBarSystem';
@@ -18,6 +21,7 @@ import {
   EscapeSystem,
   FireSystem,
   GameOverSystem,
+  NextWaveSystem,
   PathSystem,
   PoisonSystem,
   ProjectileSystem,
@@ -29,6 +33,7 @@ import {
   TowerIndexSystem,
   TowerLevelSystem,
 } from './systems';
+import {SPAWNER} from './tags';
 import {TowerDefenseControls} from './TowerDefenseControls';
 import {TowerDefenseState} from './TowerDefenseState';
 
@@ -42,6 +47,7 @@ export class TowerDefenseGame extends Game<TowerDefenseState> {
    * Rules of building, also read by the page for the preview
    */
   public readonly construction: Construction;
+  private readonly spawners: Query<[WaveStats]> = new QueryBuilder().with(WaveStats, SPAWNER).build();
 
   public constructor({layer, controls}: GameOptions<TowerDefenseControls>) {
     super(new TowerDefenseState());
@@ -50,6 +56,9 @@ export class TowerDefenseGame extends Game<TowerDefenseState> {
     this.construction = new Construction(this.state, towers);
 
     this.engine
+      // Cooldowns of the spawner and towers are counted down before anybody acts
+      .addSystem(new CooldownSystem())
+
       // Indexes follow cells: an entity crossing into another cell gets a new Cell
       .addSystem(new CreepIndexSystem(creeps))
       .addSystem(new TowerIndexSystem(towers))
@@ -59,15 +68,16 @@ export class TowerDefenseGame extends Game<TowerDefenseState> {
       .addSystem(new ConstructionSystem(controls, this.state, this.construction))
       .addSystem(new TowerLevelSystem())
 
-      // Creeps of the wave appear, walk the path, and take a life when they escape
-      .addSystem(new SpawnSystem(this.state))
+      // The next wave starts when the previous one is over, creeps of the wave appear, walk the path, and take a life
+      // when they escape
+      .addSystem(new NextWaveSystem())
+      .addSystem(new SpawnSystem())
       .addSystem(new PathSystem())
       .addSystem(new EscapeSystem(this.state))
 
       // Towers choose targets and fire when their cooldowns are over, projectiles deliver payloads
       .addSystem(new TargetFirstSystem(creeps))
       .addSystem(new TargetStrongestSystem(creeps))
-      .addSystem(new CooldownSystem())
       .addSystem(new FireSystem())
       .addSystem(new ProjectileSystem(creeps))
 
@@ -86,5 +96,15 @@ export class TowerDefenseGame extends Game<TowerDefenseState> {
       .addSystem(new ViewSystem(layer))
       .addSystem(new ViewPositionSystem())
       .addSystem(new HealthBarSystem());
+
+    this.engine.addQuery(this.spawners);
+    this.engine.addEntity(createSpawner());
+  }
+
+  /**
+   * Number of the current wave, it's kept by the spawner
+   */
+  public get wave(): number {
+    return this.spawners.first?.get(WaveStats)?.number ?? 0;
   }
 }
