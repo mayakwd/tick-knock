@@ -17,7 +17,9 @@ Features:
   the query when it gets an excluded component or tag, and joins it again when it's removed.
 - Benchmarks comparing tick-knock with its published versions and other ECS libraries (Ape-ECS, becsy, bitecs, ecsy,
   geotic, koota, miniplex, sim-ecs): `pnpm bench [--baseline <version>]`, see `bench` folder.
-- Examples: Snake in the terminal and Asteroids in the browser, see `examples` folder.
+- Examples: Snake, Asteroids, a bullet hell and a tower defense rendered with pixi.js, see `examples` folder.
+- Documentation site with the guide, tutorials that build every example step by step, decision guides, playable
+  examples, API reference and benchmark results, published to GitHub Pages.
 - Functional systems: `engine.iterative([Position, Velocity], (entity, dt, position, velocity) => ...)` and
   `engine.reactive([View], {added, removed})` create systems from functions with inferred types of components.
 - Systems can be added with options `{priority, id}`. `Engine.getSystemById` finds a system, `Engine.getSystemId`

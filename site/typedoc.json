@@ -1,0 +1,23 @@
+{
+  "$schema": "https://typedoc-plugin-markdown.org/schema.json",
+  "entryPoints": [
+    "../src/index.ts"
+  ],
+  "tsconfig": "../tsconfig.json",
+  "out": "api",
+  "plugin": [
+    "typedoc-plugin-markdown",
+    "typedoc-vitepress-theme"
+  ],
+  "docsRoot": ".",
+  "readme": "none",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "hideGenerator": true,
+  "gitRevision": "develop",
+  "sourceLinkTemplate": "https://github.com/mayakwd/tick-knock/blob/develop/{path}#L{line}",
+  "intentionallyNotExported": [
+    "Subscription"
+  ],
+  "name": "API reference"
+}

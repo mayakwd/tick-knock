@@ -6,17 +6,21 @@
  *   pnpm snake --demo   - watch the autopilot play
  */
 import * as readline from 'node:readline';
-import {createAutopilot} from './autopilot';
-import {createSnakeGame, Direction, renderSnakeGame} from './game';
+import {Direction} from './Controls';
+import {Container} from 'pixi.js';
+import {SnakeGame} from './game';
+import {SnakeAutopilot} from './input/autopilot';
+import {renderSnakeGame} from './render/text';
 
 const KEYS: Record<string, Direction> = {
   up: 'up', down: 'down', left: 'left', right: 'right',
   w: 'up', s: 'down', a: 'left', d: 'right',
 };
 
-const game = createSnakeGame({width: 30, height: 15});
+// Views are created, but never displayed: the terminal shows the grid as text
+const game = new SnakeGame({width: 30, height: 15, layer: new Container()});
 const demo = process.argv.includes('--demo') || !process.stdin.isTTY;
-const autopilot = demo ? createAutopilot(game) : undefined;
+const autopilot = demo ? new SnakeAutopilot(game) : undefined;
 
 function draw(): void {
   const status = game.isOver ? `Game over! Score: ${game.score}. Press Q to quit.` : `Score: ${game.score}`;
@@ -39,12 +43,12 @@ if (process.stdin.isTTY) {
       return;
     }
     const direction = key.name !== undefined ? KEYS[key.name] : undefined;
-    if (direction !== undefined && autopilot === undefined) game.controls.direction = direction;
+    if (direction !== undefined && autopilot === undefined) game.controls.turn(direction);
   });
 }
 
 const timer = setInterval(() => {
-  autopilot?.();
+  autopilot?.update();
   game.tick();
   draw();
   // Without a terminal there is nobody to press Q, so the demo stops when the game is over

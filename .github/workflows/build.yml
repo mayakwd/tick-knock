@@ -43,3 +43,7 @@ jobs:
         run: |
           pnpm --filter tick-knock-examples typecheck
           pnpm --filter tick-knock-examples test
+
+      - name: Build site
+        if: matrix.node-version == 22
+        run: pnpm --filter tick-knock-site build
