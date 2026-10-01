@@ -9,7 +9,7 @@ import {testBulletHell} from './bulletHell';
 import {testCircleIndex} from './circleIndex';
 import {testQuadTree} from './quadTree';
 import {testSnake} from './snake';
-import {testTowerDefense, testTowerDefenseGameOver, testTowerUpgrades} from './towerDefense';
+import {testTowerDefense, testTowerDefenseGameOver, testTowerDefenseHits, testTowerUpgrades} from './towerDefense';
 
 testQuadTree();
 testCircleIndex();
@@ -19,4 +19,5 @@ testBulletHell();
 testTowerDefense();
 testTowerUpgrades();
 testTowerDefenseGameOver();
+testTowerDefenseHits();
 console.log('Examples work');

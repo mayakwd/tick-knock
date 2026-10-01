@@ -175,10 +175,24 @@ A tower fires at its target every time its cooldown is over, and the projectile 
 <<< @/../examples/tower-defense/components/Projectile.ts
 
 The projectile is independent of the tower: if the tower is upgraded while the projectile is flying, the projectile
-hits with the payload of the shot. On hit, the projectile system gives the target, or all creeps around it, a component
-for every effect of the payload. Creeps around the target are found with the same spatial index.
+hits with the payload of the shot. And what does the projectile do on arrival? Only one thing: it hits the target with
+its payload, and disappears:
 
 <<< @/../examples/tower-defense/systems/ProjectileSystem.ts
+
+## Hits
+
+Why doesn't the projectile deal the damage itself? Imagine a magic tower, that casts a spell right on a creep, without
+any projectile. If projectiles applied payloads, the spell would need its own copy of that logic. So a hit is a
+component, that carries the whole payload:
+
+<<< @/../examples/tower-defense/components/Hit.ts
+
+Anything can hit a creep: a projectile, a spell, a trap. The hit system doesn't care, it applies the payload. A hit
+without splash affects only the hit creep, an explosion affects every creep around it, found with the same spatial
+index. Every affected creep gets the damage and the effects of the payload as components:
+
+<<< @/../examples/tower-defense/systems/HitSystem.ts
 
 ## References between entities
 
@@ -196,10 +210,10 @@ killed once again.
 
 ## Effects are linked components
 
-A creep can be poisoned by three poison towers and slowed by two frost towers at the same time, and hit by several
-projectiles in one update. Every effect is its own component:
+A creep can be poisoned by three poison towers and slowed by two frost towers at the same time, and damaged by several
+hits in one update. Every effect is its own component:
 
-<<< @/../examples/tower-defense/components/Hit.ts
+<<< @/../examples/tower-defense/components/Damage.ts
 
 <<< @/../examples/tower-defense/components/Slow.ts
 
@@ -207,7 +221,7 @@ projectiles in one update. Every effect is its own component:
 
 What will happen, if `Poison` is a usual component? The second poison will replace the first one. That's what
 [linked components](/guide/linked-components) are for: an entity can have several components of the same class.
-`Slow` and `Poison` are created from effects of the payload, and every effect has its own system:
+`Damage`, `Slow` and `Poison` are created from the payload by the hit system, and every effect has its own system:
 
 <<< @/../examples/tower-defense/systems/DamageSystem.ts
 
@@ -215,7 +229,7 @@ What will happen, if `Poison` is a usual component? The second poison will repla
 
 <<< @/../examples/tower-defense/systems/PoisonSystem.ts
 
-Linked components are added with `append`, as the projectile system does on hit. They are processed with `iterate`,
+Linked components are added with `append`, as the hit system does. They are processed with `iterate`,
 which visits every linked component of the class. Expired ones are removed with `pick`, which removes one particular
 component and keeps the others.
 
@@ -228,7 +242,8 @@ are updated:
 
 A few things to notice:
 
-- Every effect has its own small system. Hits are dealt once and removed. Poisons stack: every poison deals its damage.
+- A projectile only delivers a hit, the hit system applies it, and every effect has its own small system. Damage is
+  dealt once and removed. Poisons stack: every poison deals its damage.
   Slows don't: the path system applies the strongest one. Every effect is a class, and every system processes its
   class.
 - The death system runs after all damage of the update has been dealt. A killed creep gets the `KILLED` and

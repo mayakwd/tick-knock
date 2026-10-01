@@ -1,3 +1,4 @@
+export * from './Damage';
 export * from './Health';
 export * from './Hit';
 export * from './PathFollower';

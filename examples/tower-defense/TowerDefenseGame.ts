@@ -21,6 +21,7 @@ import {
   EscapeSystem,
   FireSystem,
   GameOverSystem,
+  HitSystem,
   NextWaveSystem,
   PathSystem,
   PoisonSystem,
@@ -75,13 +76,15 @@ export class TowerDefenseGame extends Game<TowerDefenseState> {
       .addSystem(new PathSystem())
       .addSystem(new EscapeSystem(this.state))
 
-      // Towers choose targets and fire when their cooldowns are over, projectiles deliver payloads
+      // Towers choose targets and fire when their cooldowns are over, projectiles fly to their targets and hit them
       .addSystem(new TargetFirstSystem(creeps))
       .addSystem(new TargetStrongestSystem(creeps))
       .addSystem(new FireSystem())
-      .addSystem(new ProjectileSystem(creeps))
+      .addSystem(new ProjectileSystem())
 
-      // Effects are dealt, creeps without health die, and killed creeps give gold
+      // Hits are applied to creeps, damage and effects are dealt, creeps without health die, and killed creeps give
+      // gold
+      .addSystem(new HitSystem(creeps))
       .addSystem(new DamageSystem())
       .addSystem(new SlowSystem())
       .addSystem(new PoisonSystem())

@@ -1,11 +1,12 @@
 import * as assert from 'node:assert/strict';
+import {Entity} from 'tick-knock';
 import {Container} from 'pixi.js';
 import {Cell} from '../shared/components/Cell';
 import {Position} from '../shared/components/Position';
 import {GameOver} from '../shared/ecs/GameOver';
 import {seededRandom} from '../shared/random';
 import {View} from '../shared/render/View';
-import {Payload, Projectile, Target, Tower, Weapon} from '../tower-defense/components';
+import {Health, Hit, Payload, Projectile, Slow, Target, Tower, Weapon} from '../tower-defense/components';
 import {TOWERS} from '../tower-defense/data/towers';
 import {CREEP, SPAWNER} from '../tower-defense/tags';
 import {BuildOrder, TowerDefenseControls, UpgradeOrder} from '../tower-defense/TowerDefenseControls';
@@ -127,4 +128,38 @@ export function testTowerDefenseGameOver(): void {
   assert.deepEqual({x: position.x, y: position.y}, {x, y}, 'the world freezes after the game is over');
   assert.equal(messages.length, 1, 'GameOver is not dispatched again');
   console.log(`tower defense: lost after ${time.toFixed(1)} s without towers`);
+}
+
+/**
+ * Anything can hit a creep, not only a projectile: a spell adds a `Hit` right to the creep, and the hit system
+ * applies its payload, to creeps around too if it explodes
+ */
+export function testTowerDefenseHits(): void {
+  const controls = new TowerDefenseControls();
+  controls.pilot = 'player';
+  const game = new TowerDefenseGame({layer: new Container(), controls, random: seededRandom(4)});
+
+  // The first creeps come after the pause
+  const creeps = (): Entity[] => game.engine.entities.filter((entity) => entity.has(CREEP));
+  play(game, 30, () => {}, 1 / 60);
+  const [first, second] = creeps();
+  assert.ok(first !== undefined && second !== undefined, 'creeps are on the path');
+  const healthOf = (creep: Entity): number => creep.get(Health)?.value ?? 0;
+
+  // A spell hits only the creep it's cast on
+  const healthBefore = [healthOf(first), healthOf(second)];
+  first.append(new Hit(new Payload(1, {kind: 'single'}, [])));
+  game.update(1 / 60);
+  assert.equal(healthOf(first), healthBefore[0] - 1, 'the hit creep is damaged');
+  assert.equal(healthOf(second), healthBefore[1], 'other creeps are not');
+  assert.equal(first.has(Hit), false, 'the hit is applied once');
+
+  // An explosion hits every creep around, and leaves its effects on them
+  const explosion = new Payload(1, {kind: 'splash', radius: 1000}, [{kind: 'slow', factor: 0.5, seconds: 1}]);
+  first.append(new Hit(explosion));
+  game.update(1 / 60);
+  for (const creep of creeps()) {
+    assert.ok(creep.has(Slow), 'every creep around the explosion is slowed');
+  }
+  console.log('tower defense: hits are applied by the hit system');
 }

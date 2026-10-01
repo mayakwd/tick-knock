@@ -6,6 +6,7 @@ export * from './DeathSystem';
 export * from './EscapeSystem';
 export * from './FireSystem';
 export * from './GameOverSystem';
+export * from './HitSystem';
 export * from './NextWaveSystem';
 export * from './PathSystem';
 export * from './PoisonSystem';
